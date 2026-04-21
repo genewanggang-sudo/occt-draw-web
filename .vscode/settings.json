@@ -1,0 +1,20 @@
+{
+    "files.exclude": {
+        ".editorconfig": true,
+        ".gitattributes": true,
+        ".npmrc": true,
+        "**/.cache": true,
+        "**/dist": true,
+        "**/node_modules": true,
+        "**/*.tsbuildinfo": true
+    },
+    "search.exclude": {
+        ".editorconfig": true,
+        ".gitattributes": true,
+        ".npmrc": true,
+        "**/.cache": true,
+        "**/dist": true,
+        "**/node_modules": true,
+        "**/*.tsbuildinfo": true
+    }
+}
