@@ -14,6 +14,7 @@ workspace. The engineering baseline should optimize for:
 ## Tooling Baseline
 
 - package manager: `pnpm`
+- Node.js runtime baseline: `24.15.0 LTS`
 - language baseline: TypeScript with `strict` enabled
 - formatting: Prettier
 - linting: ESLint flat config
