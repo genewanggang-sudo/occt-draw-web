@@ -36,6 +36,8 @@ workspace. The engineering baseline should optimize for:
 - Prefer strict compiler flags over defensive runtime guesswork where practical.
 - Keep framework-free packages free of React and browser UI concerns.
 - Avoid default exports in workspace packages unless there is a very strong reason.
+- Do not use `export *`; package entrypoints must explicitly export each public
+  symbol.
 
 ### Imports
 
@@ -49,6 +51,8 @@ workspace. The engineering baseline should optimize for:
   paths such as `../../packages/foo/src/...`; this is treated as a lint error.
 - Deep imports like `@occt-draw/core/some/internal/file` are forbidden; only the
   package entrypoint such as `@occt-draw/core` is allowed.
+- Public package APIs must be declared explicitly in `src/index.ts`; wildcard
+  re-export patterns are forbidden.
 
 ### Naming
 

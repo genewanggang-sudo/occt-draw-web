@@ -67,6 +67,12 @@ export default tseslint.config(
                     varsIgnorePattern: '^_',
                 },
             ],
+            'no-restricted-exports': [
+                'error',
+                {
+                    restrictedNamedExports: ['default'],
+                },
+            ],
             'no-restricted-imports': [
                 'error',
                 {
@@ -96,6 +102,14 @@ export default tseslint.config(
                                 'Do not import source files from another package directly. Only import through that package public entrypoint.',
                         },
                     ],
+                },
+            ],
+            'no-restricted-syntax': [
+                'error',
+                {
+                    selector: 'ExportAllDeclaration',
+                    message:
+                        'Do not use `export *`. Package public APIs must explicitly export each symbol.',
                 },
             ],
             curly: ['error', 'all'],
