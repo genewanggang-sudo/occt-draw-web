@@ -3,15 +3,18 @@
     "private": true,
     "version": "0.1.0",
     "dependencies": {
+        "@occt-draw/core": "workspace:*",
+        "@occt-draw/renderer": "workspace:*",
         "@occt-draw/shared": "workspace:*",
+        "@occt-draw/ui": "workspace:*",
         "react": "^19.2.0",
         "react-dom": "^19.2.0"
     },
     "scripts": {
-        "build": "pnpm exec tsc -p tsconfig.build.json --pretty false && pnpm exec vite build",
+        "build": "tsc -p tsconfig.build.json --pretty false && vite build",
         "clean": "rimraf dist tsconfig.build.tsbuildinfo tsconfig.tsbuildinfo",
-        "dev": "pnpm exec vite",
-        "lint": "pnpm exec eslint src --ext .ts,.tsx",
-        "typecheck": "pnpm exec tsc -p tsconfig.json --pretty false"
+        "dev": "vite",
+        "lint": "eslint src --ext .ts,.tsx",
+        "typecheck": "tsc -p tsconfig.json --pretty false"
     }
 }

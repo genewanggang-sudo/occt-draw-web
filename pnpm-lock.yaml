@@ -62,9 +62,18 @@ importers:
 
   apps/web:
     dependencies:
+      '@occt-draw/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@occt-draw/renderer':
+        specifier: workspace:*
+        version: link:../../packages/renderer
       '@occt-draw/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@occt-draw/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       react:
         specifier: ^19.2.0
         version: 19.2.5
@@ -78,9 +87,22 @@ importers:
 
   packages/protocol: {}
 
-  packages/renderer: {}
+  packages/renderer:
+    dependencies:
+      '@occt-draw/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/shared: {}
+
+  packages/ui:
+    dependencies:
+      react:
+        specifier: ^19.2.0
+        version: 19.2.5
+      react-dom:
+        specifier: ^19.2.0
+        version: 19.2.5(react@19.2.5)
 
   packages/wasm-bridge: {}
 

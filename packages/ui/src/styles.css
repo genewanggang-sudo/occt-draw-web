@@ -1,0 +1,182 @@
+:root {
+    --occt-ui-font-family: 'Aptos', 'Bahnschrift', 'Segoe UI Variable Text', sans-serif;
+    --occt-ui-color-ink-strong: #172338;
+    --occt-ui-color-ink: #20324c;
+    --occt-ui-color-ink-muted: rgba(35, 52, 74, 0.68);
+    --occt-ui-color-ink-soft: rgba(31, 44, 63, 0.74);
+    --occt-ui-color-line: rgba(95, 93, 78, 0.15);
+    --occt-ui-color-line-strong: rgba(26, 53, 87, 0.24);
+    --occt-ui-color-surface: linear-gradient(
+        180deg,
+        rgba(255, 253, 248, 0.88) 0%,
+        rgba(249, 243, 234, 0.82) 100%
+    );
+    --occt-ui-color-surface-raised: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.84) 0%,
+        rgba(244, 238, 228, 0.8) 100%
+    );
+    --occt-ui-color-accent: #203d63;
+    --occt-ui-color-accent-contrast: #f7f4ef;
+    --occt-ui-color-gold-soft: #f4e2c3;
+    --occt-ui-shadow-panel:
+        0 18px 45px rgba(54, 46, 34, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    --occt-ui-shadow-button: 0 10px 24px rgba(48, 57, 72, 0.12);
+    --occt-ui-shadow-button-active: 0 14px 28px rgba(20, 37, 64, 0.28);
+    --occt-ui-radius-panel: 24px;
+    --occt-ui-radius-soft: 18px;
+    --occt-ui-radius-pill: 999px;
+}
+
+.occt-ui-panel {
+    border: 1px solid var(--occt-ui-color-line);
+    border-radius: var(--occt-ui-radius-panel);
+    padding: 18px;
+    background: var(--occt-ui-color-surface);
+    box-shadow: var(--occt-ui-shadow-panel);
+}
+
+.occt-ui-section-title {
+    margin: 0 0 12px;
+    color: var(--occt-ui-color-ink-strong);
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.occt-ui-chip {
+    padding: 12px 14px;
+    border-radius: var(--occt-ui-radius-soft);
+    background: rgba(255, 255, 255, 0.58);
+    border: 1px solid rgba(78, 88, 96, 0.12);
+}
+
+.occt-ui-chip__label {
+    display: block;
+    margin-bottom: 4px;
+    color: rgba(40, 56, 77, 0.66);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.occt-ui-chip__value {
+    display: block;
+    color: var(--occt-ui-color-ink-strong);
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.occt-ui-data-field {
+    display: grid;
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+}
+
+.occt-ui-data-field__label {
+    color: var(--occt-ui-color-ink-muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.occt-ui-data-field__value {
+    color: var(--occt-ui-color-ink-strong);
+    font-size: 14px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.occt-ui-button {
+    padding: 14px 12px;
+    border: 1px solid rgba(26, 41, 64, 0.1);
+    border-radius: var(--occt-ui-radius-soft);
+    background: var(--occt-ui-color-surface-raised);
+    color: var(--occt-ui-color-ink);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+        transform 140ms ease,
+        box-shadow 140ms ease,
+        border-color 140ms ease,
+        background 140ms ease;
+}
+
+.occt-ui-button:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--occt-ui-shadow-button);
+}
+
+.occt-ui-button--active {
+    border-color: var(--occt-ui-color-line-strong);
+    background: linear-gradient(135deg, rgba(33, 64, 104, 0.96) 0%, rgba(18, 40, 69, 0.96) 100%);
+    color: var(--occt-ui-color-accent-contrast);
+    box-shadow: var(--occt-ui-shadow-button-active);
+}
+
+.occt-ui-note {
+    margin: 12px 0 0;
+    color: var(--occt-ui-color-ink-soft);
+    font-size: 14px;
+    line-height: 1.65;
+}
+
+.occt-ui-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    padding: 9px 13px;
+    border-radius: var(--occt-ui-radius-pill);
+    border: 1px solid rgba(244, 210, 154, 0.18);
+    background: rgba(247, 239, 224, 0.08);
+    color: var(--occt-ui-color-gold-soft);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.occt-ui-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    padding: 7px 12px;
+    border-radius: var(--occt-ui-radius-pill);
+    background: rgba(25, 46, 72, 0.08);
+    color: #30465f;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.occt-ui-status-card {
+    padding: 12px 14px;
+    border-radius: var(--occt-ui-radius-soft);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.occt-ui-status-card__label {
+    display: block;
+    margin-bottom: 4px;
+    color: rgba(198, 214, 231, 0.62);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.occt-ui-status-card__value {
+    display: block;
+    color: #f8f1e6;
+    font-size: 14px;
+    font-weight: 700;
+}

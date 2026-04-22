@@ -7,9 +7,9 @@
         ".": "./src/index.ts"
     },
     "scripts": {
-        "build": "pnpm exec tsc -p tsconfig.build.json --pretty false",
+        "build": "tsc -p tsconfig.build.json --pretty false",
         "clean": "rimraf dist tsconfig.build.tsbuildinfo tsconfig.tsbuildinfo",
-        "lint": "pnpm exec eslint src --ext .ts",
-        "typecheck": "pnpm exec tsc -p tsconfig.json --pretty false"
+        "lint": "eslint src --ext .ts",
+        "typecheck": "tsc -p tsconfig.json --pretty false"
     }
 }

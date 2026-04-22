@@ -123,6 +123,37 @@ export default tseslint.config(
         },
     },
     {
+        files: ['apps/**/src/main.tsx'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: [
+                                '../../packages/*',
+                                '../../../packages/*',
+                                '../../../../packages/*',
+                            ],
+                            message:
+                                'Do not import another workspace package through relative filesystem paths. Use its package name instead.',
+                        },
+                        {
+                            group: [
+                                '../*/src/*',
+                                '../../*/src/*',
+                                '../../../*/src/*',
+                                '../../../../*/src/*',
+                            ],
+                            message:
+                                'Do not import source files from another package directly. Only import through that package public entrypoint.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    {
         files: ['packages/shared/src/**/*.ts', 'packages/shared/src/**/*.tsx'],
         rules: {
             'no-restricted-imports': [
@@ -233,6 +264,32 @@ export default tseslint.config(
                             ],
                             message:
                                 '`@occt-draw/renderer` may only depend on `@occt-draw/shared` and `@occt-draw/core` within the workspace.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    {
+        files: ['packages/ui/src/**/*.ts', 'packages/ui/src/**/*.tsx'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: [
+                                '@occt-draw/config',
+                                '@occt-draw/core',
+                                '@occt-draw/protocol',
+                                '@occt-draw/renderer',
+                                '@occt-draw/wasm-bridge',
+                                '@occt-draw/worker-client',
+                                '@occt-draw/worker-runtime',
+                                '@occt-draw/web',
+                            ],
+                            message:
+                                '`@occt-draw/ui` may only depend on external UI dependencies within the workspace.',
                         },
                     ],
                 },

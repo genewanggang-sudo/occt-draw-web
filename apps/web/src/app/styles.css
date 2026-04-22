@@ -1,0 +1,250 @@
+:root {
+    color: #142033;
+    background:
+        radial-gradient(circle at top left, rgba(240, 193, 117, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(71, 126, 191, 0.16), transparent 26%),
+        linear-gradient(180deg, #f5efe4 0%, #efe6d6 100%);
+    color-scheme: light;
+    font-family: 'Aptos', 'Bahnschrift', 'Segoe UI Variable Text', sans-serif;
+    line-height: 1.5;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    overflow: hidden;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button {
+    border: 0;
+}
+
+.editor-shell {
+    min-height: 100%;
+    height: 100%;
+    padding: 18px;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.65), transparent 24%),
+        linear-gradient(180deg, rgba(255, 251, 245, 0.28) 0%, rgba(237, 229, 215, 0.08) 100%);
+}
+
+.editor-shell__frame {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 18px;
+    width: 100%;
+    height: 100%;
+}
+
+.editor-shell__sidebar {
+    display: grid;
+    grid-template-rows: auto auto auto 1fr;
+    gap: 14px;
+    min-height: 0;
+}
+
+.editor-shell__hero {
+    display: grid;
+    gap: 16px;
+}
+
+.editor-shell__hero-title {
+    margin: 0;
+    font-size: clamp(28px, 3vw, 38px);
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    color: #172338;
+}
+
+.editor-shell__hero-copy {
+    margin: 0;
+    color: rgba(23, 35, 56, 0.78);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.editor-shell__hero-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.editor-shell__tool-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.editor-shell__definition-list {
+    display: grid;
+    gap: 8px;
+}
+
+.editor-shell__canvas-stage {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-height: 0;
+    border-radius: 32px;
+    overflow: hidden;
+    border: 1px solid rgba(35, 54, 78, 0.16);
+    background: linear-gradient(180deg, rgba(17, 35, 59, 0.96) 0%, rgba(12, 24, 40, 0.96) 100%);
+    box-shadow:
+        0 28px 80px rgba(27, 24, 18, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.editor-shell__canvas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.06) 0%,
+        rgba(255, 255, 255, 0.03) 100%
+    );
+}
+
+.editor-shell__canvas-meta {
+    display: grid;
+    gap: 6px;
+}
+
+.editor-shell__canvas-label {
+    color: rgba(212, 224, 240, 0.68);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.editor-shell__canvas-title {
+    color: #f8f2e7;
+    font-size: clamp(22px, 2vw, 30px);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+}
+
+.editor-shell__canvas-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.editor-shell__canvas-board {
+    position: relative;
+    min-height: 0;
+    background:
+        radial-gradient(circle at top, rgba(49, 88, 132, 0.18), transparent 30%),
+        linear-gradient(180deg, rgba(12, 26, 46, 0.94) 0%, rgba(9, 18, 32, 0.98) 100%);
+}
+
+.editor-shell__canvas-overlay {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 1;
+    max-width: min(360px, calc(100% - 32px));
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    background: rgba(9, 16, 26, 0.44);
+    backdrop-filter: blur(12px);
+    color: #d9e6f5;
+}
+
+.editor-shell__canvas-overlay-title {
+    margin: 0 0 6px;
+    color: #f7f1e6;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.editor-shell__canvas-overlay-copy {
+    margin: 0;
+    color: rgba(217, 230, 245, 0.74);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.editor-shell__canvas-surface {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.editor-shell__statusbar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    padding: 14px 18px 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 1080px) {
+    .editor-shell {
+        height: auto;
+        min-height: 100%;
+        overflow: auto;
+    }
+
+    .editor-shell__frame {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: 100%;
+    }
+
+    .editor-shell__sidebar {
+        grid-template-rows: none;
+    }
+
+    .editor-shell__canvas-stage {
+        min-height: 72vh;
+    }
+}
+
+@media (max-width: 720px) {
+    .editor-shell {
+        padding: 12px;
+    }
+
+    .editor-shell__hero-grid,
+    .editor-shell__tool-grid,
+    .editor-shell__statusbar {
+        grid-template-columns: 1fr;
+    }
+
+    .editor-shell__canvas-header {
+        align-items: start;
+        flex-direction: column;
+    }
+
+    .editor-shell__canvas-tags {
+        justify-content: flex-start;
+    }
+}

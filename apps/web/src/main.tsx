@@ -1,7 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-import { App } from './App';
+import '@occt-draw/ui/styles.css';
+import './app/styles.css';
+import { App } from './app/App';
 
 const container = document.getElementById('root');
 
