@@ -2,10 +2,10 @@
     "name": "occt-draw-web",
     "private": true,
     "version": "0.1.0",
-    "packageManager": "pnpm@9.0.0",
+    "packageManager": "pnpm@10.33.2",
     "engines": {
         "node": ">=24.15.0 <25",
-        "pnpm": ">=9.0.0 <10"
+        "pnpm": ">=10.33.2 <11"
     },
     "scripts": {
         "build": "pnpm -r build",
