@@ -3,9 +3,10 @@ import type { CadDocument, PartStudio } from '@occt-draw/core';
 interface ModelTreePanelProps {
     readonly document: CadDocument;
     readonly partStudio: PartStudio;
+    readonly selectedObjectIds: readonly string[];
 }
 
-export function ModelTreePanel({ document, partStudio }: ModelTreePanelProps) {
+export function ModelTreePanel({ document, partStudio, selectedObjectIds }: ModelTreePanelProps) {
     return (
         <aside className="cad-workbench__side-panel" aria-label="模型树">
             <div className="cad-workbench__panel-header">
@@ -20,7 +21,10 @@ export function ModelTreePanel({ document, partStudio }: ModelTreePanelProps) {
                 </div>
                 <div className="cad-workbench__tree-group">对象</div>
                 {partStudio.objects.map((object) => (
-                    <div key={object.id} className="cad-workbench__tree-node">
+                    <div
+                        key={object.id}
+                        className={getObjectNodeClassName(selectedObjectIds.includes(object.id))}
+                    >
                         <span className="cad-workbench__tree-dot" />
                         <span>{object.name}</span>
                     </div>
@@ -41,4 +45,12 @@ export function ModelTreePanel({ document, partStudio }: ModelTreePanelProps) {
             </div>
         </aside>
     );
+}
+
+function getObjectNodeClassName(selected: boolean): string {
+    if (selected) {
+        return 'cad-workbench__tree-node cad-workbench__tree-node--selected';
+    }
+
+    return 'cad-workbench__tree-node';
 }

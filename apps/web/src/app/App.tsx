@@ -15,6 +15,7 @@ import { APP_NAME } from '@occt-draw/shared';
 import { activateCommand } from '../editor/commands/commandReducer';
 import { CommandToolbar } from '../editor/commands/CommandToolbar';
 import type { CommandId } from '../editor/commands/commandTypes';
+import { pickSceneObject } from '../editor/selection/pickSceneObject';
 import { createInitialEditorState } from '../editor/state/createInitialEditorState';
 import {
     beginViewNavigation,
@@ -34,10 +35,19 @@ import { ModelTreePanel } from '../editor/workbench/ModelTreePanel';
 import { WorkbenchLayout } from '../editor/workbench/WorkbenchLayout';
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type WheelEvent } from 'react';
 
+interface PendingSelectionPointer {
+    readonly pointerId: number;
+    readonly point: ScreenPoint;
+}
+
+const CLICK_SELECTION_TOLERANCE_PIXELS = 4;
+const PICK_THRESHOLD_PIXELS = 9;
+
 export function App() {
     const appTitle = import.meta.env.VITE_APP_TITLE || APP_NAME;
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const rendererRef = useRef<CadRenderer | null>(null);
+    const pendingSelectionPointerRef = useRef<PendingSelectionPointer | null>(null);
     const [editorState, setEditorState] = useState(() => createInitialEditorState());
     const activePartStudio = useMemo(
         () => getActivePartStudio(editorState.document),
@@ -46,6 +56,11 @@ export function App() {
     const scene = useMemo(
         () => createSceneDocumentFromPartStudio(activePartStudio),
         [activePartStudio],
+    );
+    const selectedObjectIds = editorState.selection.selectedObjectIds;
+    const selectedObjects = useMemo(
+        () => activePartStudio.objects.filter((object) => selectedObjectIds.includes(object.id)),
+        [activePartStudio.objects, selectedObjectIds],
     );
     const sceneBounds = useMemo(() => calculateSceneBoundingBox(scene), [scene]);
     const sceneSphere = useMemo(() => calculateSceneBoundingSphere(scene), [scene]);
@@ -114,9 +129,10 @@ export function App() {
         rendererRef.current?.render({
             camera: navigation.camera,
             scene,
+            selectedObjectIds,
             viewportSize,
         });
-    }, [navigation.camera, scene, viewportSize]);
+    }, [navigation.camera, scene, selectedObjectIds, viewportSize]);
 
     useEffect(() => {
         function handleKeyDown(event: KeyboardEvent): void {
@@ -138,11 +154,23 @@ export function App() {
     }, [navigation.camera, sceneBounds, sceneSphere, viewportSize]);
 
     function handlePointerDown(event: PointerEvent<HTMLCanvasElement>): void {
-        if (!isViewNavigationPointer(event)) {
+        const canvas = event.currentTarget;
+
+        if (isSelectionPointer(event, editorState.activeCommand.id)) {
+            const point = getScreenPoint(canvas, event);
+
+            event.preventDefault();
+            canvas.setPointerCapture(event.pointerId);
+            pendingSelectionPointerRef.current = {
+                pointerId: event.pointerId,
+                point,
+            };
             return;
         }
 
-        const canvas = event.currentTarget;
+        if (!isViewNavigationPointer(event)) {
+            return;
+        }
 
         event.preventDefault();
         canvas.setPointerCapture(event.pointerId);
@@ -180,6 +208,7 @@ export function App() {
         const canvas = event.currentTarget;
 
         event.preventDefault();
+        handleSelectionPointerUp(canvas, event);
 
         setNavigation((current) => endViewNavigation(current, event.pointerId));
 
@@ -201,6 +230,40 @@ export function App() {
                 point,
             }),
         );
+    }
+
+    function handleSelectionPointerUp(
+        canvas: HTMLCanvasElement,
+        event: PointerEvent<HTMLCanvasElement>,
+    ): void {
+        const pendingSelectionPointer = pendingSelectionPointerRef.current;
+
+        if (pendingSelectionPointer?.pointerId !== event.pointerId) {
+            return;
+        }
+
+        pendingSelectionPointerRef.current = null;
+
+        const point = getScreenPoint(canvas, event);
+
+        if (distance2d(point, pendingSelectionPointer.point) > CLICK_SELECTION_TOLERANCE_PIXELS) {
+            return;
+        }
+
+        const pickedObjectId = pickSceneObject({
+            camera: navigation.camera,
+            point,
+            scene,
+            thresholdPixels: PICK_THRESHOLD_PIXELS,
+            viewportSize,
+        });
+
+        setEditorState((current) => ({
+            ...current,
+            selection: {
+                selectedObjectIds: pickedObjectId ? [pickedObjectId] : [],
+            },
+        }));
     }
 
     function applyCamera(camera: CameraState): void {
@@ -249,7 +312,11 @@ export function App() {
 
             <WorkbenchLayout
                 modelTreePanel={
-                    <ModelTreePanel document={editorState.document} partStudio={activePartStudio} />
+                    <ModelTreePanel
+                        document={editorState.document}
+                        partStudio={activePartStudio}
+                        selectedObjectIds={selectedObjectIds}
+                    />
                 }
                 viewport={
                     <CadViewport
@@ -268,12 +335,19 @@ export function App() {
                 inspectorPanel={
                     <InspectorPanel
                         activeCommandLabel={getActiveCommandLabel(editorState.activeCommand.id)}
-                        selectedObjectCount={editorState.selection.selectedObjectIds.length}
+                        selectedObjects={selectedObjects}
                     />
                 }
             />
         </main>
     );
+}
+
+function isSelectionPointer(
+    event: PointerEvent<HTMLCanvasElement>,
+    activeCommandId: CommandId,
+): boolean {
+    return activeCommandId === 'select' && event.button === 0;
 }
 
 function isViewNavigationPointer(event: PointerEvent<HTMLCanvasElement>): boolean {
@@ -290,6 +364,10 @@ function getScreenPoint(
         x: event.clientX - bounds.left,
         y: event.clientY - bounds.top,
     };
+}
+
+function distance2d(left: ScreenPoint, right: ScreenPoint): number {
+    return Math.hypot(left.x - right.x, left.y - right.y);
 }
 
 function shouldIgnoreShortcut(event: KeyboardEvent): boolean {

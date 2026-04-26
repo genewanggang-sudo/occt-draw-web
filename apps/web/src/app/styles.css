@@ -287,6 +287,12 @@ button {
     color: #9fb8d4;
 }
 
+.cad-workbench__tree-node--selected {
+    border: 1px solid rgba(88, 166, 255, 0.55);
+    background: rgba(42, 103, 177, 0.28);
+    color: #eef7ff;
+}
+
 .cad-workbench__tree-dot {
     width: 6px;
     height: 6px;

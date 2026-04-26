@@ -32,6 +32,7 @@ export interface CameraState {
 export interface RenderFrameInput {
     readonly camera: CameraState;
     readonly scene: SceneDocument;
+    readonly selectedObjectIds?: readonly string[];
     readonly viewportSize: ViewportSize;
 }
 
