@@ -15,7 +15,14 @@ import {
 } from './bounds';
 import type { BoundingBox3, CameraState, ViewportSize } from './types';
 
-export type StandardCameraView = 'front' | 'isometric' | 'right' | 'top';
+export type StandardCameraView =
+    | 'back'
+    | 'bottom'
+    | 'front'
+    | 'isometric'
+    | 'left'
+    | 'right'
+    | 'top';
 
 export const DEFAULT_CAMERA_STATE: CameraState = {
     projection: 'orthographic',
@@ -121,19 +128,31 @@ function getStandardViewDirection(view: StandardCameraView): Vector3 {
         return createVector3(0, 0, 1);
     }
 
+    if (view === 'back') {
+        return createVector3(0, 0, -1);
+    }
+
     if (view === 'right') {
         return createVector3(1, 0, 0);
+    }
+
+    if (view === 'left') {
+        return createVector3(-1, 0, 0);
     }
 
     if (view === 'top') {
         return createVector3(0, 1, 0);
     }
 
+    if (view === 'bottom') {
+        return createVector3(0, -1, 0);
+    }
+
     return normalizeVector3(createVector3(1, 0.75, 1));
 }
 
 function getStandardViewUp(view: StandardCameraView): Vector3 {
-    if (view === 'top') {
+    if (view === 'top' || view === 'bottom') {
         return createVector3(0, 0, -1);
     }
 

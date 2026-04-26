@@ -100,6 +100,25 @@ export function App() {
         });
     }, [navigation.camera, scene, viewportSize]);
 
+    useEffect(() => {
+        function handleKeyDown(event: KeyboardEvent): void {
+            if (shouldIgnoreShortcut(event)) {
+                return;
+            }
+
+            if (event.key === 'f' || event.key === 'F') {
+                event.preventDefault();
+                applyCamera(fitCameraToBounds(navigation.camera, sceneBounds, viewportSize));
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [navigation.camera, sceneBounds, sceneSphere, viewportSize]);
+
     function handlePointerDown(event: PointerEvent<HTMLCanvasElement>): void {
         if (!isViewNavigationPointer(event)) {
             return;
@@ -227,4 +246,23 @@ function getScreenPoint(
         x: event.clientX - bounds.left,
         y: event.clientY - bounds.top,
     };
+}
+
+function shouldIgnoreShortcut(event: KeyboardEvent): boolean {
+    if (event.altKey || event.ctrlKey || event.metaKey) {
+        return true;
+    }
+
+    const target = event.target;
+
+    if (!(target instanceof HTMLElement)) {
+        return false;
+    }
+
+    return (
+        target.isContentEditable ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'SELECT' ||
+        target.tagName === 'TEXTAREA'
+    );
 }
