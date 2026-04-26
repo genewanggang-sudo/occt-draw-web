@@ -31,9 +31,15 @@ export interface CameraState {
 
 export interface RenderFrameInput {
     readonly camera: CameraState;
+    readonly highlight: RenderHighlightState;
     readonly scene: SceneDocument;
-    readonly selectedObjectIds?: readonly string[];
     readonly viewportSize: ViewportSize;
+}
+
+export interface RenderHighlightState {
+    readonly hoveredObjectId: string | null;
+    readonly preselectedObjectId: string | null;
+    readonly selectedObjectIds: readonly string[];
 }
 
 export interface CadRenderer {

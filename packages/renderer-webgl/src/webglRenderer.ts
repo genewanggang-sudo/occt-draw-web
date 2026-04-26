@@ -68,7 +68,7 @@ class WebglCadRenderer implements CadRenderer {
 
     render(input: RenderFrameInput): void {
         const context = this.#context;
-        const vertices = createSceneLineVertices(input.scene, input.selectedObjectIds ?? []);
+        const vertices = createSceneLineVertices(input.scene, input.highlight);
 
         this.resize(input.viewportSize);
 

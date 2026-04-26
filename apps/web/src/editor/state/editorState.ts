@@ -1,9 +1,6 @@
 import type { CadDocument } from '@occt-draw/core';
 import type { CommandState } from '../commands/commandTypes';
-
-export interface SelectionState {
-    readonly selectedObjectIds: readonly string[];
-}
+import type { SelectionState } from '../selection/selectionState';
 
 export interface EditorState {
     readonly activeCommand: CommandState;

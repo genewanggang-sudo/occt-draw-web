@@ -16,6 +16,11 @@ export interface PickSceneObjectInput {
     readonly viewportSize: ViewportSize;
 }
 
+export interface PickSceneObjectResult {
+    readonly distancePixels: number;
+    readonly objectId: string;
+}
+
 interface ScreenPoint2 {
     readonly x: number;
     readonly y: number;
@@ -26,8 +31,8 @@ interface CameraBasis {
     readonly up: Vector3;
 }
 
-export function pickSceneObject(input: PickSceneObjectInput): string | null {
-    let nearestObjectId: string | null = null;
+export function pickSceneObject(input: PickSceneObjectInput): PickSceneObjectResult | null {
+    let nearestResult: PickSceneObjectResult | null = null;
     let nearestDistance = input.thresholdPixels;
 
     for (const object of input.scene.objects) {
@@ -39,11 +44,14 @@ export function pickSceneObject(input: PickSceneObjectInput): string | null {
 
         if (distance <= nearestDistance) {
             nearestDistance = distance;
-            nearestObjectId = object.id;
+            nearestResult = {
+                distancePixels: distance,
+                objectId: object.id,
+            };
         }
     }
 
-    return nearestObjectId;
+    return nearestResult;
 }
 
 function measureCubeScreenDistance(

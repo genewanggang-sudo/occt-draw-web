@@ -1,13 +1,14 @@
 import type { Vector3 } from '@occt-draw/math';
+import type { RenderHighlightState } from '@occt-draw/renderer';
 import type { CubeWireframeSceneObject, SceneDocument } from '@occt-draw/scene';
 import type { LineVertex } from './types';
 
 export function createSceneLineVertices(
     scene: SceneDocument,
-    selectedObjectIds: readonly string[] = [],
+    highlight: RenderHighlightState,
 ): readonly LineVertex[] {
     const vertices: LineVertex[] = [];
-    const selectedObjectIdSet = new Set(selectedObjectIds);
+    const selectedObjectIdSet = new Set(highlight.selectedObjectIds);
 
     for (const object of scene.objects) {
         if (!object.visible) {

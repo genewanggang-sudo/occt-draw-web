@@ -5,6 +5,7 @@ import {
     fitCameraToBounds,
     type CadRenderer,
     type CameraState,
+    type RenderHighlightState,
     type StandardCameraView,
     type ViewportSize,
 } from '@occt-draw/renderer';
@@ -16,6 +17,7 @@ import { activateCommand } from '../editor/commands/commandReducer';
 import { CommandToolbar } from '../editor/commands/CommandToolbar';
 import type { CommandId } from '../editor/commands/commandTypes';
 import { pickSceneObject } from '../editor/selection/pickSceneObject';
+import { clearSelection, selectSingleObject } from '../editor/selection/selectionReducer';
 import { createInitialEditorState } from '../editor/state/createInitialEditorState';
 import {
     beginViewNavigation,
@@ -58,6 +60,18 @@ export function App() {
         [activePartStudio],
     );
     const selectedObjectIds = editorState.selection.selectedObjectIds;
+    const renderHighlight = useMemo<RenderHighlightState>(
+        () => ({
+            hoveredObjectId: editorState.selection.hoveredObjectId,
+            preselectedObjectId: editorState.selection.preselectedObjectId,
+            selectedObjectIds,
+        }),
+        [
+            editorState.selection.hoveredObjectId,
+            editorState.selection.preselectedObjectId,
+            selectedObjectIds,
+        ],
+    );
     const selectedObjects = useMemo(
         () => activePartStudio.objects.filter((object) => selectedObjectIds.includes(object.id)),
         [activePartStudio.objects, selectedObjectIds],
@@ -128,11 +142,11 @@ export function App() {
     useEffect(() => {
         rendererRef.current?.render({
             camera: navigation.camera,
+            highlight: renderHighlight,
             scene,
-            selectedObjectIds,
             viewportSize,
         });
-    }, [navigation.camera, scene, selectedObjectIds, viewportSize]);
+    }, [navigation.camera, renderHighlight, scene, viewportSize]);
 
     useEffect(() => {
         function handleKeyDown(event: KeyboardEvent): void {
@@ -250,7 +264,7 @@ export function App() {
             return;
         }
 
-        const pickedObjectId = pickSceneObject({
+        const pickResult = pickSceneObject({
             camera: navigation.camera,
             point,
             scene,
@@ -260,9 +274,9 @@ export function App() {
 
         setEditorState((current) => ({
             ...current,
-            selection: {
-                selectedObjectIds: pickedObjectId ? [pickedObjectId] : [],
-            },
+            selection: pickResult
+                ? selectSingleObject(current.selection, pickResult.objectId)
+                : clearSelection(current.selection),
         }));
     }
 

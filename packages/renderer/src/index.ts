@@ -25,5 +25,6 @@ export type {
     CameraProjection,
     CameraState,
     RenderFrameInput,
+    RenderHighlightState,
     ViewportSize,
 } from './types';
