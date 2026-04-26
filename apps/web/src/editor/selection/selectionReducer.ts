@@ -32,3 +32,25 @@ export function selectSingleObject(selection: SelectionState, objectId: string):
         selectedObjectIds: [objectId],
     };
 }
+
+export function preselectObject(
+    selection: SelectionState,
+    objectId: string | null,
+): SelectionState {
+    const nextPreselectedObjectId = selection.selectedObjectIds.includes(objectId ?? '')
+        ? null
+        : objectId;
+
+    if (
+        selection.hoveredObjectId === nextPreselectedObjectId &&
+        selection.preselectedObjectId === nextPreselectedObjectId
+    ) {
+        return selection;
+    }
+
+    return {
+        ...selection,
+        hoveredObjectId: nextPreselectedObjectId,
+        preselectedObjectId: nextPreselectedObjectId,
+    };
+}

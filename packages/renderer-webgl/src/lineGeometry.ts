@@ -9,6 +9,7 @@ export function createSceneLineVertices(
 ): readonly LineVertex[] {
     const vertices: LineVertex[] = [];
     const selectedObjectIdSet = new Set(highlight.selectedObjectIds);
+    const preselectedObjectId = highlight.preselectedObjectId;
 
     for (const object of scene.objects) {
         if (!object.visible) {
@@ -25,7 +26,12 @@ export function createSceneLineVertices(
             continue;
         }
 
-        appendCube(vertices, object, selectedObjectIdSet.has(object.id));
+        appendCube(
+            vertices,
+            object,
+            selectedObjectIdSet.has(object.id),
+            preselectedObjectId === object.id,
+        );
     }
 
     return vertices;
@@ -82,9 +88,10 @@ function appendCube(
     vertices: LineVertex[],
     cube: CubeWireframeSceneObject,
     selected: boolean,
+    preselected: boolean,
 ): void {
     const halfSize = cube.size / 2;
-    const color = selected ? vector3(0.24, 0.68, 1) : vector3(0.92, 0.74, 0.34);
+    const color = getCubeColor(selected, preselected);
     const points = [
         vector3(cube.center.x - halfSize, cube.center.y - halfSize, cube.center.z - halfSize),
         vector3(cube.center.x + halfSize, cube.center.y - halfSize, cube.center.z - halfSize),
@@ -113,6 +120,18 @@ function appendCube(
     for (const [startIndex, endIndex] of edges) {
         appendLine(vertices, points[startIndex], points[endIndex], color);
     }
+}
+
+function getCubeColor(selected: boolean, preselected: boolean): Vector3 {
+    if (selected) {
+        return vector3(0.24, 0.68, 1);
+    }
+
+    if (preselected) {
+        return vector3(0.86, 0.95, 1);
+    }
+
+    return vector3(0.92, 0.74, 0.34);
 }
 
 function appendLine(vertices: LineVertex[], start: Vector3, end: Vector3, color: Vector3): void {

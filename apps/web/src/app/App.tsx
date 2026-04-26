@@ -17,7 +17,11 @@ import { APP_NAME } from '@occt-draw/shared';
 import { activateCommand } from '../editor/commands/commandReducer';
 import { CommandToolbar } from '../editor/commands/CommandToolbar';
 import type { CommandId } from '../editor/commands/commandTypes';
-import { clearSelection, selectSingleObject } from '../editor/selection/selectionReducer';
+import {
+    clearSelection,
+    preselectObject,
+    selectSingleObject,
+} from '../editor/selection/selectionReducer';
 import { createInitialEditorState } from '../editor/state/createInitialEditorState';
 import {
     beginViewNavigation,
@@ -208,6 +212,8 @@ export function App() {
 
         const point = getScreenPoint(canvas, event);
 
+        handleSelectionPointerMove(event, point);
+
         setNavigation((current) =>
             updateViewNavigation(current, {
                 button: event.button,
@@ -244,6 +250,28 @@ export function App() {
                 point,
             }),
         );
+    }
+
+    function handleSelectionPointerMove(
+        event: PointerEvent<HTMLCanvasElement>,
+        point: ScreenPoint,
+    ): void {
+        if (!isPreselectionPointer(event, editorState.activeCommand.id)) {
+            return;
+        }
+
+        const pickResult = pickSceneObject({
+            camera: navigation.camera,
+            point,
+            scene,
+            thresholdPixels: PICK_THRESHOLD_PIXELS,
+            viewportSize,
+        });
+
+        setEditorState((current) => ({
+            ...current,
+            selection: preselectObject(current.selection, pickResult?.objectId ?? null),
+        }));
     }
 
     function handleSelectionPointerUp(
@@ -362,6 +390,13 @@ function isSelectionPointer(
     activeCommandId: CommandId,
 ): boolean {
     return activeCommandId === 'select' && event.button === 0;
+}
+
+function isPreselectionPointer(
+    event: PointerEvent<HTMLCanvasElement>,
+    activeCommandId: CommandId,
+): boolean {
+    return activeCommandId === 'select' && event.buttons === 0;
 }
 
 function isViewNavigationPointer(event: PointerEvent<HTMLCanvasElement>): boolean {
