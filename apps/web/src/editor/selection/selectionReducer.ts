@@ -1,10 +1,13 @@
+import type { PickSceneObjectResult } from '@occt-draw/renderer';
 import type { SelectionState } from './selectionState';
 
 export function clearSelection(selection: SelectionState): SelectionState {
     if (
         selection.selectedObjectIds.length === 0 &&
+        selection.selectedTarget === null &&
         selection.hoveredObjectId === null &&
-        selection.preselectedObjectId === null
+        selection.preselectedObjectId === null &&
+        selection.preselectedTarget === null
     ) {
         return selection;
     }
@@ -12,16 +15,23 @@ export function clearSelection(selection: SelectionState): SelectionState {
     return {
         hoveredObjectId: null,
         preselectedObjectId: null,
+        preselectedTarget: null,
         selectedObjectIds: [],
+        selectedTarget: null,
     };
 }
 
-export function selectSingleObject(selection: SelectionState, objectId: string): SelectionState {
+export function selectSingleTarget(
+    selection: SelectionState,
+    target: PickSceneObjectResult,
+): SelectionState {
     if (
         selection.selectedObjectIds.length === 1 &&
-        selection.selectedObjectIds[0] === objectId &&
+        selection.selectedObjectIds[0] === target.objectId &&
+        isSameTarget(selection.selectedTarget, target) &&
         selection.hoveredObjectId === null &&
-        selection.preselectedObjectId === null
+        selection.preselectedObjectId === null &&
+        selection.preselectedTarget === null
     ) {
         return selection;
     }
@@ -29,28 +39,47 @@ export function selectSingleObject(selection: SelectionState, objectId: string):
     return {
         hoveredObjectId: null,
         preselectedObjectId: null,
-        selectedObjectIds: [objectId],
+        preselectedTarget: null,
+        selectedObjectIds: [target.objectId],
+        selectedTarget: target,
     };
 }
 
-export function preselectObject(
+export function preselectTarget(
     selection: SelectionState,
-    objectId: string | null,
+    target: PickSceneObjectResult | null,
 ): SelectionState {
-    const nextPreselectedObjectId = selection.selectedObjectIds.includes(objectId ?? '')
-        ? null
-        : objectId;
+    const nextTarget =
+        target && selection.selectedObjectIds.includes(target.objectId) ? null : target;
+    const nextObjectId = nextTarget?.objectId ?? null;
 
     if (
-        selection.hoveredObjectId === nextPreselectedObjectId &&
-        selection.preselectedObjectId === nextPreselectedObjectId
+        selection.hoveredObjectId === nextObjectId &&
+        selection.preselectedObjectId === nextObjectId &&
+        isSameTarget(selection.preselectedTarget, nextTarget)
     ) {
         return selection;
     }
 
     return {
         ...selection,
-        hoveredObjectId: nextPreselectedObjectId,
-        preselectedObjectId: nextPreselectedObjectId,
+        hoveredObjectId: nextObjectId,
+        preselectedObjectId: nextObjectId,
+        preselectedTarget: nextTarget,
     };
+}
+
+function isSameTarget(
+    left: PickSceneObjectResult | null,
+    right: PickSceneObjectResult | null,
+): boolean {
+    if (left === null || right === null) {
+        return left === right;
+    }
+
+    return (
+        left.objectId === right.objectId &&
+        left.targetKind === right.targetKind &&
+        left.primitiveId === right.primitiveId
+    );
 }

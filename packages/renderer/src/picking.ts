@@ -8,6 +8,8 @@ import {
 import type { CubeWireframeSceneObject, SceneDocument } from '@occt-draw/scene';
 import type { CameraState, ViewportSize } from './types';
 
+export type PickTargetKind = 'edge' | 'face' | 'object' | 'vertex';
+
 export interface PickSceneObjectInput {
     readonly camera: CameraState;
     readonly point: ScreenPoint2;
@@ -19,6 +21,8 @@ export interface PickSceneObjectInput {
 export interface PickSceneObjectResult {
     readonly distancePixels: number;
     readonly objectId: string;
+    readonly primitiveId: string | null;
+    readonly targetKind: PickTargetKind;
 }
 
 export interface ScreenPoint2 {
@@ -40,13 +44,41 @@ export function pickSceneObject(input: PickSceneObjectInput): PickSceneObjectRes
             continue;
         }
 
-        const distance = measureCubeScreenDistance(object, input);
+        const result = pickCubeWireframeEdge(object, input);
+
+        if (result && result.distancePixels <= nearestDistance) {
+            nearestDistance = result.distancePixels;
+            nearestResult = result;
+        }
+    }
+
+    return nearestResult;
+}
+
+function pickCubeWireframeEdge(
+    cube: CubeWireframeSceneObject,
+    input: PickSceneObjectInput,
+): PickSceneObjectResult | null {
+    const points = createCubePoints(cube);
+    const basis = calculateCameraBasis(input.camera);
+    let nearestResult: PickSceneObjectResult | null = null;
+    let nearestDistance = input.thresholdPixels;
+
+    for (let edgeIndex = 0; edgeIndex < CUBE_EDGES.length; edgeIndex += 1) {
+        const edge = getCubeEdge(edgeIndex);
+        const startPoint = getCubePoint(points, edge[0]);
+        const endPoint = getCubePoint(points, edge[1]);
+        const start = projectWorldToScreen(startPoint, input.camera, basis, input.viewportSize);
+        const end = projectWorldToScreen(endPoint, input.camera, basis, input.viewportSize);
+        const distance = distanceToScreenSegment(input.point, start, end);
 
         if (distance <= nearestDistance) {
             nearestDistance = distance;
             nearestResult = {
                 distancePixels: distance,
-                objectId: object.id,
+                objectId: cube.id,
+                primitiveId: createCubeEdgePrimitiveId(cube.id, edgeIndex),
+                targetKind: 'edge',
             };
         }
     }
@@ -54,27 +86,18 @@ export function pickSceneObject(input: PickSceneObjectInput): PickSceneObjectRes
     return nearestResult;
 }
 
-function measureCubeScreenDistance(
-    cube: CubeWireframeSceneObject,
-    input: PickSceneObjectInput,
-): number {
-    const points = createCubePoints(cube);
-    const basis = calculateCameraBasis(input.camera);
-    let nearestDistance = Number.POSITIVE_INFINITY;
+function createCubeEdgePrimitiveId(objectId: string, edgeIndex: number): string {
+    return `${objectId}:edge:${edgeIndex.toString()}`;
+}
 
-    for (const [startIndex, endIndex] of CUBE_EDGES) {
-        const startPoint = getCubePoint(points, startIndex);
-        const endPoint = getCubePoint(points, endIndex);
-        const start = projectWorldToScreen(startPoint, input.camera, basis, input.viewportSize);
-        const end = projectWorldToScreen(endPoint, input.camera, basis, input.viewportSize);
+function getCubeEdge(index: number): readonly [number, number] {
+    const edge = CUBE_EDGES[index];
 
-        nearestDistance = Math.min(
-            nearestDistance,
-            distanceToScreenSegment(input.point, start, end),
-        );
+    if (!edge) {
+        throw new Error('立方体拾取失败：边索引超出边范围');
     }
 
-    return nearestDistance;
+    return edge;
 }
 
 function getCubePoint(points: readonly Vector3[], index: number): Vector3 {

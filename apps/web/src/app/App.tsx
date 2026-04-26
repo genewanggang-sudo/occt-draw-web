@@ -19,8 +19,8 @@ import { CommandToolbar } from '../editor/commands/CommandToolbar';
 import type { CommandId } from '../editor/commands/commandTypes';
 import {
     clearSelection,
-    preselectObject,
-    selectSingleObject,
+    preselectTarget,
+    selectSingleTarget,
 } from '../editor/selection/selectionReducer';
 import { createInitialEditorState } from '../editor/state/createInitialEditorState';
 import {
@@ -270,7 +270,7 @@ export function App() {
 
         setEditorState((current) => ({
             ...current,
-            selection: preselectObject(current.selection, pickResult?.objectId ?? null),
+            selection: preselectTarget(current.selection, pickResult),
         }));
     }
 
@@ -303,7 +303,7 @@ export function App() {
         setEditorState((current) => ({
             ...current,
             selection: pickResult
-                ? selectSingleObject(current.selection, pickResult.objectId)
+                ? selectSingleTarget(current.selection, pickResult)
                 : clearSelection(current.selection),
         }));
     }
@@ -378,6 +378,7 @@ export function App() {
                     <InspectorPanel
                         activeCommandLabel={getActiveCommandLabel(editorState.activeCommand.id)}
                         selectedObjects={selectedObjects}
+                        selectedTarget={editorState.selection.selectedTarget}
                     />
                 }
             />

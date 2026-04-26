@@ -22,6 +22,7 @@ export {
     pickSceneObject,
     type PickSceneObjectInput,
     type PickSceneObjectResult,
+    type PickTargetKind,
     type ScreenPoint2,
 } from './picking';
 export type {

@@ -1,11 +1,17 @@
 import type { CadObject } from '@occt-draw/core';
+import type { PickSceneObjectResult, PickTargetKind } from '@occt-draw/renderer';
 
 interface InspectorPanelProps {
     readonly activeCommandLabel: string;
     readonly selectedObjects: readonly CadObject[];
+    readonly selectedTarget: PickSceneObjectResult | null;
 }
 
-export function InspectorPanel({ activeCommandLabel, selectedObjects }: InspectorPanelProps) {
+export function InspectorPanel({
+    activeCommandLabel,
+    selectedObjects,
+    selectedTarget,
+}: InspectorPanelProps) {
     const selectedObject = selectedObjects[0] ?? null;
 
     return (
@@ -26,6 +32,18 @@ export function InspectorPanel({ activeCommandLabel, selectedObjects }: Inspecto
                     <div className="cad-workbench__inspector-section">
                         <span className="cad-workbench__inspector-label">对象类型</span>
                         <strong>{getObjectKindLabel(selectedObject.kind)}</strong>
+                    </div>
+                    <div className="cad-workbench__inspector-section">
+                        <span className="cad-workbench__inspector-label">拾取目标</span>
+                        <strong>
+                            {selectedTarget
+                                ? getPickTargetKindLabel(selectedTarget.targetKind)
+                                : '对象'}
+                        </strong>
+                    </div>
+                    <div className="cad-workbench__inspector-section">
+                        <span className="cad-workbench__inspector-label">Primitive ID</span>
+                        <strong>{selectedTarget?.primitiveId ?? '-'}</strong>
                     </div>
                     <div className="cad-workbench__inspector-section">
                         <span className="cad-workbench__inspector-label">可见性</span>
@@ -51,4 +69,20 @@ function getObjectKindLabel(kind: CadObject['kind']): string {
     }
 
     return '基准网格';
+}
+
+function getPickTargetKindLabel(kind: PickTargetKind): string {
+    if (kind === 'edge') {
+        return '边';
+    }
+
+    if (kind === 'face') {
+        return '面';
+    }
+
+    if (kind === 'vertex') {
+        return '顶点';
+    }
+
+    return '对象';
 }
