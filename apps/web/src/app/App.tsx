@@ -29,6 +29,9 @@ import {
 } from '../editor/view-navigation/viewNavigation';
 import { ViewToolbar } from '../editor/view-toolbar/ViewToolbar';
 import { CadViewport } from '../editor/viewport/CadViewport';
+import { InspectorPanel } from '../editor/workbench/InspectorPanel';
+import { ModelTreePanel } from '../editor/workbench/ModelTreePanel';
+import { WorkbenchLayout } from '../editor/workbench/WorkbenchLayout';
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type WheelEvent } from 'react';
 
 export function App() {
@@ -244,17 +247,30 @@ export function App() {
                 <ViewToolbar onFitView={handleFitView} onStandardView={handleStandardView} />
             </header>
 
-            <CadViewport
-                canvasRef={canvasRef}
-                onPointerCancel={handlePointerUp}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onWheel={handleWheel}
-                rendererStatus={rendererStatus}
-                activeCommandLabel={getActiveCommandLabel(editorState.activeCommand.id)}
-                documentName={editorState.document.name}
-                sceneObjectCount={scene.objects.length}
+            <WorkbenchLayout
+                modelTreePanel={
+                    <ModelTreePanel document={editorState.document} partStudio={activePartStudio} />
+                }
+                viewport={
+                    <CadViewport
+                        canvasRef={canvasRef}
+                        onPointerCancel={handlePointerUp}
+                        onPointerDown={handlePointerDown}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onWheel={handleWheel}
+                        rendererStatus={rendererStatus}
+                        activeCommandLabel={getActiveCommandLabel(editorState.activeCommand.id)}
+                        documentName={editorState.document.name}
+                        sceneObjectCount={scene.objects.length}
+                    />
+                }
+                inspectorPanel={
+                    <InspectorPanel
+                        activeCommandLabel={getActiveCommandLabel(editorState.activeCommand.id)}
+                        selectedObjectCount={editorState.selection.selectedObjectIds.length}
+                    />
+                }
             />
         </main>
     );

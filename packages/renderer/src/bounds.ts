@@ -63,12 +63,7 @@ function expandBoundsByObject(bounds: BoundingBox3 | null, object: SceneObject):
     }
 
     if (object.kind === 'axis') {
-        return expandBoundsByPoints(bounds, [
-            createVector3(0, 0, 0),
-            createVector3(object.length, 0, 0),
-            createVector3(0, object.length, 0),
-            createVector3(0, 0, object.length),
-        ]);
+        return expandBoundsByPoint(bounds, createVector3(0, 0, 0));
     }
 
     const halfSize = object.size / 2;
