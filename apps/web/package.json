@@ -3,9 +3,16 @@
     "private": true,
     "version": "0.1.0",
     "dependencies": {
+        "@occt-draw/cloud-client": "workspace:*",
+        "@occt-draw/constraints": "workspace:*",
         "@occt-draw/core": "workspace:*",
+        "@occt-draw/math": "workspace:*",
+        "@occt-draw/parametrics": "workspace:*",
         "@occt-draw/renderer": "workspace:*",
+        "@occt-draw/renderer-webgl": "workspace:*",
+        "@occt-draw/scene": "workspace:*",
         "@occt-draw/shared": "workspace:*",
+        "@occt-draw/sketch": "workspace:*",
         "@occt-draw/ui": "workspace:*",
         "react": "^19.2.0",
         "react-dom": "^19.2.0"

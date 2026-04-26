@@ -10,6 +10,16 @@ module.exports = {
             },
         },
         {
+            name: 'packages-must-not-import-apps',
+            severity: 'error',
+            from: {
+                path: '^packages/',
+            },
+            to: {
+                path: '^apps/',
+            },
+        },
+        {
             name: 'shared-no-workspace-deps',
             severity: 'error',
             from: {
@@ -20,53 +30,113 @@ module.exports = {
             },
         },
         {
+            name: 'math-only-shared',
+            severity: 'error',
+            from: {
+                path: '^packages/math/src',
+            },
+            to: {
+                path: '^packages/(?!shared|math)',
+            },
+        },
+        {
             name: 'protocol-only-shared',
             severity: 'error',
             from: {
                 path: '^packages/protocol/src',
             },
             to: {
-                path: '^packages/(config|core|renderer|wasm-bridge|worker-client|worker-runtime)',
+                path: '^packages/(?!shared|protocol)',
             },
         },
         {
-            name: 'core-only-shared',
+            name: 'core-only-shared-and-math',
             severity: 'error',
             from: {
                 path: '^packages/core/src',
             },
             to: {
-                path: '^packages/(config|protocol|renderer|wasm-bridge|worker-client|worker-runtime)',
+                path: '^packages/(?!shared|math|core)',
             },
         },
         {
-            name: 'renderer-only-core-and-shared',
+            name: 'sketch-only-core-math-shared',
+            severity: 'error',
+            from: {
+                path: '^packages/sketch/src',
+            },
+            to: {
+                path: '^packages/(?!shared|math|core|sketch)',
+            },
+        },
+        {
+            name: 'constraints-only-sketch-core-math-shared',
+            severity: 'error',
+            from: {
+                path: '^packages/constraints/src',
+            },
+            to: {
+                path: '^packages/(?!shared|math|core|sketch|constraints)',
+            },
+        },
+        {
+            name: 'parametrics-only-core-shared',
+            severity: 'error',
+            from: {
+                path: '^packages/parametrics/src',
+            },
+            to: {
+                path: '^packages/(?!shared|core|parametrics)',
+            },
+        },
+        {
+            name: 'scene-only-core-math-shared',
+            severity: 'error',
+            from: {
+                path: '^packages/scene/src',
+            },
+            to: {
+                path: '^packages/(?!shared|math|core|scene)',
+            },
+        },
+        {
+            name: 'renderer-only-scene-math-shared',
             severity: 'error',
             from: {
                 path: '^packages/renderer/src',
             },
             to: {
-                path: '^packages/(config|protocol|wasm-bridge|worker-client|worker-runtime)',
+                path: '^packages/(?!shared|math|scene|renderer)',
             },
         },
         {
-            name: 'wasm-bridge-only-protocol-and-shared',
+            name: 'renderer-webgl-only-renderer-scene-math-shared',
+            severity: 'error',
+            from: {
+                path: '^packages/renderer-webgl/src',
+            },
+            to: {
+                path: '^packages/(?!shared|math|scene|renderer|renderer-webgl)',
+            },
+        },
+        {
+            name: 'wasm-bridge-only-protocol-shared',
             severity: 'error',
             from: {
                 path: '^packages/wasm-bridge/src',
             },
             to: {
-                path: '^packages/(config|core|renderer|worker-client|worker-runtime)',
+                path: '^packages/(?!shared|protocol|wasm-bridge)',
             },
         },
         {
-            name: 'worker-client-only-protocol-and-shared',
+            name: 'worker-client-only-protocol-shared',
             severity: 'error',
             from: {
                 path: '^packages/worker-client/src',
             },
             to: {
-                path: '^packages/(config|core|renderer|wasm-bridge|worker-runtime)',
+                path: '^packages/(?!shared|protocol|worker-client)',
             },
         },
         {
@@ -76,17 +146,17 @@ module.exports = {
                 path: '^packages/worker-runtime/src',
             },
             to: {
-                path: '^packages/(config|core|renderer|worker-client)',
+                path: '^packages/(?!shared|protocol|wasm-bridge|worker-runtime)',
             },
         },
         {
-            name: 'packages-must-not-import-apps',
+            name: 'cloud-client-only-protocol-shared',
             severity: 'error',
             from: {
-                path: '^packages/',
+                path: '^packages/cloud-client/src',
             },
             to: {
-                path: '^apps/',
+                path: '^packages/(?!shared|protocol|cloud-client)',
             },
         },
     ],

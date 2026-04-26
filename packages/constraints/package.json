@@ -1,11 +1,12 @@
 {
-    "name": "@occt-draw/renderer",
+    "name": "@occt-draw/constraints",
     "private": true,
     "version": "0.1.0",
     "dependencies": {
+        "@occt-draw/core": "workspace:*",
         "@occt-draw/math": "workspace:*",
-        "@occt-draw/scene": "workspace:*",
-        "@occt-draw/shared": "workspace:*"
+        "@occt-draw/shared": "workspace:*",
+        "@occt-draw/sketch": "workspace:*"
     },
     "types": "./src/index.ts",
     "exports": {

@@ -1,60 +1,64 @@
 # occt-draw-web
 
-`occt-draw-web` 是二维出图产品的前端项目。
+`occt-draw-web` 是三维云端 CAD 的前端工作台仓库。
 
-这个仓库负责浏览器端的编辑器界面、画布渲染、交互逻辑以及对 Wasm 几何内核的调用，是整个产品的用户入口。
+当前目标是构建一个浏览器侧 CAD 应用基础框架：页面使用 React，构建使用 Vite，三维渲染使用 WebGL，草图、约束、参数、命令和交互逻辑使用 TypeScript，几何内核由 `occt-draw-core` Wasm 提供。
 
-## 项目定位
+## 技术方向
 
-- 基于前端技术构建二维出图界面
-- 加载并调用 `occt-draw-core` 产出的 Wasm 能力
-- 承担图纸展示、交互编辑、工具栏和属性面板等功能
-- 不直接实现底层 OCCT 几何算法
+- 页面框架：React
+- 语言：TypeScript
+- 构建工具：Vite
+- 包管理：pnpm workspace
+- 项目级运行时管理：mise
+- 渲染引擎：WebGL
+- 几何内核：`occt-draw-core` Wasm
+- 重计算调度：Web Worker
 
-## 计划职责
+## 当前定位
 
-- 编辑器 UI
-- 画布渲染
-- 鼠标与键盘交互
-- 图元与图纸数据管理
-- Worker 通信
-- Wasm 加载与结果展示
+本仓库负责：
 
-## 预期技术方向
+- 三维云 CAD 工作台 UI
+- 三维场景和视图状态
+- 草图、约束和参数的 TypeScript 逻辑
+- WebGL 渲染层
+- Worker 调度
+- Wasm 几何内核桥接
+- 云端项目、文件、版本和协同接口的前端边界
 
-当前计划优先采用：
+本仓库不负责：
 
-- React
-- TypeScript
-- Vite
-- Canvas 2D
-- Web Worker
+- OCCT 底层集成
+- B-Rep 内核实现
+- 布尔、倒角、圆角等底层几何算法实现
 
-## 预期目录
+这些能力由 `occt-draw-core` 提供，并通过 Wasm 接入。
 
-后续预计会逐步整理为这样的结构：
+## 本地开发
 
-```txt
-src/
-public/
-workers/
-components/
-editor/
+当前项目使用 `mise` 固定项目内工具版本：
+
+- Node.js：`24.15.0`
+- pnpm：`10.33.2`
+
+进入本仓库后，终端会自动使用项目版本，不影响其它项目的全局 Node 和 pnpm。
+
+常用命令：
+
+```powershell
+pnpm install
+pnpm dev
+pnpm check
 ```
 
-## 当前阶段
+## 文档
 
-当前仓库处于初始化阶段，下一步会优先完成：
+工程文档统一放在 [docs](./docs/索引.md)。
 
-- 前端工程脚手架
-- 最小页面布局
-- 画布基础能力
-- Wasm 加载链路验证
+建议先读：
 
-## 关联项目
-
-几何与 Wasm 内核仓库：
-
-- `occt-draw-core`
-
-它负责 OCCT 集成、自定义投影算法和 Wasm 编译输出。
+1. [三维云端 CAD 架构设计](./docs/架构设计.md)
+2. [基础框架设计](./docs/基础框架.md)
+3. [工程规范](./docs/工程规范.md)
+4. [运行时与资源约定](./docs/运行时约定.md)

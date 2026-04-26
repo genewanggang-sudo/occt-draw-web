@@ -1,10 +1,9 @@
 {
-    "name": "@occt-draw/renderer",
+    "name": "@occt-draw/cloud-client",
     "private": true,
     "version": "0.1.0",
     "dependencies": {
-        "@occt-draw/math": "workspace:*",
-        "@occt-draw/scene": "workspace:*",
+        "@occt-draw/protocol": "workspace:*",
         "@occt-draw/shared": "workspace:*"
     },
     "types": "./src/index.ts",
