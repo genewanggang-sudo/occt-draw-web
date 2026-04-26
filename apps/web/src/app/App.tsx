@@ -3,6 +3,7 @@ import {
     calculateSceneBoundingSphere,
     createStandardCameraState,
     fitCameraToBounds,
+    pickSceneObject,
     type CadRenderer,
     type CameraState,
     type RenderHighlightState,
@@ -16,7 +17,6 @@ import { APP_NAME } from '@occt-draw/shared';
 import { activateCommand } from '../editor/commands/commandReducer';
 import { CommandToolbar } from '../editor/commands/CommandToolbar';
 import type { CommandId } from '../editor/commands/commandTypes';
-import { pickSceneObject } from '../editor/selection/pickSceneObject';
 import { clearSelection, selectSingleObject } from '../editor/selection/selectionReducer';
 import { createInitialEditorState } from '../editor/state/createInitialEditorState';
 import {

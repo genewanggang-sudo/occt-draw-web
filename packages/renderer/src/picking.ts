@@ -5,8 +5,8 @@ import {
     subtractVector3,
     type Vector3,
 } from '@occt-draw/math';
-import type { CameraState, ViewportSize } from '@occt-draw/renderer';
 import type { CubeWireframeSceneObject, SceneDocument } from '@occt-draw/scene';
+import type { CameraState, ViewportSize } from './types';
 
 export interface PickSceneObjectInput {
     readonly camera: CameraState;
@@ -21,7 +21,7 @@ export interface PickSceneObjectResult {
     readonly objectId: string;
 }
 
-interface ScreenPoint2 {
+export interface ScreenPoint2 {
     readonly x: number;
     readonly y: number;
 }

@@ -18,6 +18,12 @@ export {
     type RendererModuleManifest,
     type RendererStatus,
 } from './manifest';
+export {
+    pickSceneObject,
+    type PickSceneObjectInput,
+    type PickSceneObjectResult,
+    type ScreenPoint2,
+} from './picking';
 export type {
     BoundingBox3,
     BoundingSphere,
