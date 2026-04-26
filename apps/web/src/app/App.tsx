@@ -1,7 +1,6 @@
 import {
     calculateSceneBoundingBox,
     calculateSceneBoundingSphere,
-    createCameraStateForScene,
     createStandardCameraState,
     fitCameraToBounds,
     type CadRenderer,
@@ -10,8 +9,13 @@ import {
     type ViewportSize,
 } from '@occt-draw/renderer';
 import { createWebglRenderer } from '@occt-draw/renderer-webgl';
-import { createDefaultSceneDocument } from '@occt-draw/scene';
+import { getActivePartStudio } from '@occt-draw/core';
+import { createSceneDocumentFromPartStudio } from '@occt-draw/scene';
 import { APP_NAME } from '@occt-draw/shared';
+import { activateCommand } from '../editor/commands/commandReducer';
+import { CommandToolbar } from '../editor/commands/CommandToolbar';
+import type { CommandId } from '../editor/commands/commandTypes';
+import { createInitialEditorState } from '../editor/state/createInitialEditorState';
 import {
     beginViewNavigation,
     createViewNavigationState,
@@ -31,10 +35,21 @@ export function App() {
     const appTitle = import.meta.env.VITE_APP_TITLE || APP_NAME;
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const rendererRef = useRef<CadRenderer | null>(null);
-    const scene = useMemo(() => createDefaultSceneDocument(), []);
+    const [editorState, setEditorState] = useState(() => createInitialEditorState());
+    const activePartStudio = useMemo(
+        () => getActivePartStudio(editorState.document),
+        [editorState.document],
+    );
+    const scene = useMemo(
+        () => createSceneDocumentFromPartStudio(activePartStudio),
+        [activePartStudio],
+    );
     const sceneBounds = useMemo(() => calculateSceneBoundingBox(scene), [scene]);
     const sceneSphere = useMemo(() => calculateSceneBoundingSphere(scene), [scene]);
-    const initialCamera = useMemo(() => createCameraStateForScene(scene), [scene]);
+    const initialCamera = useMemo(
+        () => createStandardCameraState(sceneBounds, 'isometric'),
+        [sceneBounds],
+    );
     const [viewportSize, setViewportSize] = useState<ViewportSize>({ width: 1, height: 1 });
     const [rendererStatus, setRendererStatus] = useState('正在初始化 WebGL');
     const [navigation, setNavigation] = useState<ViewNavigationState>(() =>
@@ -197,6 +212,13 @@ export function App() {
         applyCamera(createStandardCameraState(sceneBounds, view, viewportSize));
     }
 
+    function handleActivateCommand(commandId: CommandId): void {
+        setEditorState((current) => ({
+            ...current,
+            activeCommand: activateCommand(current.activeCommand, commandId),
+        }));
+    }
+
     return (
         <main className="cad-workbench">
             <header className="cad-workbench__topbar">
@@ -215,6 +237,10 @@ export function App() {
                         设置
                     </button>
                 </nav>
+                <CommandToolbar
+                    activeCommandId={editorState.activeCommand.id}
+                    onActivateCommand={handleActivateCommand}
+                />
                 <ViewToolbar onFitView={handleFitView} onStandardView={handleStandardView} />
             </header>
 
@@ -226,6 +252,8 @@ export function App() {
                 onPointerUp={handlePointerUp}
                 onWheel={handleWheel}
                 rendererStatus={rendererStatus}
+                activeCommandLabel={getActiveCommandLabel(editorState.activeCommand.id)}
+                documentName={editorState.document.name}
                 sceneObjectCount={scene.objects.length}
             />
         </main>
@@ -265,4 +293,16 @@ function shouldIgnoreShortcut(event: KeyboardEvent): boolean {
         target.tagName === 'SELECT' ||
         target.tagName === 'TEXTAREA'
     );
+}
+
+function getActiveCommandLabel(commandId: CommandId): string {
+    if (commandId === 'sketch') {
+        return '草图';
+    }
+
+    if (commandId === 'extrude') {
+        return '拉伸';
+    }
+
+    return '选择';
 }

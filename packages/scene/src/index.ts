@@ -1,3 +1,4 @@
+import type { CadObject, PartStudio } from '@occt-draw/core';
 import { createVector3, type Vector3 } from '@occt-draw/math';
 
 export type SceneModuleStatus = 'ready';
@@ -45,7 +46,7 @@ export interface SceneDocument {
 export const SCENE_MODULE_MANIFEST: SceneModuleManifest = {
     name: '@occt-draw/scene',
     status: 'ready',
-    summary: '三维场景图、对象树、选择集、可见性和装配显示状态的领域包。',
+    summary: '三维场景投影层，负责把 CAD 文档对象转换为渲染场景表达。',
 };
 
 export function getSceneModuleManifest(): SceneModuleManifest {
@@ -90,4 +91,44 @@ export function createDefaultSceneDocument(): SceneDocument {
             size: 1.6,
         },
     ]);
+}
+
+export function createSceneDocumentFromPartStudio(partStudio: PartStudio): SceneDocument {
+    return createSceneDocument(
+        partStudio.id,
+        partStudio.name,
+        partStudio.objects.map(toSceneObject),
+    );
+}
+
+function toSceneObject(object: CadObject): SceneObject {
+    if (object.kind === 'reference-grid') {
+        return {
+            id: object.id,
+            kind: 'grid',
+            name: object.name,
+            visible: object.visible,
+            divisions: object.divisions,
+            size: object.size,
+        };
+    }
+
+    if (object.kind === 'reference-axis') {
+        return {
+            id: object.id,
+            kind: 'axis',
+            name: object.name,
+            visible: object.visible,
+            length: object.length,
+        };
+    }
+
+    return {
+        id: object.id,
+        kind: 'cube-wireframe',
+        name: object.name,
+        visible: object.visible,
+        center: createVector3(object.center.x, object.center.y, object.center.z),
+        size: object.size,
+    };
 }

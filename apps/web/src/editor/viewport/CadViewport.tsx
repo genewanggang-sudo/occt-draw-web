@@ -1,7 +1,9 @@
 import type { PointerEvent, RefObject, WheelEvent } from 'react';
 
 interface CadViewportProps {
+    readonly activeCommandLabel: string;
     readonly canvasRef: RefObject<HTMLCanvasElement | null>;
+    readonly documentName: string;
     readonly onPointerCancel: (event: PointerEvent<HTMLCanvasElement>) => void;
     readonly onPointerDown: (event: PointerEvent<HTMLCanvasElement>) => void;
     readonly onPointerMove: (event: PointerEvent<HTMLCanvasElement>) => void;
@@ -12,7 +14,9 @@ interface CadViewportProps {
 }
 
 export function CadViewport({
+    activeCommandLabel,
     canvasRef,
+    documentName,
     onPointerCancel,
     onPointerDown,
     onPointerMove,
@@ -37,6 +41,8 @@ export function CadViewport({
             />
             <div className="cad-workbench__status" role="status">
                 <span>{rendererStatus}</span>
+                <span>{`文档：${documentName}`}</span>
+                <span>{`命令：${activeCommandLabel}`}</span>
                 <span>正交视图</span>
                 <span>{`场景对象 ${sceneObjectCount.toString()} 个`}</span>
             </div>
