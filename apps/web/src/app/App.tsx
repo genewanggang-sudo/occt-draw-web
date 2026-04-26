@@ -1,7 +1,12 @@
 import {
+    calculateSceneBoundingBox,
     calculateSceneBoundingSphere,
     createCameraStateForScene,
+    createStandardCameraState,
+    fitCameraToBounds,
     type CadRenderer,
+    type CameraState,
+    type StandardCameraView,
     type ViewportSize,
 } from '@occt-draw/renderer';
 import { createWebglRenderer } from '@occt-draw/renderer-webgl';
@@ -12,11 +17,14 @@ import {
     createViewNavigationState,
     endViewNavigation,
     updateViewNavigation,
+    updateViewNavigationCamera,
     updateViewNavigationViewport,
     zoomViewNavigation,
     type ScreenPoint,
     type ViewNavigationState,
 } from '../editor/view-navigation/viewNavigation';
+import { ViewToolbar } from '../editor/view-toolbar/ViewToolbar';
+import { CadViewport } from '../editor/viewport/CadViewport';
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type WheelEvent } from 'react';
 
 export function App() {
@@ -24,6 +32,7 @@ export function App() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const rendererRef = useRef<CadRenderer | null>(null);
     const scene = useMemo(() => createDefaultSceneDocument(), []);
+    const sceneBounds = useMemo(() => calculateSceneBoundingBox(scene), [scene]);
     const sceneSphere = useMemo(() => calculateSceneBoundingSphere(scene), [scene]);
     const initialCamera = useMemo(() => createCameraStateForScene(scene), [scene]);
     const [viewportSize, setViewportSize] = useState<ViewportSize>({ width: 1, height: 1 });
@@ -157,6 +166,18 @@ export function App() {
         );
     }
 
+    function applyCamera(camera: CameraState): void {
+        setNavigation((current) => updateViewNavigationCamera(current, camera, sceneSphere));
+    }
+
+    function handleFitView(): void {
+        applyCamera(fitCameraToBounds(navigation.camera, sceneBounds, viewportSize));
+    }
+
+    function handleStandardView(view: StandardCameraView): void {
+        applyCamera(createStandardCameraState(sceneBounds, view, viewportSize));
+    }
+
     return (
         <main className="cad-workbench">
             <header className="cad-workbench__topbar">
@@ -175,27 +196,19 @@ export function App() {
                         设置
                     </button>
                 </nav>
+                <ViewToolbar onFitView={handleFitView} onStandardView={handleStandardView} />
             </header>
 
-            <section className="cad-workbench__viewport" aria-label="三维视窗">
-                <canvas
-                    ref={canvasRef}
-                    className="cad-workbench__canvas"
-                    onContextMenu={(event) => {
-                        event.preventDefault();
-                    }}
-                    onPointerCancel={handlePointerUp}
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onWheel={handleWheel}
-                />
-                <div className="cad-workbench__status" role="status">
-                    <span>{rendererStatus}</span>
-                    <span>正交视图</span>
-                    <span>{`场景对象 ${scene.objects.length.toString()} 个`}</span>
-                </div>
-            </section>
+            <CadViewport
+                canvasRef={canvasRef}
+                onPointerCancel={handlePointerUp}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onWheel={handleWheel}
+                rendererStatus={rendererStatus}
+                sceneObjectCount={scene.objects.length}
+            />
         </main>
     );
 }

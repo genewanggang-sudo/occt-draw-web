@@ -87,6 +87,20 @@ export function updateViewNavigationViewport(
     };
 }
 
+export function updateViewNavigationCamera(
+    state: ViewNavigationState,
+    camera: CameraState,
+    bounds: BoundingSphere,
+): ViewNavigationState {
+    return {
+        ...state,
+        camera,
+        drag: null,
+        pivot: bounds.center,
+        sceneRadius: bounds.radius,
+    };
+}
+
 export function beginViewNavigation(
     state: ViewNavigationState,
     pointer: ViewNavigationPointer,

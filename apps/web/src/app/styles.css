@@ -86,6 +86,16 @@ button {
     flex-shrink: 0;
 }
 
+.cad-workbench__view-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: auto;
+    padding-left: 12px;
+    border-left: 1px solid #2a2f36;
+}
+
 .cad-workbench__action {
     min-width: 56px;
     height: 30px;
@@ -100,6 +110,11 @@ button {
 .cad-workbench__action:hover {
     border-color: #4d85c7;
     background: #28313d;
+}
+
+.cad-workbench__action--view {
+    min-width: 48px;
+    background: #1f252d;
 }
 
 .cad-workbench__viewport {
@@ -136,6 +151,11 @@ button {
 @media (max-width: 640px) {
     .cad-workbench__topbar {
         gap: 8px;
+    }
+
+    .cad-workbench__view-actions {
+        overflow-x: auto;
+        padding-left: 8px;
     }
 
     .cad-workbench__action {
