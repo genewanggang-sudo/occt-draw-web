@@ -25,6 +25,7 @@ export {
     type PickTargetKind,
     type ScreenPoint2,
 } from './picking';
+export { createRenderPrimitiveId, type RenderPrimitiveKind } from './primitiveId';
 export type {
     BoundingBox3,
     BoundingSphere,

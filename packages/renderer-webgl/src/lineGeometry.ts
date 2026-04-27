@@ -1,5 +1,5 @@
 import type { Vector3 } from '@occt-draw/math';
-import type { RenderHighlightState } from '@occt-draw/renderer';
+import { createRenderPrimitiveId, type RenderHighlightState } from '@occt-draw/renderer';
 import type { CubeWireframeSceneObject, SceneDocument } from '@occt-draw/scene';
 import type { LineVertex } from './types';
 
@@ -10,6 +10,8 @@ export function createSceneLineVertices(
     const vertices: LineVertex[] = [];
     const selectedObjectIdSet = new Set(highlight.selectedObjectIds);
     const preselectedObjectId = highlight.preselectedObjectId;
+    const preselectedPrimitiveId = highlight.preselectedPrimitiveId;
+    const selectedPrimitiveId = highlight.selectedPrimitiveId;
 
     for (const object of scene.objects) {
         if (!object.visible) {
@@ -31,6 +33,8 @@ export function createSceneLineVertices(
             object,
             selectedObjectIdSet.has(object.id),
             preselectedObjectId === object.id,
+            selectedPrimitiveId,
+            preselectedPrimitiveId,
         );
     }
 
@@ -89,9 +93,10 @@ function appendCube(
     cube: CubeWireframeSceneObject,
     selected: boolean,
     preselected: boolean,
+    selectedPrimitiveId: string | null,
+    preselectedPrimitiveId: string | null,
 ): void {
     const halfSize = cube.size / 2;
-    const color = getCubeColor(selected, preselected);
     const points = [
         vector3(cube.center.x - halfSize, cube.center.y - halfSize, cube.center.z - halfSize),
         vector3(cube.center.x + halfSize, cube.center.y - halfSize, cube.center.z - halfSize),
@@ -117,9 +122,45 @@ function appendCube(
         [3, 7],
     ] as const;
 
-    for (const [startIndex, endIndex] of edges) {
-        appendLine(vertices, points[startIndex], points[endIndex], color);
+    for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex += 1) {
+        const [startIndex, endIndex] = getCubeEdge(edges, edgeIndex);
+        const primitiveId = createRenderPrimitiveId(cube.id, 'edge', edgeIndex);
+        const edgeSelected = selectedPrimitiveId ? selectedPrimitiveId === primitiveId : selected;
+        const edgePreselected =
+            !edgeSelected &&
+            (preselectedPrimitiveId ? preselectedPrimitiveId === primitiveId : preselected);
+        const color = getCubeColor(edgeSelected, edgePreselected);
+
+        appendLine(
+            vertices,
+            getCubePoint(points, startIndex),
+            getCubePoint(points, endIndex),
+            color,
+        );
     }
+}
+
+function getCubePoint(points: readonly Vector3[], pointIndex: number): Vector3 {
+    const point = points[pointIndex];
+
+    if (!point) {
+        throw new Error('立方体线框渲染失败：顶点索引超出范围');
+    }
+
+    return point;
+}
+
+function getCubeEdge(
+    edges: readonly (readonly [number, number])[],
+    edgeIndex: number,
+): readonly [number, number] {
+    const edge = edges[edgeIndex];
+
+    if (!edge) {
+        throw new Error('立方体线框渲染失败：边索引超出范围');
+    }
+
+    return edge;
 }
 
 function getCubeColor(selected: boolean, preselected: boolean): Vector3 {

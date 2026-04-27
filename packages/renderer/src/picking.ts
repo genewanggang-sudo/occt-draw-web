@@ -6,6 +6,7 @@ import {
     type Vector3,
 } from '@occt-draw/math';
 import type { CubeWireframeSceneObject, SceneDocument } from '@occt-draw/scene';
+import { createRenderPrimitiveId } from './primitiveId';
 import type { CameraState, ViewportSize } from './types';
 
 export type PickTargetKind = 'edge' | 'face' | 'object' | 'vertex';
@@ -87,7 +88,7 @@ function pickCubeWireframeEdge(
 }
 
 function createCubeEdgePrimitiveId(objectId: string, edgeIndex: number): string {
-    return `${objectId}:edge:${edgeIndex.toString()}`;
+    return createRenderPrimitiveId(objectId, 'edge', edgeIndex);
 }
 
 function getCubeEdge(index: number): readonly [number, number] {

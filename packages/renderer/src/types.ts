@@ -39,7 +39,9 @@ export interface RenderFrameInput {
 export interface RenderHighlightState {
     readonly hoveredObjectId: string | null;
     readonly preselectedObjectId: string | null;
+    readonly preselectedPrimitiveId: string | null;
     readonly selectedObjectIds: readonly string[];
+    readonly selectedPrimitiveId: string | null;
 }
 
 export interface CadRenderer {

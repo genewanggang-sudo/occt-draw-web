@@ -68,12 +68,15 @@ export function App() {
         () => ({
             hoveredObjectId: editorState.selection.hoveredObjectId,
             preselectedObjectId: editorState.selection.preselectedTarget?.objectId ?? null,
+            preselectedPrimitiveId: editorState.selection.preselectedTarget?.primitiveId ?? null,
             selectedObjectIds,
+            selectedPrimitiveId: selectedTarget?.primitiveId ?? null,
         }),
         [
             editorState.selection.hoveredObjectId,
             editorState.selection.preselectedTarget,
             selectedObjectIds,
+            selectedTarget,
         ],
     );
     const activeCommandId = editorState.commandSession.id;
