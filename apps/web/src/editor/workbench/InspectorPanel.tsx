@@ -1,10 +1,9 @@
-import type { CadObject } from '@occt-draw/core';
-import type { PickSceneObjectResult, PickTargetKind } from '@occt-draw/renderer';
+import type { CadObject, SelectionTarget, SelectionTargetKind } from '@occt-draw/core';
 
 interface InspectorPanelProps {
     readonly activeCommandLabel: string;
     readonly selectedObjects: readonly CadObject[];
-    readonly selectedTarget: PickSceneObjectResult | null;
+    readonly selectedTarget: SelectionTarget | null;
 }
 
 export function InspectorPanel({
@@ -71,7 +70,7 @@ function getObjectKindLabel(kind: CadObject['kind']): string {
     return '基准网格';
 }
 
-function getPickTargetKindLabel(kind: PickTargetKind): string {
+function getPickTargetKindLabel(kind: SelectionTargetKind): string {
     if (kind === 'edge') {
         return '边';
     }

@@ -1,14 +1,19 @@
+import type { SelectionSet } from '@occt-draw/core';
 import { getCommandDefinition } from './commandRegistry';
-import type { CommandId, CommandState } from './commandTypes';
+import type { CommandId, CommandSession } from './commandTypes';
 
-export function createInitialCommandState(): CommandState {
+export function createInitialCommandSession(): CommandSession {
     return {
         id: 'select',
-        status: 'active',
+        status: 'armed',
+        context: null,
     };
 }
 
-export function activateCommand(current: CommandState, commandId: CommandId): CommandState {
+export function activateCommandSession(
+    current: CommandSession,
+    commandId: CommandId,
+): CommandSession {
     const definition = getCommandDefinition(commandId);
 
     if (!definition?.enabled) {
@@ -17,6 +22,59 @@ export function activateCommand(current: CommandState, commandId: CommandId): Co
 
     return {
         id: commandId,
-        status: 'active',
+        status: 'armed',
+        context: null,
+    };
+}
+
+export function cancelCommandSession(current: CommandSession): CommandSession {
+    if (current.id === 'select') {
+        return {
+            id: 'select',
+            status: 'armed',
+            context: null,
+        };
+    }
+
+    return {
+        id: 'select',
+        status: 'armed',
+        context: null,
+    };
+}
+
+export function completeCommandSession(current: CommandSession): CommandSession {
+    return {
+        ...current,
+        status: 'completed',
+    };
+}
+
+export function resetToSelectCommandSession(): CommandSession {
+    return {
+        id: 'select',
+        status: 'armed',
+        context: null,
+    };
+}
+
+export function consumeSelectionForCommandSession(
+    current: CommandSession,
+    selection: SelectionSet,
+): CommandSession {
+    if (current.id === 'select') {
+        return current;
+    }
+
+    if (selection.isEmpty()) {
+        return current;
+    }
+
+    return {
+        ...current,
+        status: 'running',
+        context: {
+            selectionObjectIds: selection.objectIds,
+        },
     };
 }

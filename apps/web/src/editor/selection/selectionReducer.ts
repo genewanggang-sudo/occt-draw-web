@@ -1,36 +1,39 @@
-import type { PickSceneObjectResult } from '@occt-draw/renderer';
+import {
+    createEmptySelectionSet,
+    createSelectionSetFromTarget,
+    type SelectionTarget,
+} from '@occt-draw/core';
 import type { SelectionState } from './selectionState';
 
 export function clearSelection(selection: SelectionState): SelectionState {
     if (
-        selection.selectedObjectIds.length === 0 &&
-        selection.selectedTarget === null &&
         selection.hoveredObjectId === null &&
-        selection.preselectedObjectId === null &&
-        selection.preselectedTarget === null
+        selection.preselectedTarget === null &&
+        selection.selection.isEmpty()
     ) {
         return selection;
     }
 
     return {
         hoveredObjectId: null,
-        preselectedObjectId: null,
         preselectedTarget: null,
-        selectedObjectIds: [],
-        selectedTarget: null,
+        selection: createEmptySelectionSet(),
     };
 }
 
-export function selectSingleTarget(
+export function replaceSelection(
     selection: SelectionState,
-    target: PickSceneObjectResult,
+    target: SelectionTarget | null,
 ): SelectionState {
+    if (target === null) {
+        return clearSelection(selection);
+    }
+
     if (
-        selection.selectedObjectIds.length === 1 &&
-        selection.selectedObjectIds[0] === target.objectId &&
-        isSameTarget(selection.selectedTarget, target) &&
+        selection.selection.objectIds.length === 1 &&
+        selection.selection.objectIds[0] === target.objectId &&
+        isSameTarget(selection.selection.primaryTarget, target) &&
         selection.hoveredObjectId === null &&
-        selection.preselectedObjectId === null &&
         selection.preselectedTarget === null
     ) {
         return selection;
@@ -38,24 +41,21 @@ export function selectSingleTarget(
 
     return {
         hoveredObjectId: null,
-        preselectedObjectId: null,
         preselectedTarget: null,
-        selectedObjectIds: [target.objectId],
-        selectedTarget: target,
+        selection: createSelectionSetFromTarget(target),
     };
 }
 
-export function preselectTarget(
+export function updatePreselection(
     selection: SelectionState,
-    target: PickSceneObjectResult | null,
+    target: SelectionTarget | null,
 ): SelectionState {
     const nextTarget =
-        target && selection.selectedObjectIds.includes(target.objectId) ? null : target;
-    const nextObjectId = nextTarget?.objectId ?? null;
+        target && selection.selection.objectIds.includes(target.objectId) ? null : target;
+    const nextHoveredObjectId = nextTarget?.objectId ?? null;
 
     if (
-        selection.hoveredObjectId === nextObjectId &&
-        selection.preselectedObjectId === nextObjectId &&
+        selection.hoveredObjectId === nextHoveredObjectId &&
         isSameTarget(selection.preselectedTarget, nextTarget)
     ) {
         return selection;
@@ -63,16 +63,12 @@ export function preselectTarget(
 
     return {
         ...selection,
-        hoveredObjectId: nextObjectId,
-        preselectedObjectId: nextObjectId,
+        hoveredObjectId: nextHoveredObjectId,
         preselectedTarget: nextTarget,
     };
 }
 
-function isSameTarget(
-    left: PickSceneObjectResult | null,
-    right: PickSceneObjectResult | null,
-): boolean {
+function isSameTarget(left: SelectionTarget | null, right: SelectionTarget | null): boolean {
     if (left === null || right === null) {
         return left === right;
     }

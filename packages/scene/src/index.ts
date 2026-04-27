@@ -46,8 +46,50 @@ export interface SceneDocument {
 export const SCENE_MODULE_MANIFEST: SceneModuleManifest = {
     name: '@occt-draw/scene',
     status: 'ready',
-    summary: '三维场景投影层，负责把 CAD 文档对象转换为渲染场景表达。',
+    summary: '三维场景投影层，负责把 CAD 文档对象转换成渲染场景表达。',
 };
+
+export class SceneObjectMapper {
+    fromPartStudio(partStudio: PartStudio): SceneDocument {
+        return createSceneDocument(
+            partStudio.id,
+            partStudio.name,
+            partStudio.objects.map((object) => this.toSceneObject(object)),
+        );
+    }
+
+    toSceneObject(object: CadObject): SceneObject {
+        if (object.kind === 'reference-grid') {
+            return {
+                id: object.id,
+                kind: 'grid',
+                name: object.name,
+                visible: object.visible,
+                divisions: object.divisions,
+                size: object.size,
+            };
+        }
+
+        if (object.kind === 'reference-axis') {
+            return {
+                id: object.id,
+                kind: 'axis',
+                name: object.name,
+                visible: object.visible,
+                length: object.length,
+            };
+        }
+
+        return {
+            id: object.id,
+            kind: 'cube-wireframe',
+            name: object.name,
+            visible: object.visible,
+            center: createVector3(object.center.x, object.center.y, object.center.z),
+            size: object.size,
+        };
+    }
+}
 
 export function getSceneModuleManifest(): SceneModuleManifest {
     return SCENE_MODULE_MANIFEST;
@@ -94,41 +136,5 @@ export function createDefaultSceneDocument(): SceneDocument {
 }
 
 export function createSceneDocumentFromPartStudio(partStudio: PartStudio): SceneDocument {
-    return createSceneDocument(
-        partStudio.id,
-        partStudio.name,
-        partStudio.objects.map(toSceneObject),
-    );
-}
-
-function toSceneObject(object: CadObject): SceneObject {
-    if (object.kind === 'reference-grid') {
-        return {
-            id: object.id,
-            kind: 'grid',
-            name: object.name,
-            visible: object.visible,
-            divisions: object.divisions,
-            size: object.size,
-        };
-    }
-
-    if (object.kind === 'reference-axis') {
-        return {
-            id: object.id,
-            kind: 'axis',
-            name: object.name,
-            visible: object.visible,
-            length: object.length,
-        };
-    }
-
-    return {
-        id: object.id,
-        kind: 'cube-wireframe',
-        name: object.name,
-        visible: object.visible,
-        center: createVector3(object.center.x, object.center.y, object.center.z),
-        size: object.size,
-    };
+    return new SceneObjectMapper().fromPartStudio(partStudio);
 }
