@@ -1,45 +1,53 @@
 import type { SelectionSet } from '@occt-draw/core';
-import { getCommandDefinition } from './commandRegistry';
-import type { CommandId, CommandSession } from './commandTypes';
+import { evaluateCommandAvailability, getCommandLabel } from './commandRegistry';
+import type {
+    CommandAvailabilityContext,
+    CommandId,
+    CommandSelectionContext,
+    CommandSession,
+} from './commandTypes';
+
+const SELECT_MESSAGE = '选择对象或子元素，查看属性并作为后续命令输入。';
+const SKETCH_MESSAGE = '草图命令已进入，真实草图将在下一阶段实现。';
 
 export function createInitialCommandSession(): CommandSession {
     return {
         id: 'select',
-        status: 'armed',
-        context: null,
+        status: 'idle',
+        message: SELECT_MESSAGE,
+        selectionContext: null,
     };
 }
 
 export function activateCommandSession(
     current: CommandSession,
     commandId: CommandId,
+    availabilityContext: CommandAvailabilityContext,
 ): CommandSession {
-    const definition = getCommandDefinition(commandId);
+    const availability = evaluateCommandAvailability(commandId, availabilityContext);
 
-    if (!definition?.enabled) {
-        return current;
-    }
-
-    return {
-        id: commandId,
-        status: 'armed',
-        context: null,
-    };
-}
-
-export function cancelCommandSession(current: CommandSession): CommandSession {
-    if (current.id === 'select') {
+    if (!availability.enabled) {
         return {
-            id: 'select',
-            status: 'armed',
-            context: null,
+            ...current,
+            status: 'blocked',
+            message: availability.reason ?? `${getCommandLabel(commandId)} 当前不可用。`,
         };
     }
 
     return {
+        id: commandId,
+        status: commandId === 'select' ? 'idle' : 'running',
+        message: getCommandRunningMessage(commandId),
+        selectionContext: current.selectionContext,
+    };
+}
+
+export function cancelCommandSession(current: CommandSession): CommandSession {
+    return {
         id: 'select',
-        status: 'armed',
-        context: null,
+        status: current.id === 'select' ? 'idle' : 'cancelled',
+        message: current.id === 'select' ? SELECT_MESSAGE : '命令已取消，已回到选择模式。',
+        selectionContext: current.selectionContext,
     };
 }
 
@@ -47,14 +55,16 @@ export function completeCommandSession(current: CommandSession): CommandSession 
     return {
         ...current,
         status: 'completed',
+        message: `${getCommandLabel(current.id)}命令已完成。`,
     };
 }
 
 export function resetToSelectCommandSession(): CommandSession {
     return {
         id: 'select',
-        status: 'armed',
-        context: null,
+        status: 'idle',
+        message: SELECT_MESSAGE,
+        selectionContext: null,
     };
 }
 
@@ -62,19 +72,44 @@ export function consumeSelectionForCommandSession(
     current: CommandSession,
     selection: SelectionSet,
 ): CommandSession {
-    if (current.id === 'select') {
-        return current;
-    }
+    const selectionContext = createCommandSelectionContext(selection);
 
-    if (selection.isEmpty()) {
-        return current;
+    if (current.id === 'select') {
+        return {
+            ...current,
+            status: 'idle',
+            message: selection.isEmpty() ? SELECT_MESSAGE : '已选择对象或子元素。',
+            selectionContext,
+        };
     }
 
     return {
         ...current,
         status: 'running',
-        context: {
-            selectionObjectIds: selection.objectIds,
-        },
+        message: getCommandRunningMessage(current.id),
+        selectionContext,
     };
+}
+
+function createCommandSelectionContext(selection: SelectionSet): CommandSelectionContext | null {
+    if (selection.isEmpty()) {
+        return null;
+    }
+
+    return {
+        selectedObjectIds: selection.objectIds,
+        primaryTarget: selection.primaryTarget,
+    };
+}
+
+function getCommandRunningMessage(commandId: CommandId): string {
+    if (commandId === 'sketch') {
+        return SKETCH_MESSAGE;
+    }
+
+    if (commandId === 'extrude') {
+        return '拉伸命令已进入。';
+    }
+
+    return SELECT_MESSAGE;
 }

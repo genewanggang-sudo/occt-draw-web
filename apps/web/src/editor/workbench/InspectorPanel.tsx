@@ -1,13 +1,16 @@
 import type { CadObject, SelectionTarget, SelectionTargetKind } from '@occt-draw/core';
+import type { CommandSession, CommandStatus } from '../commands/commandTypes';
 
 interface InspectorPanelProps {
     readonly activeCommandLabel: string;
+    readonly commandSession: CommandSession;
     readonly selectedObjects: readonly CadObject[];
     readonly selectedTarget: SelectionTarget | null;
 }
 
 export function InspectorPanel({
     activeCommandLabel,
+    commandSession,
     selectedObjects,
     selectedTarget,
 }: InspectorPanelProps) {
@@ -21,6 +24,14 @@ export function InspectorPanel({
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">当前命令</span>
                 <strong>{activeCommandLabel}</strong>
+            </div>
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">命令状态</span>
+                <strong>{getCommandStatusLabel(commandSession.status)}</strong>
+            </div>
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">命令说明</span>
+                <strong>{commandSession.message}</strong>
             </div>
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">选择</span>
@@ -84,4 +95,24 @@ function getPickTargetKindLabel(kind: SelectionTargetKind): string {
     }
 
     return '对象';
+}
+
+function getCommandStatusLabel(status: CommandStatus): string {
+    if (status === 'blocked') {
+        return '不可用';
+    }
+
+    if (status === 'cancelled') {
+        return '已取消';
+    }
+
+    if (status === 'completed') {
+        return '已完成';
+    }
+
+    if (status === 'running') {
+        return '运行中';
+    }
+
+    return '空闲';
 }

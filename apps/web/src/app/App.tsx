@@ -15,7 +15,10 @@ import { ViewNavigationController } from '../editor/application/ViewNavigationCo
 import { ViewportInputAdapter } from '../editor/application/ViewportInputAdapter';
 import { ViewportInteractionController } from '../editor/application/ViewportInteractionController';
 import { CommandToolbar } from '../editor/commands/CommandToolbar';
-import { getCommandLabel } from '../editor/commands/commandRegistry';
+import {
+    evaluateCommandAvailabilityMap,
+    getCommandLabel,
+} from '../editor/commands/commandRegistry';
 import { createInitialEditorState } from '../editor/state/createInitialEditorState';
 import type { EditorState } from '../editor/state/editorState';
 import { createViewNavigationState } from '../editor/view-navigation/viewNavigation';
@@ -81,6 +84,14 @@ export function App() {
     );
     const activeCommandId = editorState.commandSession.id;
     const activeCommandLabel = getCommandLabel(activeCommandId);
+    const commandAvailability = useMemo(
+        () =>
+            evaluateCommandAvailabilityMap({
+                hasSketchProfile: false,
+                selectionObjectIds: selectedObjectIds,
+            }),
+        [selectedObjectIds],
+    );
 
     const editorStateRef = useRef(editorState);
     const sceneRef = useRef(scene);
@@ -240,6 +251,7 @@ export function App() {
                 </nav>
                 <CommandToolbar
                     activeCommandId={activeCommandId}
+                    commandAvailability={commandAvailability}
                     onActivateCommand={(commandId) => {
                         interactionControllerRef.current?.activateCommand(commandId);
                     }}
@@ -274,6 +286,7 @@ export function App() {
                 inspectorPanel={
                     <InspectorPanel
                         activeCommandLabel={activeCommandLabel}
+                        commandSession={editorState.commandSession}
                         selectedObjects={selectedObjects}
                         selectedTarget={selectedTarget}
                     />

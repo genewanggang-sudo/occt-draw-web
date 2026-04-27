@@ -1,23 +1,26 @@
-import type { CommandDefinition, CommandId } from './commandTypes';
+import type {
+    CommandAvailability,
+    CommandAvailabilityContext,
+    CommandAvailabilityMap,
+    CommandDefinition,
+    CommandId,
+} from './commandTypes';
 
 export const commandDefinitions: readonly CommandDefinition[] = [
     {
         id: 'select',
         label: '选择',
         kind: 'modal',
-        enabled: true,
     },
     {
         id: 'sketch',
         label: '草图',
         kind: 'modal',
-        enabled: true,
     },
     {
         id: 'extrude',
         label: '拉伸',
         kind: 'modal',
-        enabled: false,
     },
 ] as const;
 
@@ -27,4 +30,45 @@ export function getCommandDefinition(commandId: CommandId): CommandDefinition | 
 
 export function getCommandLabel(commandId: CommandId): string {
     return getCommandDefinition(commandId)?.label ?? '选择';
+}
+
+export function evaluateCommandAvailability(
+    commandId: CommandId,
+    context: CommandAvailabilityContext,
+): CommandAvailability {
+    if (commandId === 'select') {
+        return {
+            enabled: true,
+            reason: null,
+        };
+    }
+
+    if (commandId === 'sketch') {
+        return {
+            enabled: true,
+            reason: null,
+        };
+    }
+
+    if (!context.hasSketchProfile) {
+        return {
+            enabled: false,
+            reason: '需要先有可拉伸的草图轮廓',
+        };
+    }
+
+    return {
+        enabled: context.selectionObjectIds.length > 0,
+        reason: context.selectionObjectIds.length > 0 ? null : '需要先选择一个可拉伸的草图轮廓',
+    };
+}
+
+export function evaluateCommandAvailabilityMap(
+    context: CommandAvailabilityContext,
+): CommandAvailabilityMap {
+    return {
+        select: evaluateCommandAvailability('select', context),
+        sketch: evaluateCommandAvailability('sketch', context),
+        extrude: evaluateCommandAvailability('extrude', context),
+    };
 }

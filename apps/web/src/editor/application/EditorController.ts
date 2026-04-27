@@ -19,7 +19,10 @@ export class EditorController {
     activateCommand(commandId: CommandId): EditorState {
         return {
             ...this.#state,
-            commandSession: this.#commandManager.activate(commandId),
+            commandSession: this.#commandManager.activate(
+                commandId,
+                createCommandAvailabilityContext(this.#state),
+            ),
         };
     }
 
@@ -86,4 +89,11 @@ export class EditorController {
             commandSession: this.#commandManager.resetToSelect(),
         };
     }
+}
+
+function createCommandAvailabilityContext(state: EditorState) {
+    return {
+        hasSketchProfile: false,
+        selectionObjectIds: state.selection.selection.objectIds,
+    };
 }

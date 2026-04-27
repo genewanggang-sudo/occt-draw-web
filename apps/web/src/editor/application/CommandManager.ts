@@ -6,7 +6,11 @@ import {
     consumeSelectionForCommandSession,
     resetToSelectCommandSession,
 } from '../commands/commandReducer';
-import type { CommandId, CommandSession } from '../commands/commandTypes';
+import type {
+    CommandAvailabilityContext,
+    CommandId,
+    CommandSession,
+} from '../commands/commandTypes';
 
 export class CommandManager {
     readonly #session: CommandSession;
@@ -15,8 +19,8 @@ export class CommandManager {
         this.#session = session;
     }
 
-    activate(commandId: CommandId): CommandSession {
-        return activateCommandSession(this.#session, commandId);
+    activate(commandId: CommandId, context: CommandAvailabilityContext): CommandSession {
+        return activateCommandSession(this.#session, commandId, context);
     }
 
     cancel(): CommandSession {
