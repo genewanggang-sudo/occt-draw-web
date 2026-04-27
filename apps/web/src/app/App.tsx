@@ -10,6 +10,7 @@ import { createWebglRenderer } from '@occt-draw/renderer-webgl';
 import { createSceneDocumentFromPartStudio } from '@occt-draw/scene';
 import { APP_NAME } from '@occt-draw/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { EditorController } from '../editor/application/EditorController';
 import { PickService } from '../editor/application/PickService';
 import { ViewNavigationController } from '../editor/application/ViewNavigationController';
 import { ViewportInputAdapter } from '../editor/application/ViewportInputAdapter';
@@ -270,6 +271,15 @@ export function App() {
                 modelTreePanel={
                     <ModelTreePanel
                         document={editorState.document}
+                        onSelectObject={(objectId) => {
+                            setEditorState((current) =>
+                                new EditorController(current).replaceSelection({
+                                    objectId,
+                                    primitiveId: null,
+                                    targetKind: 'object',
+                                }),
+                            );
+                        }}
                         partStudio={activePartStudio}
                         selectedObjectIds={selectedObjectIds}
                     />

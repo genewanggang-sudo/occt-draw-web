@@ -213,6 +213,13 @@ export class ViewportInteractionController {
             viewportSize: currentState.navigation.viewportSize,
         });
 
+        if (!target) {
+            this.#context.setState((current) =>
+                new EditorController(current).replaceSelection(null),
+            );
+            return;
+        }
+
         this.#context.setState((current) => new EditorController(current).replaceSelection(target));
     }
 }

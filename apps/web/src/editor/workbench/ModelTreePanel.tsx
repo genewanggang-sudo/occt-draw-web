@@ -2,11 +2,17 @@ import type { CadDocument, PartStudio } from '@occt-draw/core';
 
 interface ModelTreePanelProps {
     readonly document: CadDocument;
+    readonly onSelectObject: (objectId: string) => void;
     readonly partStudio: PartStudio;
     readonly selectedObjectIds: readonly string[];
 }
 
-export function ModelTreePanel({ document, partStudio, selectedObjectIds }: ModelTreePanelProps) {
+export function ModelTreePanel({
+    document,
+    onSelectObject,
+    partStudio,
+    selectedObjectIds,
+}: ModelTreePanelProps) {
     return (
         <aside className="cad-workbench__side-panel" aria-label="模型树">
             <div className="cad-workbench__panel-header">
@@ -23,7 +29,19 @@ export function ModelTreePanel({ document, partStudio, selectedObjectIds }: Mode
                 {partStudio.objects.map((object) => (
                     <div
                         key={object.id}
+                        aria-pressed={selectedObjectIds.includes(object.id)}
                         className={getObjectNodeClassName(selectedObjectIds.includes(object.id))}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
+                            onSelectObject(object.id);
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                onSelectObject(object.id);
+                            }
+                        }}
                     >
                         <span className="cad-workbench__tree-dot" />
                         <span>{object.name}</span>
