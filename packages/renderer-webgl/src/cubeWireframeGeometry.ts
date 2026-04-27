@@ -1,11 +1,11 @@
+import type { CubeWireframeDisplayObject } from '@occt-draw/display';
 import type { Vector3 } from '@occt-draw/math';
 import { createRenderPrimitiveId } from '@occt-draw/renderer';
-import type { CubeWireframeSceneObject } from '@occt-draw/scene';
 import type { LineVertex } from './types';
 
 export function appendCubeWireframe(
     vertices: LineVertex[],
-    cube: CubeWireframeSceneObject,
+    cube: CubeWireframeDisplayObject,
     selected: boolean,
     preselected: boolean,
     selectedPrimitiveId: string | null,

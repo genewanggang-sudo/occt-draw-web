@@ -3,17 +3,17 @@ import type { RefObject } from 'react';
 interface CadViewportProps {
     readonly activeCommandLabel: string;
     readonly canvasRef: RefObject<HTMLCanvasElement | null>;
+    readonly displayObjectCount: number;
     readonly documentName: string;
     readonly rendererStatus: string;
-    readonly sceneObjectCount: number;
 }
 
 export function CadViewport({
     activeCommandLabel,
     canvasRef,
+    displayObjectCount,
     documentName,
     rendererStatus,
-    sceneObjectCount,
 }: CadViewportProps) {
     return (
         <section className="cad-workbench__viewport" aria-label="三维视窗">
@@ -24,7 +24,7 @@ export function CadViewport({
                     <span>{`文档：${documentName}`}</span>
                     <span>{`命令：${activeCommandLabel}`}</span>
                     <span>正交视图</span>
-                    <span>{`场景对象 ${sceneObjectCount.toString()} 个`}</span>
+                    <span>{`显示对象 ${displayObjectCount.toString()} 个`}</span>
                 </div>
                 <div className="cad-workbench__help" aria-label="视窗操作提示">
                     <span>右键旋转</span>

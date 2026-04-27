@@ -1,16 +1,17 @@
+import type { DisplayModel } from '@occt-draw/display';
 import {
     addVector3,
     createVector3,
+    crossVector3,
     dotVector3,
     normalizeVector3,
     scaleVector3,
     subtractVector3,
     type Vector3,
 } from '@occt-draw/math';
-import type { SceneDocument } from '@occt-draw/scene';
 import {
     calculateBoundingSphere,
-    calculateSceneBoundingBox,
+    calculateDisplayBoundingBox,
     getBoundingBoxCorners,
 } from './bounds';
 import type { BoundingBox3, CameraState, ViewportSize } from './types';
@@ -41,8 +42,8 @@ interface CameraBasis {
     readonly view: Vector3;
 }
 
-export function createCameraStateForScene(scene: SceneDocument): CameraState {
-    return createStandardCameraState(calculateSceneBoundingBox(scene), 'isometric');
+export function createCameraStateForDisplay(displayModel: DisplayModel): CameraState {
+    return createStandardCameraState(calculateDisplayBoundingBox(displayModel), 'isometric');
 }
 
 export function createStandardCameraState(
@@ -165,12 +166,4 @@ function calculateCameraBasis(camera: CameraState): CameraBasis {
     const up = normalizeVector3(crossVector3(view, right));
 
     return { right, up, view };
-}
-
-function crossVector3(left: Vector3, right: Vector3): Vector3 {
-    return createVector3(
-        left.y * right.z - left.z * right.y,
-        left.z * right.x - left.x * right.z,
-        left.x * right.y - left.y * right.x,
-    );
 }

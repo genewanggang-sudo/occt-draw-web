@@ -68,6 +68,16 @@ export function resetToSelectCommandSession(): CommandSession {
     };
 }
 
+export function updateCommandSessionMessage(
+    current: CommandSession,
+    message: string,
+): CommandSession {
+    return {
+        ...current,
+        message,
+    };
+}
+
 export function consumeSelectionForCommandSession(
     current: CommandSession,
     selection: SelectionSet,

@@ -53,13 +53,13 @@ export function evaluateCommandAvailability(
     if (!context.hasSketchProfile) {
         return {
             enabled: false,
-            reason: '需要先有可拉伸的草图轮廓',
+            reason: '需要先有可拉伸的草图轮廓。',
         };
     }
 
     return {
         enabled: context.selectionObjectIds.length > 0,
-        reason: context.selectionObjectIds.length > 0 ? null : '需要先选择一个可拉伸的草图轮廓',
+        reason: context.selectionObjectIds.length > 0 ? null : '需要先选择一个可拉伸的草图轮廓。',
     };
 }
 

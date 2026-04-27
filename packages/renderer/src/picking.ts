@@ -1,3 +1,4 @@
+import type { CubeWireframeDisplayObject, DisplayModel } from '@occt-draw/display';
 import {
     crossVector3,
     dotVector3,
@@ -5,21 +6,20 @@ import {
     subtractVector3,
     type Vector3,
 } from '@occt-draw/math';
-import type { CubeWireframeSceneObject, SceneDocument } from '@occt-draw/scene';
 import { createRenderPrimitiveId } from './primitiveId';
 import type { CameraState, ViewportSize } from './types';
 
 export type PickTargetKind = 'edge' | 'face' | 'object' | 'vertex';
 
-export interface PickSceneObjectInput {
+export interface PickDisplayObjectInput {
     readonly camera: CameraState;
+    readonly displayModel: DisplayModel;
     readonly point: ScreenPoint2;
-    readonly scene: SceneDocument;
     readonly thresholdPixels: number;
     readonly viewportSize: ViewportSize;
 }
 
-export interface PickSceneObjectResult {
+export interface PickDisplayObjectResult {
     readonly distancePixels: number;
     readonly objectId: string;
     readonly primitiveId: string | null;
@@ -36,11 +36,11 @@ interface CameraBasis {
     readonly up: Vector3;
 }
 
-export function pickSceneObject(input: PickSceneObjectInput): PickSceneObjectResult | null {
-    let nearestResult: PickSceneObjectResult | null = null;
+export function pickDisplayObject(input: PickDisplayObjectInput): PickDisplayObjectResult | null {
+    let nearestResult: PickDisplayObjectResult | null = null;
     let nearestDistance = input.thresholdPixels;
 
-    for (const object of input.scene.objects) {
+    for (const object of input.displayModel.objects) {
         if (!object.visible || object.kind !== 'cube-wireframe') {
             continue;
         }
@@ -57,12 +57,12 @@ export function pickSceneObject(input: PickSceneObjectInput): PickSceneObjectRes
 }
 
 function pickCubeWireframeEdge(
-    cube: CubeWireframeSceneObject,
-    input: PickSceneObjectInput,
-): PickSceneObjectResult | null {
+    cube: CubeWireframeDisplayObject,
+    input: PickDisplayObjectInput,
+): PickDisplayObjectResult | null {
     const points = createCubePoints(cube);
     const basis = calculateCameraBasis(input.camera);
-    let nearestResult: PickSceneObjectResult | null = null;
+    let nearestResult: PickDisplayObjectResult | null = null;
     let nearestDistance = input.thresholdPixels;
 
     for (let edgeIndex = 0; edgeIndex < CUBE_EDGES.length; edgeIndex += 1) {
@@ -95,7 +95,7 @@ function getCubeEdge(index: number): readonly [number, number] {
     const edge = CUBE_EDGES[index];
 
     if (!edge) {
-        throw new Error('立方体拾取失败：边索引超出边范围');
+        throw new Error('立方体拾取失败：边索引超出范围');
     }
 
     return edge;
@@ -105,13 +105,13 @@ function getCubePoint(points: readonly Vector3[], index: number): Vector3 {
     const point = points[index];
 
     if (!point) {
-        throw new Error('立方体拾取失败：边索引超出顶点范围');
+        throw new Error('立方体拾取失败：顶点索引超出范围');
     }
 
     return point;
 }
 
-function createCubePoints(cube: CubeWireframeSceneObject): readonly Vector3[] {
+function createCubePoints(cube: CubeWireframeDisplayObject): readonly Vector3[] {
     const halfSize = cube.size / 2;
 
     return [

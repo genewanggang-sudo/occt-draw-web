@@ -1,5 +1,5 @@
+import type { DisplayModel } from '@occt-draw/display';
 import type { Vector3 } from '@occt-draw/math';
-import type { SceneDocument } from '@occt-draw/scene';
 
 export type CameraProjection = 'orthographic' | 'perspective';
 
@@ -31,8 +31,8 @@ export interface CameraState {
 
 export interface RenderFrameInput {
     readonly camera: CameraState;
+    readonly displayModel: DisplayModel;
     readonly highlight: RenderHighlightState;
-    readonly scene: SceneDocument;
     readonly viewportSize: ViewportSize;
 }
 

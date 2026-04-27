@@ -1,13 +1,13 @@
+import { projectPartStudioToDisplayModel } from '@occt-draw/display';
 import { createDefaultCadDocument, getActivePartStudio } from '@occt-draw/core';
 import {
-    calculateSceneBoundingBox,
-    calculateSceneBoundingSphere,
+    calculateDisplayBoundingBox,
+    calculateDisplayBoundingSphere,
     createStandardCameraState,
     type CadRenderer,
     type RenderHighlightState,
 } from '@occt-draw/renderer';
 import { createWebglRenderer } from '@occt-draw/renderer-webgl';
-import { createSceneDocumentFromPartStudio } from '@occt-draw/scene';
 import { APP_NAME } from '@occt-draw/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EditorController } from '../editor/application/EditorController';
@@ -39,11 +39,11 @@ export function App() {
     const [editorState, setEditorState] = useState<EditorState>(() => {
         const document = createDefaultCadDocument();
         const activePartStudio = getActivePartStudio(document);
-        const scene = createSceneDocumentFromPartStudio(activePartStudio);
-        const sceneBounds = calculateSceneBoundingBox(scene);
-        const sceneSphere = calculateSceneBoundingSphere(scene);
-        const camera = createStandardCameraState(sceneBounds, 'isometric', INITIAL_VIEWPORT_SIZE);
-        const navigation = createViewNavigationState(camera, sceneSphere, INITIAL_VIEWPORT_SIZE);
+        const displayModel = projectPartStudioToDisplayModel(activePartStudio);
+        const displayBounds = calculateDisplayBoundingBox(displayModel);
+        const displaySphere = calculateDisplayBoundingSphere(displayModel);
+        const camera = createStandardCameraState(displayBounds, 'isometric', INITIAL_VIEWPORT_SIZE);
+        const navigation = createViewNavigationState(camera, displaySphere, INITIAL_VIEWPORT_SIZE);
 
         return createInitialEditorState({
             document,
@@ -56,12 +56,15 @@ export function App() {
         () => getActivePartStudio(editorState.document),
         [editorState.document],
     );
-    const scene = useMemo(
-        () => createSceneDocumentFromPartStudio(activePartStudio),
-        [activePartStudio],
+    const displayModel = useMemo(
+        () => projectPartStudioToDisplayModel(activePartStudio, editorState.draft),
+        [activePartStudio, editorState.draft],
     );
-    const sceneBounds = useMemo(() => calculateSceneBoundingBox(scene), [scene]);
-    const sceneSphere = useMemo(() => calculateSceneBoundingSphere(scene), [scene]);
+    const displayBounds = useMemo(() => calculateDisplayBoundingBox(displayModel), [displayModel]);
+    const displaySphere = useMemo(
+        () => calculateDisplayBoundingSphere(displayModel),
+        [displayModel],
+    );
     const selectedObjectIds = editorState.selection.selection.objectIds;
     const selectedTarget = editorState.selection.selection.primaryTarget;
     const selectedObjects = useMemo(
@@ -95,26 +98,26 @@ export function App() {
     );
 
     const editorStateRef = useRef(editorState);
-    const sceneRef = useRef(scene);
-    const sceneBoundsRef = useRef(sceneBounds);
-    const sceneSphereRef = useRef(sceneSphere);
+    const displayModelRef = useRef(displayModel);
+    const displayBoundsRef = useRef(displayBounds);
+    const displaySphereRef = useRef(displaySphere);
     const activeCommandIdRef = useRef(activeCommandId);
 
     useEffect(() => {
         editorStateRef.current = editorState;
-        sceneRef.current = scene;
-        sceneBoundsRef.current = sceneBounds;
-        sceneSphereRef.current = sceneSphere;
+        displayModelRef.current = displayModel;
+        displayBoundsRef.current = displayBounds;
+        displaySphereRef.current = displaySphere;
         activeCommandIdRef.current = activeCommandId;
-    }, [activeCommandId, editorState, scene, sceneBounds, sceneSphere]);
+    }, [activeCommandId, displayBounds, displayModel, displaySphere, editorState]);
 
     const interactionControllerRef = useRef<ViewportInteractionController | null>(null);
 
     interactionControllerRef.current ??= new ViewportInteractionController({
         getActiveCommandId: () => activeCommandIdRef.current,
-        getScene: () => sceneRef.current,
-        getSceneBounds: () => sceneBoundsRef.current,
-        getSceneSphere: () => sceneSphereRef.current,
+        getDisplayBounds: () => displayBoundsRef.current,
+        getDisplayModel: () => displayModelRef.current,
+        getDisplaySphere: () => displaySphereRef.current,
         getState: () => editorStateRef.current,
         pickService: pickServiceRef.current,
         setState: (updater) => {
@@ -221,15 +224,15 @@ export function App() {
     useEffect(() => {
         rendererRef.current?.render({
             camera: editorState.navigation.camera,
+            displayModel,
             highlight: renderHighlight,
-            scene,
             viewportSize: editorState.navigation.viewportSize,
         });
     }, [
+        displayModel,
         editorState.navigation.camera,
         editorState.navigation.viewportSize,
         renderHighlight,
-        scene,
     ]);
 
     return (
@@ -288,9 +291,9 @@ export function App() {
                     <CadViewport
                         activeCommandLabel={activeCommandLabel}
                         canvasRef={canvasRef}
+                        displayObjectCount={displayModel.objects.length}
                         documentName={editorState.document.name}
                         rendererStatus={rendererStatus}
-                        sceneObjectCount={scene.objects.length}
                     />
                 }
                 inspectorPanel={

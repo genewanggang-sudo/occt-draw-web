@@ -1,45 +1,60 @@
-import type { SelectionSet } from '@occt-draw/core';
-import {
-    activateCommandSession,
-    cancelCommandSession,
-    completeCommandSession,
-    consumeSelectionForCommandSession,
-    resetToSelectCommandSession,
-} from '../commands/commandReducer';
+import type { CommandId } from '../commands/commandTypes';
 import type {
-    CommandAvailabilityContext,
-    CommandId,
-    CommandSession,
-} from '../commands/commandTypes';
+    CadCommand,
+    CommandContext,
+    CommandKeyEvent,
+    CommandPointerEvent,
+} from '../commands/CadCommand';
 
 export class CommandManager {
-    readonly #session: CommandSession;
+    private readonly commands: ReadonlyMap<CommandId, CadCommand>;
+    private activeCommandId: CommandId;
 
-    constructor(session: CommandSession) {
-        this.#session = session;
+    constructor(input: {
+        readonly activeCommandId: CommandId;
+        readonly commands: readonly CadCommand[];
+    }) {
+        this.activeCommandId = input.activeCommandId;
+        this.commands = new Map(input.commands.map((command) => [command.id, command]));
     }
 
-    activate(commandId: CommandId, context: CommandAvailabilityContext): CommandSession {
-        return activateCommandSession(this.#session, commandId, context);
+    activate(commandId: CommandId, context: CommandContext): void {
+        const nextCommand = this.commands.get(commandId);
+
+        if (!nextCommand) {
+            return;
+        }
+
+        this.getActiveCommand()?.exit(context);
+        this.activeCommandId = commandId;
+        nextCommand.enter(context);
     }
 
-    cancel(): CommandSession {
-        return cancelCommandSession(this.#session);
+    cancel(context: CommandContext): void {
+        this.getActiveCommand()?.cancel(context);
     }
 
-    complete(): CommandSession {
-        return completeCommandSession(this.#session);
+    pointerDown(event: CommandPointerEvent, context: CommandContext): boolean {
+        return this.getActiveCommand()?.pointerDown(event, context) ?? false;
     }
 
-    consumeSelection(selection: SelectionSet): CommandSession {
-        return consumeSelectionForCommandSession(this.#session, selection);
+    pointerMove(event: CommandPointerEvent, context: CommandContext): boolean {
+        return this.getActiveCommand()?.pointerMove(event, context) ?? false;
     }
 
-    getSession(): CommandSession {
-        return this.#session;
+    pointerUp(event: CommandPointerEvent, context: CommandContext): boolean {
+        return this.getActiveCommand()?.pointerUp(event, context) ?? false;
     }
 
-    resetToSelect(): CommandSession {
-        return resetToSelectCommandSession();
+    keyDown(event: CommandKeyEvent, context: CommandContext): boolean {
+        return this.getActiveCommand()?.keyDown(event, context) ?? false;
+    }
+
+    setActiveCommandId(commandId: CommandId): void {
+        this.activeCommandId = commandId;
+    }
+
+    private getActiveCommand(): CadCommand | null {
+        return this.commands.get(this.activeCommandId) ?? null;
     }
 }

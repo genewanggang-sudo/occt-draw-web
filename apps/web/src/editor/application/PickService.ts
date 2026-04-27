@@ -1,19 +1,19 @@
+import type { DisplayModel } from '@occt-draw/display';
 import type { SelectionTarget } from '@occt-draw/core';
-import { pickSceneObject, type CameraState, type ViewportSize } from '@occt-draw/renderer';
-import type { SceneDocument } from '@occt-draw/scene';
+import { pickDisplayObject, type CameraState, type ViewportSize } from '@occt-draw/renderer';
 import type { ScreenPoint } from '../view-navigation/viewNavigation';
 
 export interface PickSelectionTargetInput {
     readonly camera: CameraState;
+    readonly displayModel: DisplayModel;
     readonly point: ScreenPoint;
-    readonly scene: SceneDocument;
     readonly thresholdPixels: number;
     readonly viewportSize: ViewportSize;
 }
 
 export class PickService {
     pickSelectionTarget(input: PickSelectionTargetInput): SelectionTarget | null {
-        const pickResult = pickSceneObject(input);
+        const pickResult = pickDisplayObject(input);
 
         if (!pickResult) {
             return null;

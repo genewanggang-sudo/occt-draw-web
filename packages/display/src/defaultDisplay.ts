@@ -1,9 +1,9 @@
 import { createVector3 } from '@occt-draw/math';
-import { createSceneDocument } from './sceneDocument';
-import type { SceneDocument } from './types';
+import { createDisplayModel } from './displayModel';
+import type { DisplayModel } from './types';
 
-export function createDefaultSceneDocument(): SceneDocument {
-    return createSceneDocument('scene-default', '默认三维场景', [
+export function createDefaultDisplayModel(): DisplayModel {
+    return createDisplayModel('display-default', '默认三维显示模型', [
         {
             id: 'grid-main',
             kind: 'grid',

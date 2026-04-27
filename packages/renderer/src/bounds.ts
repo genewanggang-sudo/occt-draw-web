@@ -1,3 +1,4 @@
+import type { DisplayModel, DisplayObject } from '@occt-draw/display';
 import {
     addVector3,
     createVector3,
@@ -6,13 +7,12 @@ import {
     subtractVector3,
     type Vector3,
 } from '@occt-draw/math';
-import type { SceneDocument, SceneObject } from '@occt-draw/scene';
 import type { BoundingBox3, BoundingSphere } from './types';
 
-export function calculateSceneBoundingBox(scene: SceneDocument): BoundingBox3 {
+export function calculateDisplayBoundingBox(displayModel: DisplayModel): BoundingBox3 {
     let bounds: BoundingBox3 | null = null;
 
-    for (const object of scene.objects) {
+    for (const object of displayModel.objects) {
         if (!object.visible) {
             continue;
         }
@@ -28,8 +28,8 @@ export function calculateSceneBoundingBox(scene: SceneDocument): BoundingBox3 {
     );
 }
 
-export function calculateSceneBoundingSphere(scene: SceneDocument): BoundingSphere {
-    return calculateBoundingSphere(calculateSceneBoundingBox(scene));
+export function calculateDisplayBoundingSphere(displayModel: DisplayModel): BoundingSphere {
+    return calculateBoundingSphere(calculateDisplayBoundingBox(displayModel));
 }
 
 export function calculateBoundingSphere(bounds: BoundingBox3): BoundingSphere {
@@ -52,7 +52,7 @@ export function getBoundingBoxCorners(bounds: BoundingBox3): readonly Vector3[] 
     ];
 }
 
-function expandBoundsByObject(bounds: BoundingBox3 | null, object: SceneObject): BoundingBox3 {
+function expandBoundsByObject(bounds: BoundingBox3 | null, object: DisplayObject): BoundingBox3 {
     if (object.kind === 'grid') {
         const halfSize = object.size / 2;
 
@@ -64,6 +64,13 @@ function expandBoundsByObject(bounds: BoundingBox3 | null, object: SceneObject):
 
     if (object.kind === 'axis') {
         return expandBoundsByPoint(bounds, createVector3(0, 0, 0));
+    }
+
+    if (object.kind === 'line-segments') {
+        return expandBoundsByPoints(
+            bounds,
+            object.segments.flatMap((segment) => [segment.start, segment.end]),
+        );
     }
 
     const halfSize = object.size / 2;

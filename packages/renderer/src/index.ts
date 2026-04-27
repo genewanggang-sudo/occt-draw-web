@@ -1,14 +1,14 @@
 export {
     DEFAULT_CAMERA_STATE,
-    createCameraStateForScene,
+    createCameraStateForDisplay,
     createStandardCameraState,
     fitCameraToBounds,
     type StandardCameraView,
 } from './camera';
 export {
     calculateBoundingSphere,
-    calculateSceneBoundingBox,
-    calculateSceneBoundingSphere,
+    calculateDisplayBoundingBox,
+    calculateDisplayBoundingSphere,
     getBoundingBoxCorners,
 } from './bounds';
 export {
@@ -19,9 +19,9 @@ export {
     type RendererStatus,
 } from './manifest';
 export {
-    pickSceneObject,
-    type PickSceneObjectInput,
-    type PickSceneObjectResult,
+    pickDisplayObject,
+    type PickDisplayObjectInput,
+    type PickDisplayObjectResult,
     type PickTargetKind,
     type ScreenPoint2,
 } from './picking';

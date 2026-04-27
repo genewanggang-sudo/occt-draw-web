@@ -71,6 +71,9 @@ importers:
       '@occt-draw/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@occt-draw/display':
+        specifier: workspace:*
+        version: link:../../packages/display
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../../packages/math
@@ -83,9 +86,6 @@ importers:
       '@occt-draw/renderer-webgl':
         specifier: workspace:*
         version: link:../../packages/renderer-webgl
-      '@occt-draw/scene':
-        specifier: workspace:*
-        version: link:../../packages/scene
       '@occt-draw/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -137,6 +137,18 @@ importers:
         specifier: workspace:*
         version: link:../shared
 
+  packages/display:
+    dependencies:
+      '@occt-draw/core':
+        specifier: workspace:*
+        version: link:../core
+      '@occt-draw/math':
+        specifier: workspace:*
+        version: link:../math
+      '@occt-draw/shared':
+        specifier: workspace:*
+        version: link:../shared
+
   packages/math:
     dependencies:
       '@occt-draw/shared':
@@ -156,39 +168,27 @@ importers:
 
   packages/renderer:
     dependencies:
+      '@occt-draw/display':
+        specifier: workspace:*
+        version: link:../display
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math
-      '@occt-draw/scene':
-        specifier: workspace:*
-        version: link:../scene
       '@occt-draw/shared':
         specifier: workspace:*
         version: link:../shared
 
   packages/renderer-webgl:
     dependencies:
+      '@occt-draw/display':
+        specifier: workspace:*
+        version: link:../display
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math
       '@occt-draw/renderer':
         specifier: workspace:*
         version: link:../renderer
-      '@occt-draw/scene':
-        specifier: workspace:*
-        version: link:../scene
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
-
-  packages/scene:
-    dependencies:
-      '@occt-draw/core':
-        specifier: workspace:*
-        version: link:../core
-      '@occt-draw/math':
-        specifier: workspace:*
-        version: link:../math
       '@occt-draw/shared':
         specifier: workspace:*
         version: link:../shared

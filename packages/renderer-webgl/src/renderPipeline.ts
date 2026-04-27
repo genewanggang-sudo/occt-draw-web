@@ -1,5 +1,5 @@
 import type { RenderFrameInput } from '@occt-draw/renderer';
-import { createSceneLineVertices, toVertexBuffer } from './lineGeometry';
+import { createDisplayLineVertices, toVertexBuffer } from './lineGeometry';
 import { createViewProjectionMatrix } from './matrix';
 
 export interface RenderPipelineResources {
@@ -15,7 +15,7 @@ export function renderPipeline(
     resources: RenderPipelineResources,
     input: RenderFrameInput,
 ): void {
-    const vertices = createSceneLineVertices(input.scene, input.highlight);
+    const vertices = createDisplayLineVertices(input.displayModel, input.highlight);
 
     context.clear(context.COLOR_BUFFER_BIT | context.DEPTH_BUFFER_BIT);
     context.useProgram(resources.program);

@@ -90,33 +90,33 @@ module.exports = {
             },
         },
         {
-            name: 'scene-only-core-math-shared',
+            name: 'display-only-core-math-shared',
             severity: 'error',
             from: {
-                path: '^packages/scene/src',
+                path: '^packages/display/src',
             },
             to: {
-                path: '^packages/(?!shared|math|core|scene)',
+                path: '^packages/(?!shared|math|core|display)',
             },
         },
         {
-            name: 'renderer-only-scene-math-shared',
+            name: 'renderer-only-display-math-shared',
             severity: 'error',
             from: {
                 path: '^packages/renderer/src',
             },
             to: {
-                path: '^packages/(?!shared|math|scene|renderer)',
+                path: '^packages/(?!shared|math|display|renderer)',
             },
         },
         {
-            name: 'renderer-webgl-only-renderer-scene-math-shared',
+            name: 'renderer-webgl-only-renderer-display-math-shared',
             severity: 'error',
             from: {
                 path: '^packages/renderer-webgl/src',
             },
             to: {
-                path: '^packages/(?!shared|math|scene|renderer|renderer-webgl)',
+                path: '^packages/(?!shared|math|display|renderer|renderer-webgl)',
             },
         },
         {

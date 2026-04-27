@@ -16,6 +16,7 @@ export function createInitialEditorState({
     return {
         document,
         commandSession: createInitialCommandSession(),
+        draft: null,
         navigation,
         selection: createInitialSelectionState(),
     };

@@ -1,50 +1,63 @@
+import type { DisplayModel } from '@occt-draw/display';
+import type { DocumentTransaction, EditDraft, TransactionGroup } from '@occt-draw/core';
 import type { BoundingBox3, BoundingSphere, StandardCameraView } from '@occt-draw/renderer';
-import type { SceneDocument } from '@occt-draw/scene';
+import type { CommandContext, CommandPointerEvent } from '../commands/CadCommand';
+import { SelectCommand } from '../commands/SelectCommand';
+import { SketchCommand } from '../commands/SketchCommand';
 import type { CommandId } from '../commands/commandTypes';
 import type { EditorState } from '../state/editorState';
 import type { ScreenPoint } from '../view-navigation/viewNavigation';
+import { CommandManager } from './CommandManager';
 import { EditorController } from './EditorController';
 import type { PickService } from './PickService';
 import { ViewNavigationController } from './ViewNavigationController';
 
-interface PendingSelectionPointer {
-    readonly pointerId: number;
-    readonly point: ScreenPoint;
-}
-
 interface InteractionContext {
     readonly getActiveCommandId: () => CommandId;
-    readonly getScene: () => SceneDocument;
-    readonly getSceneBounds: () => BoundingBox3;
-    readonly getSceneSphere: () => BoundingSphere;
+    readonly getDisplayBounds: () => BoundingBox3;
+    readonly getDisplayModel: () => DisplayModel;
+    readonly getDisplaySphere: () => BoundingSphere;
     readonly getState: () => EditorState;
     readonly pickService: PickService;
     readonly setState: (updater: (current: EditorState) => EditorState) => void;
 }
 
-const CLICK_SELECTION_TOLERANCE_PIXELS = 4;
 const PICK_THRESHOLD_PIXELS = 9;
 
 export class ViewportInteractionController {
-    readonly #context: InteractionContext;
-    #pendingSelectionPointer: PendingSelectionPointer | null;
+    private readonly commandManager: CommandManager;
+    private readonly context: InteractionContext;
 
     constructor(context: InteractionContext) {
-        this.#context = context;
-        this.#pendingSelectionPointer = null;
+        this.context = context;
+        this.commandManager = new CommandManager({
+            activeCommandId: context.getActiveCommandId(),
+            commands: [new SelectCommand(), new SketchCommand()],
+        });
     }
 
     activateCommand(commandId: CommandId): void {
-        this.#context.setState((current) =>
-            new EditorController(current).activateCommand(commandId),
-        );
+        const commandContext = this.createCommandContext();
+
+        this.context.setState((current) => {
+            const nextState = new EditorController(current).activateCommand(commandId);
+
+            if (
+                nextState.commandSession.id === commandId &&
+                nextState.commandSession.status !== 'blocked'
+            ) {
+                this.commandManager.activate(commandId, commandContext);
+            }
+
+            return nextState;
+        });
     }
 
     fitView(): void {
-        this.#context.setState((current) => {
+        this.context.setState((current) => {
             const navigation = new ViewNavigationController(current.navigation).fit(
-                this.#context.getSceneBounds(),
-                this.#context.getSceneSphere(),
+                this.context.getDisplayBounds(),
+                this.context.getDisplaySphere(),
             );
 
             return new EditorController(current).applyNavigation(navigation);
@@ -64,9 +77,14 @@ export class ViewportInteractionController {
 
         if (event.key === 'Escape') {
             event.preventDefault();
-            this.#context.setState((current) =>
-                new EditorController(current).cancelActiveCommand(),
-            );
+            this.commandManager.cancel(this.createCommandContext());
+            this.commandManager.setActiveCommandId('select');
+            this.context.setState((current) => new EditorController(current).cancelActiveCommand());
+            return;
+        }
+
+        if (this.commandManager.keyDown({ key: event.key }, this.createCommandContext())) {
+            event.preventDefault();
         }
     }
 
@@ -75,17 +93,18 @@ export class ViewportInteractionController {
     }
 
     handlePointerDown(canvas: HTMLCanvasElement, event: PointerEvent): void {
-        const activeCommandId = this.#context.getActiveCommandId();
+        const point = getScreenPoint(canvas, event);
 
-        if (isSelectionPointer(event, activeCommandId)) {
-            const point = getScreenPoint(canvas, event);
+        this.commandManager.setActiveCommandId(this.context.getActiveCommandId());
 
+        if (
+            this.commandManager.pointerDown(
+                createCommandPointerEvent(event, point),
+                this.createCommandContext(),
+            )
+        ) {
             event.preventDefault();
             canvas.setPointerCapture(event.pointerId);
-            this.#pendingSelectionPointer = {
-                pointerId: event.pointerId,
-                point,
-            };
             return;
         }
 
@@ -96,9 +115,7 @@ export class ViewportInteractionController {
         event.preventDefault();
         canvas.setPointerCapture(event.pointerId);
 
-        const point = getScreenPoint(canvas, event);
-
-        this.#context.setState((current) => {
+        this.context.setState((current) => {
             const navigation = new ViewNavigationController(current.navigation).begin({
                 button: event.button,
                 ctrlKey: event.ctrlKey,
@@ -113,10 +130,15 @@ export class ViewportInteractionController {
     handlePointerMove(canvas: HTMLCanvasElement, event: PointerEvent): void {
         const point = getScreenPoint(canvas, event);
 
-        event.preventDefault();
-        this.#handleSelectionPointerMove(point, event);
+        this.commandManager.setActiveCommandId(this.context.getActiveCommandId());
+        this.commandManager.pointerMove(
+            createCommandPointerEvent(event, point),
+            this.createCommandContext(),
+        );
 
-        this.#context.setState((current) => {
+        event.preventDefault();
+
+        this.context.setState((current) => {
             const navigation = new ViewNavigationController(current.navigation).update({
                 button: event.button,
                 ctrlKey: event.ctrlKey,
@@ -129,10 +151,17 @@ export class ViewportInteractionController {
     }
 
     handlePointerUp(canvas: HTMLCanvasElement, event: PointerEvent): void {
-        event.preventDefault();
-        this.#handleSelectionPointerUp(canvas, event);
+        const point = getScreenPoint(canvas, event);
 
-        this.#context.setState((current) => {
+        this.commandManager.setActiveCommandId(this.context.getActiveCommandId());
+        this.commandManager.pointerUp(
+            createCommandPointerEvent(event, point),
+            this.createCommandContext(),
+        );
+
+        event.preventDefault();
+
+        this.context.setState((current) => {
             const navigation = new ViewNavigationController(current.navigation).end(
                 event.pointerId,
             );
@@ -146,10 +175,10 @@ export class ViewportInteractionController {
     }
 
     handleStandardView(view: StandardCameraView): void {
-        this.#context.setState((current) => {
+        this.context.setState((current) => {
             const navigation = new ViewNavigationController(current.navigation).setStandardView(
-                this.#context.getSceneBounds(),
-                this.#context.getSceneSphere(),
+                this.context.getDisplayBounds(),
+                this.context.getDisplaySphere(),
                 view,
             );
 
@@ -162,7 +191,7 @@ export class ViewportInteractionController {
 
         event.preventDefault();
 
-        this.#context.setState((current) => {
+        this.context.setState((current) => {
             const navigation = new ViewNavigationController(current.navigation).zoom({
                 deltaY: event.deltaY,
                 point,
@@ -172,64 +201,40 @@ export class ViewportInteractionController {
         });
     }
 
-    #handleSelectionPointerMove(point: ScreenPoint, event: PointerEvent): void {
-        if (!isPreselectionPointer(event, this.#context.getActiveCommandId())) {
-            return;
-        }
+    private createCommandContext(): CommandContext {
+        return {
+            commit: (edit: DocumentTransaction | TransactionGroup) => {
+                this.context.setState((current) =>
+                    new EditorController(current).applyDocumentEdit(edit),
+                );
+            },
+            getDisplayModel: () => this.context.getDisplayModel(),
+            getDraft: () => this.context.getState().draft,
+            getState: () => this.context.getState(),
+            pick: (point: ScreenPoint) => {
+                const state = this.context.getState();
 
-        const currentState = this.#context.getState();
-        const target = this.#context.pickService.pickSelectionTarget({
-            camera: currentState.navigation.camera,
-            point,
-            scene: this.#context.getScene(),
-            thresholdPixels: PICK_THRESHOLD_PIXELS,
-            viewportSize: currentState.navigation.viewportSize,
-        });
-
-        this.#context.setState((current) => new EditorController(current).preselectTarget(target));
+                return this.context.pickService.pickSelectionTarget({
+                    camera: state.navigation.camera,
+                    displayModel: this.context.getDisplayModel(),
+                    point,
+                    thresholdPixels: PICK_THRESHOLD_PIXELS,
+                    viewportSize: state.navigation.viewportSize,
+                });
+            },
+            replaceDraft: (draft: EditDraft | null) => {
+                this.context.setState((current) =>
+                    new EditorController(current).replaceDraft(draft),
+                );
+            },
+            setMessage: (message: string) => {
+                this.context.setState((current) =>
+                    new EditorController(current).updateCommandMessage(message),
+                );
+            },
+            setState: this.context.setState,
+        };
     }
-
-    #handleSelectionPointerUp(canvas: HTMLCanvasElement, event: PointerEvent): void {
-        const pendingSelectionPointer = this.#pendingSelectionPointer;
-
-        if (pendingSelectionPointer?.pointerId !== event.pointerId) {
-            return;
-        }
-
-        this.#pendingSelectionPointer = null;
-
-        const point = getScreenPoint(canvas, event);
-
-        if (distance2d(point, pendingSelectionPointer.point) > CLICK_SELECTION_TOLERANCE_PIXELS) {
-            return;
-        }
-
-        const currentState = this.#context.getState();
-        const target = this.#context.pickService.pickSelectionTarget({
-            camera: currentState.navigation.camera,
-            point,
-            scene: this.#context.getScene(),
-            thresholdPixels: PICK_THRESHOLD_PIXELS,
-            viewportSize: currentState.navigation.viewportSize,
-        });
-
-        if (!target) {
-            this.#context.setState((current) =>
-                new EditorController(current).replaceSelection(null),
-            );
-            return;
-        }
-
-        this.#context.setState((current) => new EditorController(current).replaceSelection(target));
-    }
-}
-
-function isSelectionPointer(event: PointerEvent, activeCommandId: CommandId): boolean {
-    return activeCommandId === 'select' && event.button === 0;
-}
-
-function isPreselectionPointer(event: PointerEvent, activeCommandId: CommandId): boolean {
-    return activeCommandId === 'select' && event.buttons === 0;
 }
 
 function isViewNavigationPointer(event: PointerEvent): boolean {
@@ -245,8 +250,14 @@ function getScreenPoint(canvas: HTMLCanvasElement, event: PointerEvent | WheelEv
     };
 }
 
-function distance2d(left: ScreenPoint, right: ScreenPoint): number {
-    return Math.hypot(left.x - right.x, left.y - right.y);
+function createCommandPointerEvent(event: PointerEvent, point: ScreenPoint): CommandPointerEvent {
+    return {
+        button: event.button,
+        buttons: event.buttons,
+        ctrlKey: event.ctrlKey,
+        point,
+        pointerId: event.pointerId,
+    };
 }
 
 function shouldIgnoreShortcut(event: KeyboardEvent): boolean {
