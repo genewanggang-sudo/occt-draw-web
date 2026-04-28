@@ -21,5 +21,9 @@ export type {
     DisplayObjectId,
     DisplayObjectKind,
     GridDisplayObject,
+    LineBatchDisplayObject,
     LineSegmentsDisplayObject,
+    PointBatchDisplayObject,
+    SurfaceBatchDisplayObject,
+    SurfaceTriangle,
 } from './types';

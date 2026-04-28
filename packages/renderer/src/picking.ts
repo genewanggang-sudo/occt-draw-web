@@ -1,6 +1,7 @@
 import type {
     CubeWireframeDisplayObject,
     DisplayModel,
+    LineBatchDisplayObject,
     LineSegmentsDisplayObject,
 } from '@occt-draw/display';
 import {
@@ -67,7 +68,7 @@ function pickLineSegmentsObject(
     object: DisplayModel['objects'][number],
     input: PickDisplayObjectInput,
 ): PickDisplayObjectResult | null {
-    if (object.kind !== 'line-segments') {
+    if (object.kind !== 'line-batch' && object.kind !== 'line-segments') {
         return null;
     }
 
@@ -75,7 +76,7 @@ function pickLineSegmentsObject(
 }
 
 function pickLineSegments(
-    object: LineSegmentsDisplayObject,
+    object: LineBatchDisplayObject | LineSegmentsDisplayObject,
     input: PickDisplayObjectInput,
 ): PickDisplayObjectResult | null {
     const basis = calculateCameraBasis(input.camera);

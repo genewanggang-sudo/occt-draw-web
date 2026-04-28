@@ -29,9 +29,11 @@ class WebglCadRenderer implements CadRenderer {
         this.program = createProgram(context);
         const positionLocation = context.getAttribLocation(this.program, 'a_position');
         const colorLocation = context.getAttribLocation(this.program, 'a_color');
+        const alphaLocation = context.getAttribLocation(this.program, 'a_alpha');
         const matrixLocation = context.getUniformLocation(this.program, 'u_matrix');
+        const pointSizeLocation = context.getUniformLocation(this.program, 'u_point_size');
 
-        if (!matrixLocation) {
+        if (!matrixLocation || !pointSizeLocation) {
             throw new Error('WebGL 渲染器初始化失败：缺少矩阵 uniform');
         }
 
@@ -39,9 +41,11 @@ class WebglCadRenderer implements CadRenderer {
 
         this.buffer = buffer;
         this.renderPipelineResources = {
+            alphaLocation,
             buffer,
             colorLocation,
             matrixLocation,
+            pointSizeLocation,
             positionLocation,
             program: this.program,
         };

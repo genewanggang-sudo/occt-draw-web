@@ -91,7 +91,7 @@ function getCubeColor(selected: boolean, preselected: boolean): Vector3 {
 }
 
 function appendLine(vertices: LineVertex[], start: Vector3, end: Vector3, color: Vector3): void {
-    vertices.push({ position: start, color }, { position: end, color });
+    vertices.push({ position: start, color, alpha: 1 }, { position: end, color, alpha: 1 });
 }
 
 function vector3(x: number, y: number, z: number): Vector3 {

@@ -4,7 +4,9 @@ import {
     Feature,
     type ReferencePlaneObject,
 } from '@occt-draw/core';
+import { addVector3, createVector3, scaleVector3, type Vector3 } from '@occt-draw/math';
 import { createSketchOnReferencePlane } from '@occt-draw/sketch';
+import type { CameraState } from '@occt-draw/renderer';
 import {
     CadCommand,
     createHandledCommandResult,
@@ -74,6 +76,13 @@ export class SketchCommand extends CadCommand {
                 ],
             }),
             draft: null,
+            navigation: {
+                ...state.navigation,
+                camera: createSketchPlaneCamera(selectedPlane, state.navigation.camera),
+                drag: null,
+                pivot: selectedPlane.origin,
+                sceneRadius: selectedPlane.size,
+            },
             sketches: {
                 sketchesById: {
                     ...state.sketches.sketchesById,
@@ -114,4 +123,31 @@ function findSelectedReferencePlane(context: CommandContext): ReferencePlaneObje
     const object = state.document.getActivePartStudio().findObjectById(primaryTarget.objectId);
 
     return object?.kind === 'reference-plane' ? object : null;
+}
+
+function createSketchPlaneCamera(
+    plane: ReferencePlaneObject,
+    currentCamera: CameraState,
+): CameraState {
+    const distance = Math.max(plane.size * 2, 1);
+
+    return {
+        ...currentCamera,
+        position: addVector3(plane.origin, scaleVector3(plane.normal, distance)),
+        target: plane.origin,
+        up: getSketchPlaneUp(plane),
+        orthographicHeight: Math.max(plane.size * 1.15, 1),
+    };
+}
+
+function getSketchPlaneUp(plane: ReferencePlaneObject): Vector3 {
+    if (plane.planeKind === 'xy') {
+        return createVector3(0, 1, 0);
+    }
+
+    if (plane.planeKind === 'yz') {
+        return createVector3(0, 0, 1);
+    }
+
+    return createVector3(0, 0, 1);
 }

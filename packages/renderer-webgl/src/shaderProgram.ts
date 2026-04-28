@@ -1,21 +1,24 @@
 const vertexShaderSource = `
 attribute vec3 a_position;
 attribute vec3 a_color;
+attribute float a_alpha;
 uniform mat4 u_matrix;
-varying vec3 v_color;
+uniform float u_point_size;
+varying vec4 v_color;
 
 void main() {
     gl_Position = u_matrix * vec4(a_position, 1.0);
-    v_color = a_color;
+    gl_PointSize = u_point_size;
+    v_color = vec4(a_color, a_alpha);
 }
 `;
 
 const fragmentShaderSource = `
 precision mediump float;
-varying vec3 v_color;
+varying vec4 v_color;
 
 void main() {
-    gl_FragColor = vec4(v_color, 1.0);
+    gl_FragColor = v_color;
 }
 `;
 

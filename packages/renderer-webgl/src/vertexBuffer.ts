@@ -11,6 +11,7 @@ export function toVertexBuffer(vertices: readonly LineVertex[]): Float32Array {
             vertex.color.x,
             vertex.color.y,
             vertex.color.z,
+            vertex.alpha,
         );
     }
 

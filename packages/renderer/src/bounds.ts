@@ -66,10 +66,21 @@ function expandBoundsByObject(bounds: BoundingBox3 | null, object: DisplayObject
         return expandBoundsByPoint(bounds, createVector3(0, 0, 0));
     }
 
-    if (object.kind === 'line-segments') {
+    if (object.kind === 'line-batch' || object.kind === 'line-segments') {
         return expandBoundsByPoints(
             bounds,
             object.segments.flatMap((segment) => [segment.start, segment.end]),
+        );
+    }
+
+    if (object.kind === 'point-batch') {
+        return expandBoundsByPoints(bounds, object.points);
+    }
+
+    if (object.kind === 'surface-batch') {
+        return expandBoundsByPoints(
+            bounds,
+            object.triangles.flatMap((triangle) => [triangle.a, triangle.b, triangle.c]),
         );
     }
 
