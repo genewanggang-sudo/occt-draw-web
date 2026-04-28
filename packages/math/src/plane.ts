@@ -4,25 +4,25 @@ import { Point3, Vec3 } from './vector3';
 import type { Ray3 } from './ray';
 
 export class Plane {
-    origin: Point3;
-    normal: Vec3;
+    public origin: Point3;
+    public normal: Vec3;
 
     constructor(origin: Vector3, normal: Vector3) {
         this.origin = Point3.from(origin);
         this.normal = Vec3.from(normal).normalizeInPlace();
     }
 
-    signedDistanceToPoint(point: Vector3): number {
+    public signedDistanceToPoint(point: Vector3): number {
         return this.origin.vectorTo(point).dot(this.normal);
     }
 
-    projectPoint(point: Vector3): Point3 {
+    public projectPoint(point: Vector3): Point3 {
         return Point3.from(point).translated(
             this.normal.scaled(-this.signedDistanceToPoint(point)),
         );
     }
 
-    intersectRay(ray: Ray3): Point3 | null {
+    public intersectRay(ray: Ray3): Point3 | null {
         const denominator = ray.direction.dot(this.normal);
 
         if (Math.abs(denominator) <= MATH_EPSILON) {

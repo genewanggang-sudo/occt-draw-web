@@ -1,6 +1,21 @@
 import { projectPartStudioToDisplayModel } from '@occt-draw/display';
 import { createDefaultCadDocument, getActivePartStudio } from '@occt-draw/core';
 import {
+    createInitialEditorState,
+    createViewNavigationState,
+    EditorController,
+    evaluateCommandAvailabilityMap,
+    getCommandLabel,
+    PickService,
+    ViewNavigationController,
+    ViewportInteractionController,
+    type EditorKeyInput,
+    type EditorPointerInput,
+    type EditorState,
+    type EditorWheelInput,
+    type ScreenPoint,
+} from '@occt-draw/editor';
+import {
     calculateDisplayBoundingBox,
     calculateDisplayBoundingSphere,
     createStandardCameraState,
@@ -10,19 +25,8 @@ import {
 import { createWebglRenderer } from '@occt-draw/renderer-webgl';
 import { APP_NAME } from '@occt-draw/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { EditorController } from '../editor/application/EditorController';
-import { PickService } from '../editor/application/PickService';
-import { ViewNavigationController } from '../editor/application/ViewNavigationController';
 import { ViewportInputAdapter } from '../editor/application/ViewportInputAdapter';
-import { ViewportInteractionController } from '../editor/application/ViewportInteractionController';
 import { CommandToolbar } from '../editor/commands/CommandToolbar';
-import {
-    evaluateCommandAvailabilityMap,
-    getCommandLabel,
-} from '../editor/commands/commandRegistry';
-import { createInitialEditorState } from '../editor/state/createInitialEditorState';
-import type { EditorState } from '../editor/state/editorState';
-import { createViewNavigationState } from '../editor/view-navigation/viewNavigation';
 import { ViewToolbar } from '../editor/view-toolbar/ViewToolbar';
 import { CadViewport } from '../editor/viewport/CadViewport';
 import { InspectorPanel } from '../editor/workbench/InspectorPanel';
@@ -120,7 +124,7 @@ export function App() {
         getDisplaySphere: () => displaySphereRef.current,
         getState: () => editorStateRef.current,
         pickService: pickServiceRef.current,
-        setState: (updater) => {
+        updateState: (updater) => {
             setEditorState(updater);
         },
     });
@@ -195,22 +199,61 @@ export function App() {
                 event.preventDefault();
             },
             onKeyDown(event) {
-                interactionControllerRef.current?.handleKeyDown(event);
+                const handled = interactionControllerRef.current?.handleKeyDown(
+                    toEditorKeyInput(event),
+                );
+
+                if (handled) {
+                    event.preventDefault();
+                }
             },
             onPointerCancel(event) {
-                interactionControllerRef.current?.handlePointerCancel(canvas, event);
+                const handled = interactionControllerRef.current?.handlePointerCancel(
+                    toEditorPointerInput(canvas, event),
+                );
+                releasePointerCaptureIfNeeded(canvas, event.pointerId);
+
+                if (handled) {
+                    event.preventDefault();
+                }
             },
             onPointerDown(event) {
-                interactionControllerRef.current?.handlePointerDown(canvas, event);
+                const handled = interactionControllerRef.current?.handlePointerDown(
+                    toEditorPointerInput(canvas, event),
+                );
+
+                if (handled) {
+                    canvas.setPointerCapture(event.pointerId);
+                    event.preventDefault();
+                }
             },
             onPointerMove(event) {
-                interactionControllerRef.current?.handlePointerMove(canvas, event);
+                const handled = interactionControllerRef.current?.handlePointerMove(
+                    toEditorPointerInput(canvas, event),
+                );
+
+                if (handled) {
+                    event.preventDefault();
+                }
             },
             onPointerUp(event) {
-                interactionControllerRef.current?.handlePointerUp(canvas, event);
+                const handled = interactionControllerRef.current?.handlePointerUp(
+                    toEditorPointerInput(canvas, event),
+                );
+                releasePointerCaptureIfNeeded(canvas, event.pointerId);
+
+                if (handled) {
+                    event.preventDefault();
+                }
             },
             onWheel(event) {
-                interactionControllerRef.current?.handleWheel(canvas, event);
+                const handled = interactionControllerRef.current?.handleWheel(
+                    toEditorWheelInput(canvas, event),
+                );
+
+                if (handled) {
+                    event.preventDefault();
+                }
             },
         });
 
@@ -307,4 +350,59 @@ export function App() {
             />
         </main>
     );
+}
+
+function getScreenPoint(canvas: HTMLCanvasElement, event: MouseEvent): ScreenPoint {
+    const rect = canvas.getBoundingClientRect();
+
+    return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+    };
+}
+
+function isTextInputTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) {
+        return false;
+    }
+
+    return (
+        target.isContentEditable ||
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement
+    );
+}
+
+function releasePointerCaptureIfNeeded(canvas: HTMLCanvasElement, pointerId: number): void {
+    if (canvas.hasPointerCapture(pointerId)) {
+        canvas.releasePointerCapture(pointerId);
+    }
+}
+
+function toEditorKeyInput(event: KeyboardEvent): EditorKeyInput {
+    return {
+        altKey: event.altKey,
+        ctrlKey: event.ctrlKey,
+        key: event.key,
+        metaKey: event.metaKey,
+        targetIsTextInput: isTextInputTarget(event.target),
+    };
+}
+
+function toEditorPointerInput(canvas: HTMLCanvasElement, event: PointerEvent): EditorPointerInput {
+    return {
+        button: event.button,
+        buttons: event.buttons,
+        ctrlKey: event.ctrlKey,
+        pointerId: event.pointerId,
+        point: getScreenPoint(canvas, event),
+    };
+}
+
+function toEditorWheelInput(canvas: HTMLCanvasElement, event: WheelEvent): EditorWheelInput {
+    return {
+        deltaY: event.deltaY,
+        point: getScreenPoint(canvas, event),
+    };
 }

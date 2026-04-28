@@ -120,6 +120,16 @@ module.exports = {
             },
         },
         {
+            name: 'editor-only-core-display-renderer-math-shared',
+            severity: 'error',
+            from: {
+                path: '^packages/editor/src',
+            },
+            to: {
+                path: '^packages/(?!shared|math|core|display|renderer|editor)',
+            },
+        },
+        {
             name: 'wasm-bridge-only-protocol-shared',
             severity: 'error',
             from: {

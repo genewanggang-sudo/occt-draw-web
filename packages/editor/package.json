@@ -1,0 +1,22 @@
+{
+    "name": "@occt-draw/editor",
+    "private": true,
+    "version": "0.1.0",
+    "dependencies": {
+        "@occt-draw/core": "workspace:*",
+        "@occt-draw/display": "workspace:*",
+        "@occt-draw/math": "workspace:*",
+        "@occt-draw/renderer": "workspace:*",
+        "@occt-draw/shared": "workspace:*"
+    },
+    "types": "./src/index.ts",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "build": "tsc -p tsconfig.build.json --pretty false",
+        "clean": "rimraf dist tsconfig.build.tsbuildinfo tsconfig.tsbuildinfo",
+        "lint": "eslint src --ext .ts",
+        "typecheck": "tsc -p tsconfig.json --pretty false"
+    }
+}

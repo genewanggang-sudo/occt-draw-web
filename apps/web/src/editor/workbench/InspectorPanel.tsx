@@ -1,5 +1,5 @@
 import type { CadObject, SelectionTarget, SelectionTargetKind } from '@occt-draw/core';
-import type { CommandSession, CommandStatus } from '../commands/commandTypes';
+import type { CommandSession, CommandStatus } from '@occt-draw/editor';
 
 interface InspectorPanelProps {
     readonly activeCommandLabel: string;

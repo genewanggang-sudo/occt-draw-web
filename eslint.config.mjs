@@ -67,6 +67,15 @@ export default tseslint.config(
                     varsIgnorePattern: '^_',
                 },
             ],
+            '@typescript-eslint/explicit-member-accessibility': [
+                'error',
+                {
+                    accessibility: 'explicit',
+                    overrides: {
+                        constructors: 'no-public',
+                    },
+                },
+            ],
             'no-restricted-exports': [
                 'error',
                 {
@@ -110,6 +119,11 @@ export default tseslint.config(
                     selector: 'ExportAllDeclaration',
                     message:
                         'Do not use `export *`. Package public APIs must explicitly export each symbol.',
+                },
+                {
+                    selector: 'PrivateIdentifier',
+                    message:
+                        'Use TypeScript private/protected/public modifiers instead of JavaScript #private fields.',
                 },
             ],
             curly: ['error', 'all'],

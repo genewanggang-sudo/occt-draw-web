@@ -27,11 +27,11 @@ export interface DraftPointObject extends BaseDraftObject {
 export type DraftObject = DraftLineSegmentObject | DraftPointObject;
 
 export class EditDraft {
-    readonly id: DraftId;
-    readonly kind: DraftKind;
-    readonly metadata: ReadonlyMap<string, unknown>;
-    readonly temporaryObjects: readonly DraftObject[];
-    readonly workingDocument: CadDocument | null;
+    public readonly id: DraftId;
+    public readonly kind: DraftKind;
+    public readonly metadata: ReadonlyMap<string, unknown>;
+    public readonly temporaryObjects: readonly DraftObject[];
+    public readonly workingDocument: CadDocument | null;
 
     constructor(input: {
         readonly id: DraftId;
@@ -47,7 +47,7 @@ export class EditDraft {
         this.workingDocument = input.workingDocument ?? null;
     }
 
-    withTemporaryObjects(temporaryObjects: readonly DraftObject[]): EditDraft {
+    public withTemporaryObjects(temporaryObjects: readonly DraftObject[]): EditDraft {
         return new EditDraft({
             id: this.id,
             kind: this.kind,
@@ -57,7 +57,7 @@ export class EditDraft {
         });
     }
 
-    withWorkingDocument(workingDocument: CadDocument | null): EditDraft {
+    public withWorkingDocument(workingDocument: CadDocument | null): EditDraft {
         return new EditDraft({
             id: this.id,
             kind: this.kind,
@@ -67,7 +67,7 @@ export class EditDraft {
         });
     }
 
-    withMetadata(key: string, value: unknown): EditDraft {
+    public withMetadata(key: string, value: unknown): EditDraft {
         const metadata = new Map(this.metadata);
 
         metadata.set(key, value);

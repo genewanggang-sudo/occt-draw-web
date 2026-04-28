@@ -2,17 +2,17 @@ import type { Vector3 } from './vector3';
 import { Point3, Vec3 } from './vector3';
 
 export class Matrix4 {
-    readonly elements: Float32Array;
+    public readonly elements: Float32Array;
 
     constructor(elements?: ArrayLike<number>) {
         this.elements = new Float32Array(elements ?? createIdentityElements());
     }
 
-    clone(): Matrix4 {
+    public clone(): Matrix4 {
         return new Matrix4(this.elements);
     }
 
-    multiply(right: Matrix4): Matrix4 {
+    public multiply(right: Matrix4): Matrix4 {
         const left = this.elements;
         const rightElements = right.elements;
         const result = new Float32Array(16);
@@ -30,7 +30,7 @@ export class Matrix4 {
         return new Matrix4(result);
     }
 
-    transformPoint(point: Vector3): Point3 {
+    public transformPoint(point: Vector3): Point3 {
         const element = this.elements;
         const x = point.x;
         const y = point.y;
@@ -61,7 +61,7 @@ export class Matrix4 {
         );
     }
 
-    transformVector(vector: Vector3): Vec3 {
+    public transformVector(vector: Vector3): Vec3 {
         const element = this.elements;
         const x = vector.x;
         const y = vector.y;
@@ -74,7 +74,7 @@ export class Matrix4 {
         );
     }
 
-    static identity(): Matrix4 {
+    public static identity(): Matrix4 {
         return new Matrix4();
     }
 }

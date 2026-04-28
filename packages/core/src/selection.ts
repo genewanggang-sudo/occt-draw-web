@@ -9,8 +9,8 @@ export interface SelectionTarget {
 }
 
 export class SelectionSet {
-    readonly objectIds: readonly CadObjectId[];
-    readonly primaryTarget: SelectionTarget | null;
+    public readonly objectIds: readonly CadObjectId[];
+    public readonly primaryTarget: SelectionTarget | null;
 
     constructor(
         objectIds: readonly CadObjectId[] = [],
@@ -20,7 +20,7 @@ export class SelectionSet {
         this.primaryTarget = primaryTarget;
     }
 
-    isEmpty(): boolean {
+    public isEmpty(): boolean {
         return this.objectIds.length === 0;
     }
 }

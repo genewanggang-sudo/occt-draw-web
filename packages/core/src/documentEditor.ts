@@ -6,16 +6,16 @@ export type OperationId = string;
 export type DocumentEdit = DocumentTransaction | TransactionGroup;
 
 export abstract class DocumentOperation {
-    abstract readonly id: OperationId;
-    abstract readonly label: string;
-    abstract apply(document: CadDocument): CadDocument;
+    public abstract readonly id: OperationId;
+    public abstract readonly label: string;
+    public abstract apply(document: CadDocument): CadDocument;
 }
 
 export class AppendFeatureOperation extends DocumentOperation {
-    readonly id: OperationId;
-    readonly label: string;
-    readonly feature: Feature;
-    readonly partStudioId: PartStudioId;
+    public readonly id: OperationId;
+    public readonly label: string;
+    public readonly feature: Feature;
+    public readonly partStudioId: PartStudioId;
 
     constructor(input: {
         readonly feature: Feature;
@@ -30,7 +30,7 @@ export class AppendFeatureOperation extends DocumentOperation {
         this.partStudioId = input.partStudioId;
     }
 
-    apply(document: CadDocument): CadDocument {
+    public apply(document: CadDocument): CadDocument {
         return replacePartStudio(
             document,
             appendFeatureToPartStudio(
@@ -42,9 +42,9 @@ export class AppendFeatureOperation extends DocumentOperation {
 }
 
 export class ReplaceActivePartStudioOperation extends DocumentOperation {
-    readonly activePartStudioId: PartStudioId;
-    readonly id: OperationId;
-    readonly label: string;
+    public readonly activePartStudioId: PartStudioId;
+    public readonly id: OperationId;
+    public readonly label: string;
 
     constructor(input: {
         readonly activePartStudioId: PartStudioId;
@@ -58,7 +58,7 @@ export class ReplaceActivePartStudioOperation extends DocumentOperation {
         this.label = input.label ?? '切换零件工作室';
     }
 
-    apply(document: CadDocument): CadDocument {
+    public apply(document: CadDocument): CadDocument {
         return new CadDocument({
             activePartStudioId: this.activePartStudioId,
             id: document.id,
@@ -69,9 +69,9 @@ export class ReplaceActivePartStudioOperation extends DocumentOperation {
 }
 
 export class ReplacePartStudioOperation extends DocumentOperation {
-    readonly id: OperationId;
-    readonly label: string;
-    readonly partStudio: PartStudio;
+    public readonly id: OperationId;
+    public readonly label: string;
+    public readonly partStudio: PartStudio;
 
     constructor(input: {
         readonly id?: OperationId;
@@ -84,14 +84,14 @@ export class ReplacePartStudioOperation extends DocumentOperation {
         this.partStudio = input.partStudio;
     }
 
-    apply(document: CadDocument): CadDocument {
+    public apply(document: CadDocument): CadDocument {
         return replacePartStudio(document, this.partStudio);
     }
 }
 
 export class DocumentTransaction {
-    readonly label: string;
-    readonly operations: readonly DocumentOperation[];
+    public readonly label: string;
+    public readonly operations: readonly DocumentOperation[];
 
     constructor(input: {
         readonly label: string;
@@ -101,7 +101,7 @@ export class DocumentTransaction {
         this.operations = [...input.operations];
     }
 
-    apply(document: CadDocument): CadDocument {
+    public apply(document: CadDocument): CadDocument {
         return this.operations.reduce(
             (currentDocument, operation) => operation.apply(currentDocument),
             document,
@@ -110,8 +110,8 @@ export class DocumentTransaction {
 }
 
 export class TransactionGroup {
-    readonly label: string;
-    readonly transactions: readonly DocumentTransaction[];
+    public readonly label: string;
+    public readonly transactions: readonly DocumentTransaction[];
 
     constructor(input: {
         readonly label: string;
@@ -121,7 +121,7 @@ export class TransactionGroup {
         this.transactions = [...input.transactions];
     }
 
-    apply(document: CadDocument): CadDocument {
+    public apply(document: CadDocument): CadDocument {
         return this.transactions.reduce(
             (currentDocument, transaction) => transaction.apply(currentDocument),
             document,
@@ -136,7 +136,7 @@ export class DocumentEditor {
         this.document = document;
     }
 
-    apply(edit: DocumentEdit): CadDocument {
+    public apply(edit: DocumentEdit): CadDocument {
         return edit.apply(this.document);
     }
 }

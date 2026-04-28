@@ -50,12 +50,12 @@ class WebglCadRenderer implements CadRenderer {
         context.clearColor(0.035, 0.043, 0.055, 1);
     }
 
-    dispose(): void {
+    public dispose(): void {
         this.context.deleteBuffer(this.buffer);
         this.context.deleteProgram(this.program);
     }
 
-    resize(viewportSize: ViewportSize): void {
+    public resize(viewportSize: ViewportSize): void {
         const pixelRatio = window.devicePixelRatio || 1;
         const nextWidth = Math.max(1, Math.floor(viewportSize.width * pixelRatio));
         const nextHeight = Math.max(1, Math.floor(viewportSize.height * pixelRatio));
@@ -68,7 +68,7 @@ class WebglCadRenderer implements CadRenderer {
         this.context.viewport(0, 0, nextWidth, nextHeight);
     }
 
-    render(input: RenderFrameInput): void {
+    public render(input: RenderFrameInput): void {
         this.resize(input.viewportSize);
         renderPipeline(this.context, this.renderPipelineResources, input);
     }

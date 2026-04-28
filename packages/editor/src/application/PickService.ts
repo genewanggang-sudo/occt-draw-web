@@ -12,7 +12,7 @@ export interface PickSelectionTargetInput {
 }
 
 export class PickService {
-    pickSelectionTarget(input: PickSelectionTargetInput): SelectionTarget | null {
+    public pickSelectionTarget(input: PickSelectionTargetInput): SelectionTarget | null {
         const pickResult = pickDisplayObject(input);
 
         if (!pickResult) {

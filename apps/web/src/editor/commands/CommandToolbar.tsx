@@ -1,5 +1,4 @@
-import { commandDefinitions } from './commandRegistry';
-import type { CommandAvailabilityMap, CommandId } from './commandTypes';
+import { commandDefinitions, type CommandAvailabilityMap, type CommandId } from '@occt-draw/editor';
 
 interface CommandToolbarProps {
     readonly activeCommandId: CommandId;

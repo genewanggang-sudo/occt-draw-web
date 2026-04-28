@@ -10,18 +10,18 @@ import { createDisplayModel } from './displayModel';
 import type { DisplayModel, DisplayObject, LineSegmentsDisplayObject } from './types';
 
 export class DisplayProjector {
-    projectDocument(document: CadDocument, draft: EditDraft | null = null): DisplayModel {
+    public projectDocument(document: CadDocument, draft: EditDraft | null = null): DisplayModel {
         return this.projectPartStudio(document.getActivePartStudio(), draft);
     }
 
-    projectPartStudio(partStudio: PartStudio, draft: EditDraft | null = null): DisplayModel {
+    public projectPartStudio(partStudio: PartStudio, draft: EditDraft | null = null): DisplayModel {
         return createDisplayModel(partStudio.id, partStudio.name, [
             ...partStudio.objects.map((object) => this.toDisplayObject(object)),
             ...this.projectDraftObjects(draft),
         ]);
     }
 
-    toDisplayObject(object: CadObject): DisplayObject {
+    public toDisplayObject(object: CadObject): DisplayObject {
         if (object.kind === 'reference-grid') {
             return {
                 id: object.id,

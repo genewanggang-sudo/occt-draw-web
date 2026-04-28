@@ -3,10 +3,10 @@ import type { CadObjectId, DocumentId, PartStudioId } from './ids';
 import type { CadObject } from './objects';
 
 export class PartStudio {
-    readonly features: readonly Feature[];
-    readonly id: PartStudioId;
-    readonly name: string;
-    readonly objects: readonly CadObject[];
+    public readonly features: readonly Feature[];
+    public readonly id: PartStudioId;
+    public readonly name: string;
+    public readonly objects: readonly CadObject[];
 
     constructor({
         features,
@@ -25,20 +25,20 @@ export class PartStudio {
         this.objects = [...objects];
     }
 
-    findObjectById(objectId: CadObjectId): CadObject | null {
+    public findObjectById(objectId: CadObjectId): CadObject | null {
         return this.objects.find((object) => object.id === objectId) ?? null;
     }
 
-    listVisibleObjects(): readonly CadObject[] {
+    public listVisibleObjects(): readonly CadObject[] {
         return this.objects.filter((object) => object.visible);
     }
 }
 
 export class CadDocument {
-    readonly activePartStudioId: PartStudioId;
-    readonly id: DocumentId;
-    readonly name: string;
-    readonly partStudios: readonly PartStudio[];
+    public readonly activePartStudioId: PartStudioId;
+    public readonly id: DocumentId;
+    public readonly name: string;
+    public readonly partStudios: readonly PartStudio[];
 
     constructor({
         activePartStudioId,
@@ -57,7 +57,7 @@ export class CadDocument {
         this.partStudios = [...partStudios];
     }
 
-    getActivePartStudio(): PartStudio {
+    public getActivePartStudio(): PartStudio {
         return (
             this.partStudios.find((partStudio) => partStudio.id === this.activePartStudioId) ??
             this.partStudios[0] ??

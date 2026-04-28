@@ -74,6 +74,9 @@ importers:
       '@occt-draw/display':
         specifier: workspace:*
         version: link:../../packages/display
+      '@occt-draw/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../../packages/math
@@ -145,6 +148,24 @@ importers:
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math
+      '@occt-draw/shared':
+        specifier: workspace:*
+        version: link:../shared
+
+  packages/editor:
+    dependencies:
+      '@occt-draw/core':
+        specifier: workspace:*
+        version: link:../core
+      '@occt-draw/display':
+        specifier: workspace:*
+        version: link:../display
+      '@occt-draw/math':
+        specifier: workspace:*
+        version: link:../math
+      '@occt-draw/renderer':
+        specifier: workspace:*
+        version: link:../renderer
       '@occt-draw/shared':
         specifier: workspace:*
         version: link:../shared

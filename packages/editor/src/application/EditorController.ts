@@ -4,6 +4,7 @@ import {
     type EditDraft,
     type SelectionTarget,
 } from '@occt-draw/core';
+import type { CommandResult } from '../commands/CadCommand';
 import {
     activateCommandSession,
     cancelCommandSession,
@@ -26,7 +27,7 @@ export class EditorController {
         this.selectionManager = new SelectionManager(state.selection);
     }
 
-    activateCommand(commandId: CommandId): EditorState {
+    public activateCommand(commandId: CommandId): EditorState {
         return {
             ...this.state,
             commandSession: activateCommandSession(
@@ -37,7 +38,7 @@ export class EditorController {
         };
     }
 
-    applyDocumentEdit(edit: DocumentEdit): EditorState {
+    public applyDocumentEdit(edit: DocumentEdit): EditorState {
         return {
             ...this.state,
             document: editCadDocument(this.state.document, edit),
@@ -45,14 +46,56 @@ export class EditorController {
         };
     }
 
-    applyNavigation(navigation: ViewNavigationState): EditorState {
+    public applyNavigation(navigation: ViewNavigationState): EditorState {
         return {
             ...this.state,
             navigation,
         };
     }
 
-    cancelActiveCommand(): EditorState {
+    public applyCommandResult(result: CommandResult): EditorState {
+        let nextState = this.state;
+
+        if (result.commandSession) {
+            nextState = {
+                ...nextState,
+                commandSession: result.commandSession,
+            };
+        }
+
+        if (result.message) {
+            nextState = new EditorController(nextState).updateCommandMessage(result.message);
+        }
+
+        if (result.selection) {
+            nextState = {
+                ...nextState,
+                selection: result.selection,
+            };
+        }
+
+        if (result.navigation) {
+            nextState = {
+                ...nextState,
+                navigation: result.navigation,
+            };
+        }
+
+        if ('draft' in result) {
+            nextState = {
+                ...nextState,
+                draft: result.draft ?? null,
+            };
+        }
+
+        if (result.documentEdit) {
+            nextState = new EditorController(nextState).applyDocumentEdit(result.documentEdit);
+        }
+
+        return nextState;
+    }
+
+    public cancelActiveCommand(): EditorState {
         return {
             ...this.state,
             commandSession: cancelCommandSession(this.state.commandSession),
@@ -60,14 +103,14 @@ export class EditorController {
         };
     }
 
-    clearSelection(): EditorState {
+    public clearSelection(): EditorState {
         return {
             ...this.state,
             selection: this.selectionManager.clear(),
         };
     }
 
-    completeActiveCommand(): EditorState {
+    public completeActiveCommand(): EditorState {
         return {
             ...this.state,
             commandSession: completeCommandSession(this.state.commandSession),
@@ -75,7 +118,7 @@ export class EditorController {
         };
     }
 
-    preselectTarget(target: SelectionTarget | null): EditorState {
+    public preselectTarget(target: SelectionTarget | null): EditorState {
         if (this.state.commandSession.id !== 'select') {
             return {
                 ...this.state,
@@ -89,14 +132,14 @@ export class EditorController {
         };
     }
 
-    replaceDraft(draft: EditDraft | null): EditorState {
+    public replaceDraft(draft: EditDraft | null): EditorState {
         return {
             ...this.state,
             draft,
         };
     }
 
-    replaceSelection(target: SelectionTarget | null): EditorState {
+    public replaceSelection(target: SelectionTarget | null): EditorState {
         if (this.state.commandSession.id !== 'select') {
             return this.state;
         }
@@ -114,7 +157,7 @@ export class EditorController {
         };
     }
 
-    resetToSelectCommand(): EditorState {
+    public resetToSelectCommand(): EditorState {
         return {
             ...this.state,
             commandSession: resetToSelectCommandSession(),
@@ -122,7 +165,7 @@ export class EditorController {
         };
     }
 
-    updateCommandMessage(message: string): EditorState {
+    public updateCommandMessage(message: string): EditorState {
         return {
             ...this.state,
             commandSession: updateCommandSessionMessage(this.state.commandSession, message),

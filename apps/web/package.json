@@ -7,6 +7,7 @@
         "@occt-draw/constraints": "workspace:*",
         "@occt-draw/core": "workspace:*",
         "@occt-draw/display": "workspace:*",
+        "@occt-draw/editor": "workspace:*",
         "@occt-draw/math": "workspace:*",
         "@occt-draw/parametrics": "workspace:*",
         "@occt-draw/renderer": "workspace:*",
