@@ -1,34 +1,39 @@
-import type { ReferencePlaneKind } from '@occt-draw/core';
+import { referencePlaneToPlane, type PartStudio } from '@occt-draw/core';
 import {
     addVector3,
-    createPlane,
     createRay3,
     crossVector3,
-    intersectRayWithPlane,
     normalizeVector3,
     scaleVector3,
     subtractVector3,
     type Vector3,
 } from '@occt-draw/math';
 import type { CameraState, ViewportSize } from '@occt-draw/renderer';
-import { worldPointToSketchPoint2 } from '@occt-draw/sketch';
+import { worldPointToSketchPointOnPlane } from '@occt-draw/sketch';
 import type { ScreenPoint } from '../view-navigation/viewNavigation';
 
 export function projectScreenPointToSketch2(input: {
     readonly camera: CameraState;
-    readonly planeKind: ReferencePlaneKind;
+    readonly partStudio: PartStudio;
+    readonly planeRef: string;
     readonly point: ScreenPoint;
     readonly viewportSize: ViewportSize;
 }): { readonly x: number; readonly y: number } | null {
+    const planeObject = input.partStudio.findObjectById(input.planeRef);
+
+    if (planeObject?.kind !== 'reference-plane') {
+        return null;
+    }
+
     const ray = createOrthographicScreenRay(input.camera, input.point, input.viewportSize);
-    const plane = createPlane(getPlaneOrigin(input.planeKind), getPlaneNormal(input.planeKind));
-    const worldPoint = intersectRayWithPlane(ray, plane);
+    const plane = referencePlaneToPlane(planeObject);
+    const worldPoint = plane.intersectRay(ray);
 
     if (!worldPoint) {
         return null;
     }
 
-    return worldPointToSketchPoint2(input.planeKind, worldPoint);
+    return worldPointToSketchPointOnPlane(plane, worldPoint);
 }
 
 function createOrthographicScreenRay(
@@ -60,20 +65,4 @@ function calculateCameraBasis(camera: CameraState): {
     const up = normalizeVector3(crossVector3(view, right));
 
     return { right, up, view };
-}
-
-function getPlaneOrigin(_planeKind: ReferencePlaneKind): Vector3 {
-    return { x: 0, y: 0, z: 0 };
-}
-
-function getPlaneNormal(planeKind: ReferencePlaneKind): Vector3 {
-    if (planeKind === 'yz') {
-        return { x: 1, y: 0, z: 0 };
-    }
-
-    if (planeKind === 'zx') {
-        return { x: 0, y: 1, z: 0 };
-    }
-
-    return { x: 0, y: 0, z: 1 };
 }

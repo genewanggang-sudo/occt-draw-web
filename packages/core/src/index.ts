@@ -42,6 +42,7 @@ export type {
     ReferencePlaneKind,
     ReferencePlaneObject,
 } from './objects';
+export { referencePlaneToPlane } from './objects';
 export {
     SelectionSet,
     createEmptySelectionSet,

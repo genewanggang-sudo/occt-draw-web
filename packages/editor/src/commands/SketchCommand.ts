@@ -3,8 +3,9 @@ import {
     DocumentTransaction,
     Feature,
     type ReferencePlaneObject,
+    referencePlaneToPlane,
 } from '@occt-draw/core';
-import { addVector3, createVector3, scaleVector3, type Vector3 } from '@occt-draw/math';
+import { addVector3, scaleVector3 } from '@occt-draw/math';
 import { createSketchOnReferencePlane } from '@occt-draw/sketch';
 import type { CameraState } from '@occt-draw/renderer';
 import {
@@ -129,25 +130,14 @@ function createSketchPlaneCamera(
     plane: ReferencePlaneObject,
     currentCamera: CameraState,
 ): CameraState {
+    const workPlane = referencePlaneToPlane(plane);
     const distance = Math.max(plane.size * 2, 1);
 
     return {
         ...currentCamera,
-        position: addVector3(plane.origin, scaleVector3(plane.normal, distance)),
-        target: plane.origin,
-        up: getSketchPlaneUp(plane),
+        position: addVector3(workPlane.origin, scaleVector3(workPlane.normal, distance)),
+        target: workPlane.origin,
+        up: workPlane.yAxis,
         orthographicHeight: Math.max(plane.size * 1.15, 1),
     };
-}
-
-function getSketchPlaneUp(plane: ReferencePlaneObject): Vector3 {
-    if (plane.planeKind === 'xy') {
-        return createVector3(0, 1, 0);
-    }
-
-    if (plane.planeKind === 'yz') {
-        return createVector3(0, 0, 1);
-    }
-
-    return createVector3(0, 0, 1);
 }

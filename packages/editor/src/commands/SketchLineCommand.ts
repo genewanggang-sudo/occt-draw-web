@@ -1,12 +1,12 @@
-import { createEditDraft } from '@occt-draw/core';
-import { createLineSegment3, createVector3 } from '@occt-draw/math';
+import { createEditDraft, referencePlaneToPlane } from '@occt-draw/core';
+import { createLineSegment3, createVector3, type Plane } from '@occt-draw/math';
 import {
     addSketchEntity,
     createSketchLine,
     createSketchPoint,
     findSketchPointById,
     removeSketchEntity,
-    sketchPointToWorld,
+    sketchPointToWorldOnPlane,
     type Sketch,
     type SketchEntityId,
 } from '@occt-draw/sketch';
@@ -114,7 +114,8 @@ export class SketchLineCommand extends CadCommand {
 
         const point2 = projectScreenPointToSketch2({
             camera: state.navigation.camera,
-            planeKind: sketch.planeKind,
+            partStudio: state.document.getActivePartStudio(),
+            planeRef: sketch.planeRef,
             point: event.point,
             viewportSize: state.navigation.viewportSize,
         });
@@ -145,14 +146,16 @@ export class SketchLineCommand extends CadCommand {
         }
 
         const startPoint = findSketchPointById(sketch, session.pendingLineStartPointId);
+        const plane = findSketchPlane(state, sketch);
         const endPoint2 = projectScreenPointToSketch2({
             camera: state.navigation.camera,
-            planeKind: sketch.planeKind,
+            partStudio: state.document.getActivePartStudio(),
+            planeRef: sketch.planeRef,
             point: event.point,
             viewportSize: state.navigation.viewportSize,
         });
 
-        if (!startPoint || !endPoint2) {
+        if (!startPoint || !plane || !endPoint2) {
             return createUnhandledCommandResult();
         }
 
@@ -173,8 +176,8 @@ export class SketchLineCommand extends CadCommand {
                     visible: true,
                     color: createVector3(0.1, 0.55, 1),
                     segment: createLineSegment3(
-                        sketchPointToWorld(sketch, startPoint),
-                        sketchPointToWorld(sketch, temporaryEnd),
+                        sketchPointToWorldOnPlane(plane, startPoint),
+                        sketchPointToWorldOnPlane(plane, temporaryEnd),
                     ),
                 },
             ]),
@@ -267,6 +270,12 @@ function replaceSketch(state: EditorState, sketch: Sketch): SketchDocumentStore 
             [sketch.id]: sketch,
         },
     };
+}
+
+function findSketchPlane(state: EditorState, sketch: Sketch): Plane | null {
+    const object = state.document.getActivePartStudio().findObjectById(sketch.planeRef);
+
+    return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
 }
 
 function createSketchEntityId(sketch: Sketch, kind: 'line' | 'point'): SketchEntityId {

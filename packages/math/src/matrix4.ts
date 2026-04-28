@@ -5,7 +5,7 @@ export class Matrix4 {
     public readonly elements: Float32Array;
 
     constructor(elements?: ArrayLike<number>) {
-        this.elements = new Float32Array(elements ?? createIdentityElements());
+        this.elements = new Float32Array(elements ?? Matrix4.createIdentityElements());
     }
 
     public clone(): Matrix4 {
@@ -20,10 +20,13 @@ export class Matrix4 {
         for (let row = 0; row < 4; row += 1) {
             for (let column = 0; column < 4; column += 1) {
                 result[row * 4 + column] =
-                    getElement(left, row * 4) * getElement(rightElements, column) +
-                    getElement(left, row * 4 + 1) * getElement(rightElements, column + 4) +
-                    getElement(left, row * 4 + 2) * getElement(rightElements, column + 8) +
-                    getElement(left, row * 4 + 3) * getElement(rightElements, column + 12);
+                    Matrix4.getElement(left, row * 4) * Matrix4.getElement(rightElements, column) +
+                    Matrix4.getElement(left, row * 4 + 1) *
+                        Matrix4.getElement(rightElements, column + 4) +
+                    Matrix4.getElement(left, row * 4 + 2) *
+                        Matrix4.getElement(rightElements, column + 8) +
+                    Matrix4.getElement(left, row * 4 + 3) *
+                        Matrix4.getElement(rightElements, column + 12);
             }
         }
 
@@ -36,27 +39,27 @@ export class Matrix4 {
         const y = point.y;
         const z = point.z;
         const w =
-            getElement(element, 3) * x +
-            getElement(element, 7) * y +
-            getElement(element, 11) * z +
-            getElement(element, 15);
+            Matrix4.getElement(element, 3) * x +
+            Matrix4.getElement(element, 7) * y +
+            Matrix4.getElement(element, 11) * z +
+            Matrix4.getElement(element, 15);
         const safeW = Math.abs(w) > 1e-8 ? w : 1;
 
         return new Point3(
-            (getElement(element, 0) * x +
-                getElement(element, 4) * y +
-                getElement(element, 8) * z +
-                getElement(element, 12)) /
+            (Matrix4.getElement(element, 0) * x +
+                Matrix4.getElement(element, 4) * y +
+                Matrix4.getElement(element, 8) * z +
+                Matrix4.getElement(element, 12)) /
                 safeW,
-            (getElement(element, 1) * x +
-                getElement(element, 5) * y +
-                getElement(element, 9) * z +
-                getElement(element, 13)) /
+            (Matrix4.getElement(element, 1) * x +
+                Matrix4.getElement(element, 5) * y +
+                Matrix4.getElement(element, 9) * z +
+                Matrix4.getElement(element, 13)) /
                 safeW,
-            (getElement(element, 2) * x +
-                getElement(element, 6) * y +
-                getElement(element, 10) * z +
-                getElement(element, 14)) /
+            (Matrix4.getElement(element, 2) * x +
+                Matrix4.getElement(element, 6) * y +
+                Matrix4.getElement(element, 10) * z +
+                Matrix4.getElement(element, 14)) /
                 safeW,
         );
     }
@@ -68,14 +71,34 @@ export class Matrix4 {
         const z = vector.z;
 
         return new Vec3(
-            getElement(element, 0) * x + getElement(element, 4) * y + getElement(element, 8) * z,
-            getElement(element, 1) * x + getElement(element, 5) * y + getElement(element, 9) * z,
-            getElement(element, 2) * x + getElement(element, 6) * y + getElement(element, 10) * z,
+            Matrix4.getElement(element, 0) * x +
+                Matrix4.getElement(element, 4) * y +
+                Matrix4.getElement(element, 8) * z,
+            Matrix4.getElement(element, 1) * x +
+                Matrix4.getElement(element, 5) * y +
+                Matrix4.getElement(element, 9) * z,
+            Matrix4.getElement(element, 2) * x +
+                Matrix4.getElement(element, 6) * y +
+                Matrix4.getElement(element, 10) * z,
         );
     }
 
     public static identity(): Matrix4 {
         return new Matrix4();
+    }
+
+    private static createIdentityElements(): readonly number[] {
+        return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+    }
+
+    private static getElement(elements: ArrayLike<number>, index: number): number {
+        const value = elements[index];
+
+        if (value === undefined) {
+            throw new Error(`矩阵索引越界：${index.toString()}`);
+        }
+
+        return value;
     }
 }
 
@@ -93,18 +116,4 @@ export function transformPoint3(matrix: Matrix4, point: Vector3): Point3 {
 
 export function transformVector3(matrix: Matrix4, vector: Vector3): Vec3 {
     return matrix.transformVector(vector);
-}
-
-function createIdentityElements(): readonly number[] {
-    return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-}
-
-function getElement(elements: ArrayLike<number>, index: number): number {
-    const value = elements[index];
-
-    if (value === undefined) {
-        throw new Error(`矩阵索引越界：${index.toString()}`);
-    }
-
-    return value;
 }

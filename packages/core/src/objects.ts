@@ -1,4 +1,4 @@
-import type { Vector3 } from '@occt-draw/math';
+import { createPlane, type Plane, type Vector3 } from '@occt-draw/math';
 import type { CadObjectId } from './ids';
 
 export type CadObjectKind = 'reference-origin' | 'reference-plane';
@@ -26,3 +26,7 @@ export interface ReferencePlaneObject extends BaseCadObject {
 }
 
 export type CadObject = ReferenceOriginObject | ReferencePlaneObject;
+
+export function referencePlaneToPlane(object: ReferencePlaneObject): Plane {
+    return createPlane(object.origin, object.normal, object.xAxis);
+}

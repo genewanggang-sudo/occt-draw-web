@@ -1,5 +1,5 @@
 import type { ReferencePlaneKind } from '@occt-draw/core';
-import { createPoint3, type Point3, type Vector3 } from '@occt-draw/math';
+import { createPoint3, type Plane, type Point3, type Vector2, type Vector3 } from '@occt-draw/math';
 
 export type SketchModuleStatus = 'active';
 export type SketchId = string;
@@ -151,6 +151,10 @@ export function sketchPointToWorld(sketch: Sketch, point: SketchPoint): Point3 {
     return createPoint3(point.x, point.y, 0);
 }
 
+export function sketchPointToWorldOnPlane(plane: Plane, point: SketchPoint): Point3 {
+    return plane.localToWorld(point);
+}
+
 export function worldPointToSketchPoint2(
     planeKind: ReferencePlaneKind,
     point: Vector3,
@@ -164,6 +168,10 @@ export function worldPointToSketchPoint2(
     }
 
     return { x: point.x, y: point.y };
+}
+
+export function worldPointToSketchPointOnPlane(plane: Plane, point: Vector3): Vector2 {
+    return plane.projectPointToLocal(point);
 }
 
 function isSketchLine(entity: SketchEntity): entity is SketchLine {

@@ -1,18 +1,17 @@
-import type {
-    CadDocument,
-    CadObject,
-    DraftLineSegmentObject,
-    EditDraft,
-    PartStudio,
-    ReferenceOriginObject,
-    ReferencePlaneObject,
+import {
+    referencePlaneToPlane,
+    type CadDocument,
+    type CadObject,
+    type DraftLineSegmentObject,
+    type EditDraft,
+    type PartStudio,
+    type ReferenceOriginObject,
+    type ReferencePlaneObject,
 } from '@occt-draw/core';
 import {
     addVector3,
     createLineSegment3,
     createVector3,
-    crossVector3,
-    normalizeVector3,
     scaleVector3,
     type Vector3,
 } from '@occt-draw/math';
@@ -20,7 +19,7 @@ import {
     findSketchPointById,
     listSketchLines,
     listSketchPoints,
-    sketchPointToWorld,
+    sketchPointToWorldOnPlane,
     type Sketch,
     type SketchId,
 } from '@occt-draw/sketch';
@@ -98,6 +97,13 @@ export class DisplayProjector {
                 return [];
             }
 
+            const sketchPlane = findReferencePlaneById(partStudio, sketch.planeRef);
+
+            if (!sketchPlane) {
+                return [];
+            }
+
+            const plane = referencePlaneToPlane(sketchPlane);
             const objects: DisplayObject[] = [];
             const segments = listSketchLines(sketch).flatMap((line) => {
                 const startPoint = findSketchPointById(sketch, line.startPointId);
@@ -109,13 +115,13 @@ export class DisplayProjector {
 
                 return [
                     createLineSegment3(
-                        sketchPointToWorld(sketch, startPoint),
-                        sketchPointToWorld(sketch, endPoint),
+                        sketchPointToWorldOnPlane(plane, startPoint),
+                        sketchPointToWorldOnPlane(plane, endPoint),
                     ),
                 ];
             });
             const points = listSketchPoints(sketch).map((point) =>
-                sketchPointToWorld(sketch, point),
+                sketchPointToWorldOnPlane(plane, point),
             );
 
             if (segments.length > 0) {
@@ -214,24 +220,23 @@ function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerBatc
 }
 
 function projectReferencePlaneObject(object: ReferencePlaneObject): readonly DisplayObject[] {
+    const plane = referencePlaneToPlane(object);
     const halfSize = object.size / 2;
-    const xAxis = normalizeVector3(object.xAxis);
-    const planeYAxis = normalizeVector3(crossVector3(object.normal, xAxis));
-    const labelYAxis = scaleVector3(planeYAxis, -1);
-    const left = scaleVector3(xAxis, -halfSize);
-    const right = scaleVector3(xAxis, halfSize);
-    const bottom = scaleVector3(planeYAxis, -halfSize);
-    const top = scaleVector3(planeYAxis, halfSize);
+    const labelYAxis = scaleVector3(plane.yAxis, -1);
+    const left = scaleVector3(plane.xAxis, -halfSize);
+    const right = scaleVector3(plane.xAxis, halfSize);
+    const bottom = scaleVector3(plane.yAxis, -halfSize);
+    const top = scaleVector3(plane.yAxis, halfSize);
     const corners = [
-        addMany(object.origin, left, bottom),
-        addMany(object.origin, right, bottom),
-        addMany(object.origin, right, top),
-        addMany(object.origin, left, top),
+        addMany(plane.origin, left, bottom),
+        addMany(plane.origin, right, bottom),
+        addMany(plane.origin, right, top),
+        addMany(plane.origin, left, top),
     ] as const;
     const labelFrameOrigin = addMany(
-        object.origin,
-        scaleVector3(xAxis, -halfSize),
-        scaleVector3(planeYAxis, halfSize),
+        plane.origin,
+        scaleVector3(plane.xAxis, -halfSize),
+        scaleVector3(plane.yAxis, halfSize),
     );
 
     return [
@@ -271,7 +276,7 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
                     fontWeight: 400,
                     frame: {
                         origin: labelFrameOrigin,
-                        xAxis,
+                        xAxis: plane.xAxis,
                         yAxis: labelYAxis,
                     },
                     heightPixels: 15,
@@ -309,6 +314,15 @@ function getReferencePlaneLabel(planeKind: ReferencePlaneObject['planeKind']): L
 
 function addMany(origin: Vector3, ...vectors: readonly Vector3[]): Vector3 {
     return vectors.reduce((current, vector) => addVector3(current, vector), origin);
+}
+
+function findReferencePlaneById(
+    partStudio: PartStudio,
+    planeRef: string,
+): ReferencePlaneObject | null {
+    const object = partStudio.findObjectById(planeRef);
+
+    return object?.kind === 'reference-plane' ? object : null;
 }
 
 function isDraftLineSegmentObject(object: {
