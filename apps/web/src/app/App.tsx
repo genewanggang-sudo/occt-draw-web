@@ -95,9 +95,7 @@ export function App() {
     );
     const activeCommandId = editorState.commandSession.id;
     const activeCommandLabel = getCommandLabel(activeCommandId);
-    const selectedReferencePlaneCount = selectedObjects.filter(
-        (object) => object.kind === 'reference-plane',
-    ).length;
+    const selectedReferencePlaneCount = selectedObjects.length;
     const commandAvailability = useMemo(
         () =>
             evaluateCommandAvailabilityMap({

@@ -53,20 +53,7 @@ export function getBoundingBoxCorners(bounds: BoundingBox3): readonly Vector3[] 
 }
 
 function expandBoundsByObject(bounds: BoundingBox3 | null, object: DisplayObject): BoundingBox3 {
-    if (object.kind === 'grid') {
-        const halfSize = object.size / 2;
-
-        return expandBoundsByPoints(bounds, [
-            createVector3(-halfSize, 0, -halfSize),
-            createVector3(halfSize, 0, halfSize),
-        ]);
-    }
-
-    if (object.kind === 'axis') {
-        return expandBoundsByPoint(bounds, createVector3(0, 0, 0));
-    }
-
-    if (object.kind === 'line-batch' || object.kind === 'line-segments') {
+    if (object.kind === 'line-batch') {
         return expandBoundsByPoints(
             bounds,
             object.segments.flatMap((segment) => [segment.start, segment.end]),
@@ -77,27 +64,10 @@ function expandBoundsByObject(bounds: BoundingBox3 | null, object: DisplayObject
         return expandBoundsByPoints(bounds, object.points);
     }
 
-    if (object.kind === 'surface-batch') {
-        return expandBoundsByPoints(
-            bounds,
-            object.triangles.flatMap((triangle) => [triangle.a, triangle.b, triangle.c]),
-        );
-    }
-
-    const halfSize = object.size / 2;
-
-    return expandBoundsByPoints(bounds, [
-        createVector3(
-            object.center.x - halfSize,
-            object.center.y - halfSize,
-            object.center.z - halfSize,
-        ),
-        createVector3(
-            object.center.x + halfSize,
-            object.center.y + halfSize,
-            object.center.z + halfSize,
-        ),
-    ]);
+    return expandBoundsByPoints(
+        bounds,
+        object.triangles.flatMap((triangle) => [triangle.a, triangle.b, triangle.c]),
+    );
 }
 
 function expandBoundsByPoints(

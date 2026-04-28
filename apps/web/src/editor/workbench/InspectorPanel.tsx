@@ -105,12 +105,10 @@ function ObjectInspector({
                 <span className="cad-workbench__inspector-label">对象类型</span>
                 <strong>{getObjectKindLabel(object)}</strong>
             </div>
-            {object.kind === 'reference-plane' ? (
-                <div className="cad-workbench__inspector-section">
-                    <span className="cad-workbench__inspector-label">平面</span>
-                    <strong>{object.planeKind.toUpperCase()}</strong>
-                </div>
-            ) : null}
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">平面</span>
+                <strong>{object.planeKind.toUpperCase()}</strong>
+            </div>
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">拾取目标</span>
                 <strong>
@@ -129,20 +127,8 @@ function ObjectInspector({
     );
 }
 
-function getObjectKindLabel(object: CadObject): string {
-    if (object.kind === 'debug-cube') {
-        return '调试立方体';
-    }
-
-    if (object.kind === 'reference-axis') {
-        return '坐标轴';
-    }
-
-    if (object.kind === 'reference-plane') {
-        return '基准面';
-    }
-
-    return '基准网格';
+function getObjectKindLabel(_object: CadObject): string {
+    return '基准面';
 }
 
 function getPickTargetKindLabel(kind: SelectionTargetKind): string {

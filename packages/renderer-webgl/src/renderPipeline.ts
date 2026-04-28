@@ -13,6 +13,7 @@ export interface RenderPipelineResources {
     readonly buffer: WebGLBuffer;
     readonly colorLocation: number;
     readonly matrixLocation: WebGLUniformLocation;
+    readonly pointShapeLocation: WebGLUniformLocation;
     readonly pointSizeLocation: WebGLUniformLocation;
     readonly positionLocation: number;
     readonly program: WebGLProgram;
@@ -24,7 +25,7 @@ export function renderPipeline(
     input: RenderFrameInput,
 ): void {
     const surfaceVertices = createDisplaySurfaceVertices(input.displayModel);
-    const lineVertices = createDisplayLineVertices(input.displayModel, input.highlight);
+    const lineVertices = createDisplayLineVertices(input.displayModel);
     const pointVertices = createDisplayPointVertices(input.displayModel);
 
     context.clear(context.COLOR_BUFFER_BIT | context.DEPTH_BUFFER_BIT);
@@ -39,12 +40,15 @@ export function renderPipeline(
     context.enable(context.BLEND);
     context.blendFunc(context.SRC_ALPHA, context.ONE_MINUS_SRC_ALPHA);
     context.depthMask(false);
-    drawVertices(context, resources, surfaceVertices, context.TRIANGLES, 1);
+    drawVertices(context, resources, surfaceVertices, context.TRIANGLES, 1, false);
     context.depthMask(true);
     context.disable(context.BLEND);
 
-    drawVertices(context, resources, lineVertices, context.LINES, 1);
-    drawVertices(context, resources, pointVertices, context.POINTS, 7);
+    drawVertices(context, resources, lineVertices, context.LINES, 1, false);
+    context.enable(context.BLEND);
+    context.blendFunc(context.SRC_ALPHA, context.ONE_MINUS_SRC_ALPHA);
+    drawVertices(context, resources, pointVertices, context.POINTS, 7, true);
+    context.disable(context.BLEND);
 }
 
 function bindVertexLayout(
@@ -82,6 +86,7 @@ function drawVertices(
     vertices: readonly RenderVertex[],
     mode: number,
     pointSize: number,
+    usePointShape: boolean,
 ): void {
     if (vertices.length === 0) {
         return;
@@ -90,5 +95,6 @@ function drawVertices(
     context.bindBuffer(context.ARRAY_BUFFER, resources.buffer);
     context.bufferData(context.ARRAY_BUFFER, toVertexBuffer(vertices), context.STATIC_DRAW);
     context.uniform1f(resources.pointSizeLocation, pointSize);
+    context.uniform1f(resources.pointShapeLocation, usePointShape ? 1 : 0);
     context.drawArrays(mode, 0, vertices.length);
 }

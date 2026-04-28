@@ -40,29 +40,6 @@ export function createDefaultCadDocument(): CadDocument {
                 planeKind: 'zx',
                 size: 6,
             },
-            {
-                id: 'grid-main',
-                kind: 'reference-grid',
-                name: '基准网格',
-                visible: true,
-                divisions: 20,
-                size: 10,
-            },
-            {
-                id: 'axis-main',
-                kind: 'reference-axis',
-                name: '坐标轴',
-                visible: true,
-                length: 4,
-            },
-            {
-                id: 'cube-main',
-                kind: 'debug-cube',
-                name: '调试立方体',
-                visible: true,
-                center: { x: 0, y: 0.8, z: 0 },
-                size: 1.6,
-            },
         ],
     });
 

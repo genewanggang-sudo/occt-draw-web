@@ -1,6 +1,5 @@
 import type {
     CadDocument,
-    CadObject,
     DraftLineSegmentObject,
     EditDraft,
     PartStudio,
@@ -61,50 +60,18 @@ export class DisplayProjector {
         ]);
     }
 
-    public toDisplayObject(object: CadObject): DisplayObject {
-        return this.toDisplayObjects(object)[0] ?? createHiddenLineBatch(object);
+    public toDisplayObject(object: ReferencePlaneObject): DisplayObject {
+        const [displayObject] = this.toDisplayObjects(object);
+
+        if (!displayObject) {
+            throw new Error(`基准面投影失败：${object.id}`);
+        }
+
+        return displayObject;
     }
 
-    public toDisplayObjects(object: CadObject): readonly DisplayObject[] {
-        if (object.kind === 'reference-grid') {
-            return [
-                {
-                    id: object.id,
-                    kind: 'grid',
-                    name: object.name,
-                    visible: object.visible,
-                    divisions: object.divisions,
-                    size: object.size,
-                },
-            ];
-        }
-
-        if (object.kind === 'reference-axis') {
-            return [
-                {
-                    id: object.id,
-                    kind: 'axis',
-                    name: object.name,
-                    visible: object.visible,
-                    length: object.length,
-                },
-            ];
-        }
-
-        if (object.kind === 'reference-plane') {
-            return projectReferencePlaneObject(object);
-        }
-
-        return [
-            {
-                id: object.id,
-                kind: 'cube-wireframe',
-                name: object.name,
-                visible: object.visible,
-                center: createVector3(object.center.x, object.center.y, object.center.z),
-                size: object.size,
-            },
-        ];
+    public toDisplayObjects(object: ReferencePlaneObject): readonly DisplayObject[] {
+        return projectReferencePlaneObject(object);
     }
 
     private projectSketchFeatures(
@@ -259,8 +226,6 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
                 createLineSegment3(corners[1], corners[2]),
                 createLineSegment3(corners[2], corners[3]),
                 createLineSegment3(corners[3], corners[0]),
-                createLineSegment3(addMany(object.origin, left), addMany(object.origin, right)),
-                createLineSegment3(addMany(object.origin, bottom), addMany(object.origin, top)),
             ],
         } satisfies LineBatchDisplayObject,
     ];
@@ -268,17 +233,6 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
 
 function addMany(origin: Vector3, ...vectors: readonly Vector3[]): Vector3 {
     return vectors.reduce((current, vector) => addVector3(current, vector), origin);
-}
-
-function createHiddenLineBatch(object: CadObject): LineBatchDisplayObject {
-    return {
-        id: object.id,
-        kind: 'line-batch',
-        name: object.name,
-        visible: false,
-        color: createVector3(0, 0, 0),
-        segments: [],
-    };
 }
 
 function isDraftLineSegmentObject(object: {

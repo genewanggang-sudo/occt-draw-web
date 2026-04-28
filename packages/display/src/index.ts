@@ -1,4 +1,3 @@
-export { createDefaultDisplayModel } from './defaultDisplay';
 export { createDisplayModel } from './displayModel';
 export {
     DisplayProjector,
@@ -13,16 +12,12 @@ export {
     type DisplayModuleStatus,
 } from './manifest';
 export type {
-    AxisDisplayObject,
     BaseDisplayObject,
-    CubeWireframeDisplayObject,
     DisplayModel,
     DisplayObject,
     DisplayObjectId,
     DisplayObjectKind,
-    GridDisplayObject,
     LineBatchDisplayObject,
-    LineSegmentsDisplayObject,
     PointBatchDisplayObject,
     SurfaceBatchDisplayObject,
     SurfaceTriangle,

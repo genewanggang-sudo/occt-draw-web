@@ -1,9 +1,4 @@
-import type {
-    CubeWireframeDisplayObject,
-    DisplayModel,
-    LineBatchDisplayObject,
-    LineSegmentsDisplayObject,
-} from '@occt-draw/display';
+import type { DisplayModel, LineBatchDisplayObject } from '@occt-draw/display';
 import {
     crossVector3,
     dotVector3,
@@ -46,14 +41,11 @@ export function pickDisplayObject(input: PickDisplayObjectInput): PickDisplayObj
     let nearestDistance = input.thresholdPixels;
 
     for (const object of input.displayModel.objects) {
-        if (!object.visible) {
+        if (!object.visible || object.kind !== 'line-batch') {
             continue;
         }
 
-        const result =
-            object.kind === 'cube-wireframe'
-                ? pickCubeWireframeEdge(object, input)
-                : pickLineSegmentsObject(object, input);
+        const result = pickLineBatch(object, input);
 
         if (result && result.distancePixels <= nearestDistance) {
             nearestDistance = result.distancePixels;
@@ -64,19 +56,8 @@ export function pickDisplayObject(input: PickDisplayObjectInput): PickDisplayObj
     return nearestResult;
 }
 
-function pickLineSegmentsObject(
-    object: DisplayModel['objects'][number],
-    input: PickDisplayObjectInput,
-): PickDisplayObjectResult | null {
-    if (object.kind !== 'line-batch' && object.kind !== 'line-segments') {
-        return null;
-    }
-
-    return pickLineSegments(object, input);
-}
-
-function pickLineSegments(
-    object: LineBatchDisplayObject | LineSegmentsDisplayObject,
+function pickLineBatch(
+    object: LineBatchDisplayObject,
     input: PickDisplayObjectInput,
 ): PickDisplayObjectResult | null {
     const basis = calculateCameraBasis(input.camera);
@@ -107,91 +88,6 @@ function pickLineSegments(
 
     return nearestResult;
 }
-
-function pickCubeWireframeEdge(
-    cube: CubeWireframeDisplayObject,
-    input: PickDisplayObjectInput,
-): PickDisplayObjectResult | null {
-    const points = createCubePoints(cube);
-    const basis = calculateCameraBasis(input.camera);
-    let nearestResult: PickDisplayObjectResult | null = null;
-    let nearestDistance = input.thresholdPixels;
-
-    for (let edgeIndex = 0; edgeIndex < CUBE_EDGES.length; edgeIndex += 1) {
-        const edge = getCubeEdge(edgeIndex);
-        const startPoint = getCubePoint(points, edge[0]);
-        const endPoint = getCubePoint(points, edge[1]);
-        const start = projectWorldToScreen(startPoint, input.camera, basis, input.viewportSize);
-        const end = projectWorldToScreen(endPoint, input.camera, basis, input.viewportSize);
-        const distance = distanceToScreenSegment(input.point, start, end);
-
-        if (distance <= nearestDistance) {
-            nearestDistance = distance;
-            nearestResult = {
-                distancePixels: distance,
-                objectId: cube.id,
-                primitiveId: createCubeEdgePrimitiveId(cube.id, edgeIndex),
-                targetKind: 'edge',
-            };
-        }
-    }
-
-    return nearestResult;
-}
-
-function createCubeEdgePrimitiveId(objectId: string, edgeIndex: number): string {
-    return createRenderPrimitiveId(objectId, 'edge', edgeIndex);
-}
-
-function getCubeEdge(index: number): readonly [number, number] {
-    const edge = CUBE_EDGES[index];
-
-    if (!edge) {
-        throw new Error('立方体拾取失败：边索引超出范围');
-    }
-
-    return edge;
-}
-
-function getCubePoint(points: readonly Vector3[], index: number): Vector3 {
-    const point = points[index];
-
-    if (!point) {
-        throw new Error('立方体拾取失败：顶点索引超出范围');
-    }
-
-    return point;
-}
-
-function createCubePoints(cube: CubeWireframeDisplayObject): readonly Vector3[] {
-    const halfSize = cube.size / 2;
-
-    return [
-        vector3(cube.center.x - halfSize, cube.center.y - halfSize, cube.center.z - halfSize),
-        vector3(cube.center.x + halfSize, cube.center.y - halfSize, cube.center.z - halfSize),
-        vector3(cube.center.x + halfSize, cube.center.y + halfSize, cube.center.z - halfSize),
-        vector3(cube.center.x - halfSize, cube.center.y + halfSize, cube.center.z - halfSize),
-        vector3(cube.center.x - halfSize, cube.center.y - halfSize, cube.center.z + halfSize),
-        vector3(cube.center.x + halfSize, cube.center.y - halfSize, cube.center.z + halfSize),
-        vector3(cube.center.x + halfSize, cube.center.y + halfSize, cube.center.z + halfSize),
-        vector3(cube.center.x - halfSize, cube.center.y + halfSize, cube.center.z + halfSize),
-    ];
-}
-
-const CUBE_EDGES = [
-    [0, 1],
-    [1, 2],
-    [2, 3],
-    [3, 0],
-    [4, 5],
-    [5, 6],
-    [6, 7],
-    [7, 4],
-    [0, 4],
-    [1, 5],
-    [2, 6],
-    [3, 7],
-] as const;
 
 function calculateCameraBasis(camera: CameraState): CameraBasis {
     const view = normalizeVector3(subtractVector3(camera.position, camera.target));
@@ -244,8 +140,4 @@ function distanceToScreenSegment(
     const closestY = start.y + segmentY * ratio;
 
     return Math.hypot(point.x - closestX, point.y - closestY);
-}
-
-function vector3(x: number, y: number, z: number): Vector3 {
-    return { x, y, z };
 }

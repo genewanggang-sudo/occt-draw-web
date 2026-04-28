@@ -16,8 +16,8 @@ export function ModelTreePanel({
     selectedObjectIds,
     sketchesById,
 }: ModelTreePanelProps) {
-    const referenceObjects = partStudio.objects.filter(isReferenceObject);
-    const modelObjects = partStudio.objects.filter((object) => !isReferenceObject(object));
+    const referenceObjects = partStudio.objects;
+    const modelObjects: readonly CadObject[] = [];
 
     return (
         <aside className="cad-workbench__side-panel" aria-label="模型树">
@@ -103,14 +103,6 @@ function ObjectTreeNode({
             <span className="cad-workbench__tree-dot" />
             <span>{object.name}</span>
         </div>
-    );
-}
-
-function isReferenceObject(object: CadObject): boolean {
-    return (
-        object.kind === 'reference-axis' ||
-        object.kind === 'reference-grid' ||
-        object.kind === 'reference-plane'
     );
 }
 

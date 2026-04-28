@@ -38,9 +38,6 @@ export type {
     BaseCadObject,
     CadObject,
     CadObjectKind,
-    DebugCubeObject,
-    ReferenceAxisObject,
-    ReferenceGridObject,
     ReferencePlaneKind,
     ReferencePlaneObject,
 } from './objects';

@@ -1,9 +1,9 @@
-import type { LineBatchDisplayObject, LineSegmentsDisplayObject } from '@occt-draw/display';
+import type { LineBatchDisplayObject } from '@occt-draw/display';
 import type { LineVertex } from './types';
 
 export function appendDisplayLineSegments(
     vertices: LineVertex[],
-    object: LineBatchDisplayObject | LineSegmentsDisplayObject,
+    object: LineBatchDisplayObject,
 ): void {
     for (const segment of object.segments) {
         vertices.push(
