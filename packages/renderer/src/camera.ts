@@ -27,9 +27,9 @@ export type StandardCameraView =
 
 export const DEFAULT_CAMERA_STATE: CameraState = {
     projection: 'orthographic',
-    position: createVector3(6, 4.5, 6),
-    target: createVector3(0, 0.5, 0),
-    up: createVector3(0, 1, 0),
+    position: createVector3(6, 6, 4.5),
+    target: createVector3(0, 0, 0),
+    up: createVector3(0, 0, 1),
     orthographicHeight: 9,
     fovYRadians: Math.PI / 4,
     near: 0.1,
@@ -126,11 +126,11 @@ function createCameraFromView(bounds: BoundingBox3, view: StandardCameraView): C
 
 function getStandardViewDirection(view: StandardCameraView): Vector3 {
     if (view === 'front') {
-        return createVector3(0, 0, 1);
+        return createVector3(0, 1, 0);
     }
 
     if (view === 'back') {
-        return createVector3(0, 0, -1);
+        return createVector3(0, -1, 0);
     }
 
     if (view === 'right') {
@@ -142,22 +142,22 @@ function getStandardViewDirection(view: StandardCameraView): Vector3 {
     }
 
     if (view === 'top') {
-        return createVector3(0, 1, 0);
+        return createVector3(0, 0, 1);
     }
 
     if (view === 'bottom') {
-        return createVector3(0, -1, 0);
+        return createVector3(0, 0, -1);
     }
 
-    return normalizeVector3(createVector3(1, 0.75, 1));
+    return normalizeVector3(createVector3(1, 1, 0.75));
 }
 
 function getStandardViewUp(view: StandardCameraView): Vector3 {
     if (view === 'top' || view === 'bottom') {
-        return createVector3(0, 0, -1);
+        return createVector3(0, 1, 0);
     }
 
-    return createVector3(0, 1, 0);
+    return createVector3(0, 0, 1);
 }
 
 function calculateCameraBasis(camera: CameraState): CameraBasis {
