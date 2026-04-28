@@ -23,7 +23,7 @@ void main() {
         vec2 pointCoord = gl_PointCoord - vec2(0.5);
         float distanceFromCenter = length(pointCoord);
         float outerRing = 1.0 - smoothstep(0.42, 0.5, distanceFromCenter);
-        float innerCutout = smoothstep(0.22, 0.28, distanceFromCenter);
+        float innerCutout = smoothstep(0.32, 0.36, distanceFromCenter);
         float centerDot = 1.0 - smoothstep(0.1, 0.18, distanceFromCenter);
         float alpha = max(outerRing * innerCutout, centerDot);
 
@@ -62,10 +62,10 @@ export function createProgram(context: WebGLRenderingContext): WebGLProgram {
     context.linkProgram(program);
 
     if (!context.getProgramParameter(program, context.LINK_STATUS)) {
-        const message = context.getProgramInfoLog(program) ?? '未知链接错误';
+        const message = context.getProgramInfoLog(program) ?? 'Unknown link error';
 
         context.deleteProgram(program);
-        throw new Error(`WebGL 着色器程序链接失败：${message}`);
+        throw new Error(`WebGL shader program link failed: ${message}`);
     }
 
     context.deleteShader(vertexShader);
@@ -78,17 +78,17 @@ function createShader(context: WebGLRenderingContext, type: number, source: stri
     const shader = context.createShader(type);
 
     if (!shader) {
-        throw new Error('WebGL 渲染器初始化失败：无法创建着色器');
+        throw new Error('WebGL renderer initialization failed: cannot create shader.');
     }
 
     context.shaderSource(shader, source);
     context.compileShader(shader);
 
     if (!context.getShaderParameter(shader, context.COMPILE_STATUS)) {
-        const message = context.getShaderInfoLog(shader) ?? '未知编译错误';
+        const message = context.getShaderInfoLog(shader) ?? 'Unknown compile error';
 
         context.deleteShader(shader);
-        throw new Error(`WebGL 着色器编译失败：${message}`);
+        throw new Error(`WebGL shader compile failed: ${message}`);
     }
 
     return shader;

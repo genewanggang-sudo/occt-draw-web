@@ -1,7 +1,16 @@
 import type { LineSegment3, Vector3 } from '@occt-draw/math';
 
 export type DisplayObjectId = string;
-export type DisplayObjectKind = 'line-batch' | 'marker-batch' | 'point-batch' | 'surface-batch';
+export type DisplayObjectKind =
+    | 'label-batch'
+    | 'line-batch'
+    | 'marker-batch'
+    | 'point-batch'
+    | 'surface-batch';
+export type LabelBaseline = 'alphabetic' | 'hanging' | 'ideographic' | 'middle';
+export type LabelHorizontalJustify = 'center' | 'left' | 'right';
+export type LabelText = 'Front' | 'Right' | 'Top';
+export type LabelVerticalJustify = 'baseline' | 'bottom' | 'middle' | 'top';
 export type MarkerShape = 'origin';
 
 export interface BaseDisplayObject {
@@ -9,6 +18,37 @@ export interface BaseDisplayObject {
     readonly kind: DisplayObjectKind;
     readonly name: string;
     readonly visible: boolean;
+}
+
+export interface LabelFrame {
+    readonly origin: Vector3;
+    readonly xAxis: Vector3;
+    readonly yAxis: Vector3;
+}
+
+export interface LabelInsert {
+    readonly x: number;
+    readonly y: number;
+}
+
+export interface LabelJustify {
+    readonly baseline: LabelBaseline;
+    readonly horizontal: LabelHorizontalJustify;
+    readonly vertical: LabelVerticalJustify;
+}
+
+export interface LabelDisplayItem {
+    readonly color: Vector3;
+    readonly frame: LabelFrame;
+    readonly heightPixels: number;
+    readonly insert: LabelInsert;
+    readonly justify: LabelJustify;
+    readonly text: LabelText;
+}
+
+export interface LabelBatchDisplayObject extends BaseDisplayObject {
+    readonly kind: 'label-batch';
+    readonly labels: readonly LabelDisplayItem[];
 }
 
 export interface LineBatchDisplayObject extends BaseDisplayObject {
@@ -50,6 +90,7 @@ export interface SurfaceBatchDisplayObject extends BaseDisplayObject {
 }
 
 export type DisplayObject =
+    | LabelBatchDisplayObject
     | LineBatchDisplayObject
     | MarkerBatchDisplayObject
     | PointBatchDisplayObject

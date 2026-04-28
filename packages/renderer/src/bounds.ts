@@ -53,6 +53,18 @@ export function getBoundingBoxCorners(bounds: BoundingBox3): readonly Vector3[] 
 }
 
 function expandBoundsByObject(bounds: BoundingBox3 | null, object: DisplayObject): BoundingBox3 {
+    if (object.kind === 'label-batch') {
+        return expandBoundsByPoints(
+            bounds,
+            object.labels.map((label) =>
+                addVector3(
+                    addVector3(label.frame.origin, scaleVector3(label.frame.xAxis, label.insert.x)),
+                    scaleVector3(label.frame.yAxis, label.insert.y),
+                ),
+            ),
+        );
+    }
+
     if (object.kind === 'line-batch') {
         return expandBoundsByPoints(
             bounds,

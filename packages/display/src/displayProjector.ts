@@ -28,6 +28,8 @@ import { createDisplayModel } from './displayModel';
 import type {
     DisplayModel,
     DisplayObject,
+    LabelBatchDisplayObject,
+    LabelText,
     LineBatchDisplayObject,
     MarkerBatchDisplayObject,
     PointBatchDisplayObject,
@@ -202,7 +204,7 @@ function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerBatc
         visible: object.visible,
         markers: [
             {
-                color: createVector3(0.02, 0.02, 0.02),
+                color: createVector3(0.78, 0.8, 0.82),
                 position: object.position,
                 shape: 'origin',
                 sizePixels: 13,
@@ -214,17 +216,25 @@ function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerBatc
 function projectReferencePlaneObject(object: ReferencePlaneObject): readonly DisplayObject[] {
     const halfSize = object.size / 2;
     const xAxis = normalizeVector3(object.xAxis);
-    const yAxis = normalizeVector3(crossVector3(object.normal, xAxis));
+    const planeYAxis = normalizeVector3(crossVector3(object.normal, xAxis));
+    const labelYAxis = scaleVector3(planeYAxis, -1);
     const left = scaleVector3(xAxis, -halfSize);
     const right = scaleVector3(xAxis, halfSize);
-    const bottom = scaleVector3(yAxis, -halfSize);
-    const top = scaleVector3(yAxis, halfSize);
+    const bottom = scaleVector3(planeYAxis, -halfSize);
+    const top = scaleVector3(planeYAxis, halfSize);
     const corners = [
         addMany(object.origin, left, bottom),
         addMany(object.origin, right, bottom),
         addMany(object.origin, right, top),
         addMany(object.origin, left, top),
     ] as const;
+    const labelOffset = scaleVector3(normalizeVector3(object.normal), 0.01);
+    const labelFrameOrigin = addMany(
+        object.origin,
+        scaleVector3(xAxis, -halfSize),
+        scaleVector3(planeYAxis, halfSize),
+        labelOffset,
+    );
 
     return [
         {
@@ -252,7 +262,46 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
                 createLineSegment3(corners[3], corners[0]),
             ],
         } satisfies LineBatchDisplayObject,
+        {
+            id: `${object.id}:label`,
+            kind: 'label-batch',
+            name: `${object.name} 标注`,
+            visible: object.visible,
+            labels: [
+                {
+                    color: createVector3(0.86, 0.86, 0.86),
+                    frame: {
+                        origin: labelFrameOrigin,
+                        xAxis,
+                        yAxis: labelYAxis,
+                    },
+                    heightPixels: 18,
+                    insert: {
+                        x: 0,
+                        y: 0,
+                    },
+                    justify: {
+                        baseline: 'alphabetic',
+                        horizontal: 'left',
+                        vertical: 'top',
+                    },
+                    text: getReferencePlaneLabel(object.planeKind),
+                },
+            ],
+        } satisfies LabelBatchDisplayObject,
     ];
+}
+
+function getReferencePlaneLabel(planeKind: ReferencePlaneObject['planeKind']): LabelText {
+    if (planeKind === 'xy') {
+        return 'Top';
+    }
+
+    if (planeKind === 'yz') {
+        return 'Right';
+    }
+
+    return 'Front';
 }
 
 function addMany(origin: Vector3, ...vectors: readonly Vector3[]): Vector3 {
