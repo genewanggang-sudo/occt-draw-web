@@ -1,5 +1,11 @@
+import type { DisplayModel, LabelFontWeight } from '@occt-draw/display';
 import type { CadRenderer, RenderFrameInput, ViewportSize } from '@occt-draw/renderer';
-import { createLabelAtlas } from './labelAtlas';
+import {
+    createLabelAtlas,
+    createLabelAtlasFontWeightSignature,
+    DEFAULT_LABEL_FONT_WEIGHT,
+    type LabelAtlas,
+} from './labelAtlas';
 import { createLabelProgram } from './labelShaderProgram';
 import { renderPipeline, type RenderPipelineResources } from './renderPipeline';
 import { createProgram } from './shaderProgram';
@@ -24,9 +30,10 @@ class WebglCadRenderer implements CadRenderer {
     private readonly context: WebGLRenderingContext;
     private readonly labelBuffer: WebGLBuffer;
     private readonly labelProgram: WebGLProgram;
-    private readonly labelTexture: WebGLTexture;
+    private labelAtlas: LabelAtlas;
+    private labelAtlasFontWeightSignature: string;
     private readonly program: WebGLProgram;
-    private readonly renderPipelineResources: RenderPipelineResources;
+    private renderPipelineResources: RenderPipelineResources;
 
     constructor(canvas: HTMLCanvasElement, context: WebGLRenderingContext) {
         this.canvas = canvas;
@@ -61,7 +68,8 @@ class WebglCadRenderer implements CadRenderer {
 
         this.buffer = buffer;
         this.labelBuffer = labelBuffer;
-        this.labelTexture = labelAtlas.texture;
+        this.labelAtlas = labelAtlas;
+        this.labelAtlasFontWeightSignature = labelAtlas.fontWeightSignature;
         this.renderPipelineResources = {
             alphaLocation,
             buffer,
@@ -92,7 +100,7 @@ class WebglCadRenderer implements CadRenderer {
         this.context.deleteBuffer(this.labelBuffer);
         this.context.deleteProgram(this.program);
         this.context.deleteProgram(this.labelProgram);
-        this.context.deleteTexture(this.labelTexture);
+        this.context.deleteTexture(this.labelAtlas.texture);
     }
 
     public resize(viewportSize: ViewportSize): void {
@@ -110,6 +118,47 @@ class WebglCadRenderer implements CadRenderer {
 
     public render(input: RenderFrameInput): void {
         this.resize(input.viewportSize);
+        this.ensureLabelAtlas(input.displayModel);
         renderPipeline(this.context, this.renderPipelineResources, input);
     }
+
+    private ensureLabelAtlas(displayModel: DisplayModel): void {
+        const fontWeights = collectLabelFontWeights(displayModel);
+        const signature = createLabelAtlasFontWeightSignature(fontWeights);
+
+        if (signature === this.labelAtlasFontWeightSignature) {
+            return;
+        }
+
+        this.context.deleteTexture(this.labelAtlas.texture);
+        this.labelAtlas = createLabelAtlas(this.context, fontWeights);
+        this.labelAtlasFontWeightSignature = this.labelAtlas.fontWeightSignature;
+        this.renderPipelineResources = {
+            ...this.renderPipelineResources,
+            labelAtlasGlyphs: this.labelAtlas.glyphs,
+            labelAtlasTexture: this.labelAtlas.texture,
+        };
+    }
+}
+
+function collectLabelFontWeights(displayModel: DisplayModel): readonly LabelFontWeight[] {
+    const seen = new Set<LabelFontWeight>();
+    const fontWeights: LabelFontWeight[] = [];
+
+    for (const object of displayModel.objects) {
+        if (!object.visible || object.kind !== 'label-batch') {
+            continue;
+        }
+
+        for (const label of object.labels) {
+            const fontWeight = label.fontWeight ?? DEFAULT_LABEL_FONT_WEIGHT;
+
+            if (!seen.has(fontWeight)) {
+                seen.add(fontWeight);
+                fontWeights.push(fontWeight);
+            }
+        }
+    }
+
+    return fontWeights;
 }

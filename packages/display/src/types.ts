@@ -8,6 +8,7 @@ export type DisplayObjectKind =
     | 'point-batch'
     | 'surface-batch';
 export type LabelBaseline = 'alphabetic' | 'hanging' | 'ideographic' | 'middle';
+export type LabelFontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
 export type LabelHorizontalJustify = 'center' | 'left' | 'right';
 export type LabelText = 'Front' | 'Right' | 'Top';
 export type LabelVerticalJustify = 'baseline' | 'bottom' | 'middle' | 'top';
@@ -37,12 +38,19 @@ export interface LabelJustify {
     readonly vertical: LabelVerticalJustify;
 }
 
+export interface LabelPaddingPixels {
+    readonly x: number;
+    readonly y: number;
+}
+
 export interface LabelDisplayItem {
     readonly color: Vector3;
+    readonly fontWeight?: LabelFontWeight;
     readonly frame: LabelFrame;
     readonly heightPixels: number;
     readonly insert: LabelInsert;
     readonly justify: LabelJustify;
+    readonly paddingPixels?: LabelPaddingPixels;
     readonly text: LabelText;
 }
 

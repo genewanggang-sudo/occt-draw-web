@@ -228,12 +228,10 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
         addMany(object.origin, right, top),
         addMany(object.origin, left, top),
     ] as const;
-    const labelOffset = scaleVector3(normalizeVector3(object.normal), 0.01);
     const labelFrameOrigin = addMany(
         object.origin,
         scaleVector3(xAxis, -halfSize),
         scaleVector3(planeYAxis, halfSize),
-        labelOffset,
     );
 
     return [
@@ -270,15 +268,20 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
             labels: [
                 {
                     color: createVector3(0.86, 0.86, 0.86),
+                    fontWeight: 400,
                     frame: {
                         origin: labelFrameOrigin,
                         xAxis,
                         yAxis: labelYAxis,
                     },
-                    heightPixels: 18,
+                    heightPixels: 15,
                     insert: {
                         x: 0,
                         y: 0,
+                    },
+                    paddingPixels: {
+                        x: 6,
+                        y: 6,
                     },
                     justify: {
                         baseline: 'alphabetic',

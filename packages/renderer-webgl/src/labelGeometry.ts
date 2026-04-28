@@ -7,7 +7,12 @@ import {
     type Vector3,
 } from '@occt-draw/math';
 import type { CameraState, ViewportSize } from '@occt-draw/renderer';
-import type { LabelAtlas, LabelGlyph } from './labelAtlas';
+import {
+    createLabelGlyphKey,
+    DEFAULT_LABEL_FONT_WEIGHT,
+    type LabelAtlas,
+    type LabelGlyph,
+} from './labelAtlas';
 import type { LabelVertex } from './types';
 
 interface LabelQuad {
@@ -34,7 +39,7 @@ export function createDisplayLabelVertices({
     displayModel,
     viewportSize,
 }: {
-    readonly atlas: LabelAtlas;
+    readonly atlas: Pick<LabelAtlas, 'glyphs'>;
     readonly camera: CameraState;
     readonly displayModel: DisplayModel;
     readonly viewportSize: ViewportSize;
@@ -76,15 +81,20 @@ export function toLabelVertexBuffer(vertices: readonly LabelVertex[]): Float32Ar
 function appendLabelBatch(
     vertices: LabelVertex[],
     object: LabelBatchDisplayObject,
-    atlas: LabelAtlas,
+    atlas: Pick<LabelAtlas, 'glyphs'>,
     worldUnitsPerPixel: number,
 ): void {
     for (const label of object.labels) {
-        const glyph = atlas.glyphs[label.text];
+        const glyph = resolveGlyph(label, atlas);
         const frameBasis = resolveFrameBasis(label);
         const insertWorld = resolveInsertWorld(label, frameBasis);
         const metrics = resolveTextBoxMetrics(glyph, label.heightPixels, worldUnitsPerPixel);
-        const topLeft = resolveTextTopLeft(insertWorld, label, metrics, frameBasis);
+        const topLeft = applyPaddingPixels(
+            resolveTextTopLeft(insertWorld, label, metrics, frameBasis),
+            label,
+            frameBasis,
+            worldUnitsPerPixel,
+        );
         const quad = buildLabelQuad(topLeft, metrics, frameBasis);
 
         vertices.push(
@@ -96,6 +106,18 @@ function appendLabelBatch(
             createLabelVertex(quad.topRight, glyph.maxU, glyph.minV, label.color),
         );
     }
+}
+
+function resolveGlyph(label: LabelDisplayItem, atlas: Pick<LabelAtlas, 'glyphs'>): LabelGlyph {
+    const glyph = atlas.glyphs.get(
+        createLabelGlyphKey(label.text, label.fontWeight ?? DEFAULT_LABEL_FONT_WEIGHT),
+    );
+
+    if (!glyph) {
+        throw new Error(`WebGL label glyph not found: ${label.text}`);
+    }
+
+    return glyph;
 }
 
 function resolveFrameBasis(label: LabelDisplayItem): TextFrameBasis {
@@ -144,6 +166,20 @@ function resolveTextTopLeft(
     return addVector3(
         addVector3(insertWorld, scaleVector3(frameBasis.xAxis, -horizontalOffset)),
         scaleVector3(frameBasis.yAxis, -verticalOffset),
+    );
+}
+
+function applyPaddingPixels(
+    topLeft: Vector3,
+    label: LabelDisplayItem,
+    frameBasis: TextFrameBasis,
+    worldUnitsPerPixel: number,
+): Vector3 {
+    const padding = label.paddingPixels ?? { x: 0, y: 0 };
+
+    return addVector3(
+        addVector3(topLeft, scaleVector3(frameBasis.xAxis, padding.x * worldUnitsPerPixel)),
+        scaleVector3(frameBasis.yAxis, padding.y * worldUnitsPerPixel),
     );
 }
 

@@ -19,6 +19,7 @@ export type {
     DisplayObjectKind,
     LabelBatchDisplayObject,
     LabelDisplayItem,
+    LabelFontWeight,
     LabelText,
     LineBatchDisplayObject,
     MarkerBatchDisplayObject,

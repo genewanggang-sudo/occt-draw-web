@@ -43,10 +43,7 @@ export function renderPipeline(
     const pointVertices = createDisplayPointVertices(input.displayModel);
     const markerVertices = createDisplayMarkerVertices(input.displayModel);
     const labelVertices = createDisplayLabelVertices({
-        atlas: {
-            glyphs: resources.labelAtlasGlyphs,
-            texture: resources.labelAtlasTexture,
-        },
+        atlas: { glyphs: resources.labelAtlasGlyphs },
         camera: input.camera,
         displayModel: input.displayModel,
         viewportSize: input.viewportSize,
