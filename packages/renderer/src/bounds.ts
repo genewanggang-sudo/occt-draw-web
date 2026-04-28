@@ -64,6 +64,13 @@ function expandBoundsByObject(bounds: BoundingBox3 | null, object: DisplayObject
         return expandBoundsByPoints(bounds, object.points);
     }
 
+    if (object.kind === 'marker-batch') {
+        return expandBoundsByPoints(
+            bounds,
+            object.markers.map((marker) => marker.position),
+        );
+    }
+
     return expandBoundsByPoints(
         bounds,
         object.triangles.flatMap((triangle) => [triangle.a, triangle.b, triangle.c]),

@@ -105,10 +105,8 @@ function ObjectInspector({
                 <span className="cad-workbench__inspector-label">对象类型</span>
                 <strong>{getObjectKindLabel(object)}</strong>
             </div>
-            <div className="cad-workbench__inspector-section">
-                <span className="cad-workbench__inspector-label">平面</span>
-                <strong>{object.planeKind.toUpperCase()}</strong>
-            </div>
+            {object.kind === 'reference-origin' ? <OriginInspector object={object} /> : null}
+            {object.kind === 'reference-plane' ? <PlaneInspector object={object} /> : null}
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">拾取目标</span>
                 <strong>
@@ -127,7 +125,39 @@ function ObjectInspector({
     );
 }
 
-function getObjectKindLabel(_object: CadObject): string {
+function OriginInspector({
+    object,
+}: {
+    readonly object: Extract<CadObject, { kind: 'reference-origin' }>;
+}) {
+    return (
+        <div className="cad-workbench__inspector-section">
+            <span className="cad-workbench__inspector-label">位置</span>
+            <strong>
+                {object.position.x}, {object.position.y}, {object.position.z}
+            </strong>
+        </div>
+    );
+}
+
+function PlaneInspector({
+    object,
+}: {
+    readonly object: Extract<CadObject, { kind: 'reference-plane' }>;
+}) {
+    return (
+        <div className="cad-workbench__inspector-section">
+            <span className="cad-workbench__inspector-label">平面</span>
+            <strong>{object.planeKind.toUpperCase()}</strong>
+        </div>
+    );
+}
+
+function getObjectKindLabel(object: CadObject): string {
+    if (object.kind === 'reference-origin') {
+        return '原点';
+    }
+
     return '基准面';
 }
 

@@ -1,8 +1,10 @@
 import type {
     CadDocument,
+    CadObject,
     DraftLineSegmentObject,
     EditDraft,
     PartStudio,
+    ReferenceOriginObject,
     ReferencePlaneObject,
 } from '@occt-draw/core';
 import {
@@ -27,6 +29,7 @@ import type {
     DisplayModel,
     DisplayObject,
     LineBatchDisplayObject,
+    MarkerBatchDisplayObject,
     PointBatchDisplayObject,
     SurfaceBatchDisplayObject,
 } from './types';
@@ -60,17 +63,21 @@ export class DisplayProjector {
         ]);
     }
 
-    public toDisplayObject(object: ReferencePlaneObject): DisplayObject {
+    public toDisplayObject(object: CadObject): DisplayObject {
         const [displayObject] = this.toDisplayObjects(object);
 
         if (!displayObject) {
-            throw new Error(`基准面投影失败：${object.id}`);
+            throw new Error(`对象投影失败：${object.id}`);
         }
 
         return displayObject;
     }
 
-    public toDisplayObjects(object: ReferencePlaneObject): readonly DisplayObject[] {
+    public toDisplayObjects(object: CadObject): readonly DisplayObject[] {
+        if (object.kind === 'reference-origin') {
+            return [projectReferenceOriginObject(object)];
+        }
+
         return projectReferencePlaneObject(object);
     }
 
@@ -185,6 +192,23 @@ export function projectPartStudioToDisplayModel(
     context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
 ): DisplayModel {
     return new DisplayProjector().projectPartStudio(partStudio, draft, context);
+}
+
+function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerBatchDisplayObject {
+    return {
+        id: object.id,
+        kind: 'marker-batch',
+        name: object.name,
+        visible: object.visible,
+        markers: [
+            {
+                color: createVector3(0.02, 0.02, 0.02),
+                position: object.position,
+                shape: 'origin',
+                sizePixels: 13,
+            },
+        ],
+    };
 }
 
 function projectReferencePlaneObject(object: ReferencePlaneObject): readonly DisplayObject[] {

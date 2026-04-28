@@ -6,6 +6,10 @@ export interface RenderVertex {
     readonly position: Vector3;
 }
 
+export interface MarkerVertex extends RenderVertex {
+    readonly sizePixels: number;
+}
+
 export type LineVertex = RenderVertex;
 
 export type Matrix4 = Float32Array;

@@ -1,4 +1,8 @@
-import type { DisplayModel, LineBatchDisplayObject } from '@occt-draw/display';
+import type {
+    DisplayModel,
+    LineBatchDisplayObject,
+    MarkerBatchDisplayObject,
+} from '@occt-draw/display';
 import {
     crossVector3,
     dotVector3,
@@ -41,11 +45,16 @@ export function pickDisplayObject(input: PickDisplayObjectInput): PickDisplayObj
     let nearestDistance = input.thresholdPixels;
 
     for (const object of input.displayModel.objects) {
-        if (!object.visible || object.kind !== 'line-batch') {
+        if (!object.visible) {
             continue;
         }
 
-        const result = pickLineBatch(object, input);
+        const result =
+            object.kind === 'marker-batch'
+                ? pickMarkerBatch(object, input)
+                : object.kind === 'line-batch'
+                  ? pickLineBatch(object, input)
+                  : null;
 
         if (result && result.distancePixels <= nearestDistance) {
             nearestDistance = result.distancePixels;
@@ -82,6 +91,44 @@ function pickLineBatch(
                 objectId: object.id,
                 primitiveId: createRenderPrimitiveId(object.id, 'edge', index),
                 targetKind: 'object',
+            };
+        }
+    }
+
+    return nearestResult;
+}
+
+function pickMarkerBatch(
+    object: MarkerBatchDisplayObject,
+    input: PickDisplayObjectInput,
+): PickDisplayObjectResult | null {
+    const basis = calculateCameraBasis(input.camera);
+    let nearestResult: PickDisplayObjectResult | null = null;
+    let nearestDistance = input.thresholdPixels;
+
+    for (let index = 0; index < object.markers.length; index += 1) {
+        const marker = object.markers[index];
+
+        if (!marker) {
+            continue;
+        }
+
+        const screenPoint = projectWorldToScreen(
+            marker.position,
+            input.camera,
+            basis,
+            input.viewportSize,
+        );
+        const distance = Math.hypot(input.point.x - screenPoint.x, input.point.y - screenPoint.y);
+        const hitDistance = Math.max(0, distance - marker.sizePixels / 2);
+
+        if (hitDistance <= nearestDistance) {
+            nearestDistance = hitDistance;
+            nearestResult = {
+                distancePixels: hitDistance,
+                objectId: object.id,
+                primitiveId: createRenderPrimitiveId(object.id, 'vertex', index),
+                targetKind: 'vertex',
             };
         }
     }

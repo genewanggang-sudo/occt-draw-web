@@ -1,10 +1,11 @@
 import type {
     DisplayModel,
+    MarkerBatchDisplayObject,
     PointBatchDisplayObject,
     SurfaceBatchDisplayObject,
 } from '@occt-draw/display';
 import { appendDisplayLineSegments } from './displayLineGeometry';
-import type { LineVertex, RenderVertex } from './types';
+import type { LineVertex, MarkerVertex, RenderVertex } from './types';
 export { toVertexBuffer } from './vertexBuffer';
 
 export function createDisplaySurfaceVertices(displayModel: DisplayModel): readonly RenderVertex[] {
@@ -45,6 +46,31 @@ export function createDisplayPointVertices(displayModel: DisplayModel): readonly
     }
 
     return vertices;
+}
+
+export function createDisplayMarkerVertices(displayModel: DisplayModel): readonly MarkerVertex[] {
+    const vertices: MarkerVertex[] = [];
+
+    for (const object of displayModel.objects) {
+        if (!object.visible || object.kind !== 'marker-batch') {
+            continue;
+        }
+
+        appendMarkerBatch(vertices, object);
+    }
+
+    return vertices;
+}
+
+function appendMarkerBatch(vertices: MarkerVertex[], object: MarkerBatchDisplayObject): void {
+    for (const marker of object.markers) {
+        vertices.push({
+            position: marker.position,
+            color: marker.color,
+            alpha: 1,
+            sizePixels: marker.sizePixels,
+        });
+    }
 }
 
 function appendPointBatch(vertices: RenderVertex[], object: PointBatchDisplayObject): void {

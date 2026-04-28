@@ -8,6 +8,13 @@ export function createDefaultCadDocument(): CadDocument {
         features: [],
         objects: [
             {
+                id: 'origin-main',
+                kind: 'reference-origin',
+                name: '原点',
+                visible: true,
+                position: createVector3(0, 0, 0),
+            },
+            {
                 id: 'plane-xy',
                 kind: 'reference-plane',
                 name: '基准面 XY',

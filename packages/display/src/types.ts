@@ -1,7 +1,8 @@
 import type { LineSegment3, Vector3 } from '@occt-draw/math';
 
 export type DisplayObjectId = string;
-export type DisplayObjectKind = 'line-batch' | 'point-batch' | 'surface-batch';
+export type DisplayObjectKind = 'line-batch' | 'marker-batch' | 'point-batch' | 'surface-batch';
+export type MarkerShape = 'origin';
 
 export interface BaseDisplayObject {
     readonly id: DisplayObjectId;
@@ -14,6 +15,18 @@ export interface LineBatchDisplayObject extends BaseDisplayObject {
     readonly color: Vector3;
     readonly kind: 'line-batch';
     readonly segments: readonly LineSegment3[];
+}
+
+export interface MarkerDisplayItem {
+    readonly color: Vector3;
+    readonly position: Vector3;
+    readonly shape: MarkerShape;
+    readonly sizePixels: number;
+}
+
+export interface MarkerBatchDisplayObject extends BaseDisplayObject {
+    readonly kind: 'marker-batch';
+    readonly markers: readonly MarkerDisplayItem[];
 }
 
 export interface PointBatchDisplayObject extends BaseDisplayObject {
@@ -38,6 +51,7 @@ export interface SurfaceBatchDisplayObject extends BaseDisplayObject {
 
 export type DisplayObject =
     | LineBatchDisplayObject
+    | MarkerBatchDisplayObject
     | PointBatchDisplayObject
     | SurfaceBatchDisplayObject;
 

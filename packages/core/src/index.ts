@@ -38,6 +38,7 @@ export type {
     BaseCadObject,
     CadObject,
     CadObjectKind,
+    ReferenceOriginObject,
     ReferencePlaneKind,
     ReferencePlaneObject,
 } from './objects';

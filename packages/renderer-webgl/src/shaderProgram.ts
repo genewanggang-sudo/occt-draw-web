@@ -19,6 +19,22 @@ uniform float u_point_shape;
 varying vec4 v_color;
 
 void main() {
+    if (u_point_shape > 1.5) {
+        vec2 pointCoord = gl_PointCoord - vec2(0.5);
+        float distanceFromCenter = length(pointCoord);
+        float outerRing = 1.0 - smoothstep(0.42, 0.5, distanceFromCenter);
+        float innerCutout = smoothstep(0.22, 0.28, distanceFromCenter);
+        float centerDot = 1.0 - smoothstep(0.1, 0.18, distanceFromCenter);
+        float alpha = max(outerRing * innerCutout, centerDot);
+
+        if (alpha <= 0.0) {
+            discard;
+        }
+
+        gl_FragColor = vec4(v_color.rgb, v_color.a * alpha);
+        return;
+    }
+
     if (u_point_shape > 0.5) {
         vec2 pointCoord = gl_PointCoord - vec2(0.5);
         float distanceFromCenter = length(pointCoord);
