@@ -1,4 +1,8 @@
-import type { CubeWireframeDisplayObject, DisplayModel } from '@occt-draw/display';
+import type {
+    CubeWireframeDisplayObject,
+    DisplayModel,
+    LineSegmentsDisplayObject,
+} from '@occt-draw/display';
 import {
     crossVector3,
     dotVector3,
@@ -41,15 +45,62 @@ export function pickDisplayObject(input: PickDisplayObjectInput): PickDisplayObj
     let nearestDistance = input.thresholdPixels;
 
     for (const object of input.displayModel.objects) {
-        if (!object.visible || object.kind !== 'cube-wireframe') {
+        if (!object.visible) {
             continue;
         }
 
-        const result = pickCubeWireframeEdge(object, input);
+        const result =
+            object.kind === 'cube-wireframe'
+                ? pickCubeWireframeEdge(object, input)
+                : pickLineSegmentsObject(object, input);
 
         if (result && result.distancePixels <= nearestDistance) {
             nearestDistance = result.distancePixels;
             nearestResult = result;
+        }
+    }
+
+    return nearestResult;
+}
+
+function pickLineSegmentsObject(
+    object: DisplayModel['objects'][number],
+    input: PickDisplayObjectInput,
+): PickDisplayObjectResult | null {
+    if (object.kind !== 'line-segments') {
+        return null;
+    }
+
+    return pickLineSegments(object, input);
+}
+
+function pickLineSegments(
+    object: LineSegmentsDisplayObject,
+    input: PickDisplayObjectInput,
+): PickDisplayObjectResult | null {
+    const basis = calculateCameraBasis(input.camera);
+    let nearestResult: PickDisplayObjectResult | null = null;
+    let nearestDistance = input.thresholdPixels;
+
+    for (let index = 0; index < object.segments.length; index += 1) {
+        const segment = object.segments[index];
+
+        if (!segment) {
+            continue;
+        }
+
+        const start = projectWorldToScreen(segment.start, input.camera, basis, input.viewportSize);
+        const end = projectWorldToScreen(segment.end, input.camera, basis, input.viewportSize);
+        const distance = distanceToScreenSegment(input.point, start, end);
+
+        if (distance <= nearestDistance) {
+            nearestDistance = distance;
+            nearestResult = {
+                distancePixels: distance,
+                objectId: object.id,
+                primitiveId: createRenderPrimitiveId(object.id, 'edge', index),
+                targetKind: 'object',
+            };
         }
     }
 

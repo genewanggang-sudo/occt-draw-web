@@ -151,6 +151,9 @@ importers:
       '@occt-draw/shared':
         specifier: workspace:*
         version: link:../shared
+      '@occt-draw/sketch':
+        specifier: workspace:*
+        version: link:../sketch
 
   packages/editor:
     dependencies:
@@ -169,6 +172,9 @@ importers:
       '@occt-draw/shared':
         specifier: workspace:*
         version: link:../shared
+      '@occt-draw/sketch':
+        specifier: workspace:*
+        version: link:../sketch
 
   packages/math:
     dependencies:

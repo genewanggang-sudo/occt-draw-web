@@ -4,19 +4,52 @@ import type {
     DraftLineSegmentObject,
     EditDraft,
     PartStudio,
+    ReferencePlaneObject,
 } from '@occt-draw/core';
-import { createVector3 } from '@occt-draw/math';
+import {
+    addVector3,
+    createLineSegment3,
+    createVector3,
+    crossVector3,
+    normalizeVector3,
+    scaleVector3,
+    type Vector3,
+} from '@occt-draw/math';
+import {
+    findSketchPointById,
+    listSketchLines,
+    sketchPointToWorld,
+    type Sketch,
+    type SketchId,
+} from '@occt-draw/sketch';
 import { createDisplayModel } from './displayModel';
 import type { DisplayModel, DisplayObject, LineSegmentsDisplayObject } from './types';
 
+export interface DisplayProjectionContext {
+    readonly sketchesById?: Readonly<Record<SketchId, Sketch>>;
+}
+
+const EMPTY_DISPLAY_PROJECTION_CONTEXT: DisplayProjectionContext = {
+    sketchesById: {},
+};
+
 export class DisplayProjector {
-    public projectDocument(document: CadDocument, draft: EditDraft | null = null): DisplayModel {
-        return this.projectPartStudio(document.getActivePartStudio(), draft);
+    public projectDocument(
+        document: CadDocument,
+        draft: EditDraft | null = null,
+        context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
+    ): DisplayModel {
+        return this.projectPartStudio(document.getActivePartStudio(), draft, context);
     }
 
-    public projectPartStudio(partStudio: PartStudio, draft: EditDraft | null = null): DisplayModel {
+    public projectPartStudio(
+        partStudio: PartStudio,
+        draft: EditDraft | null = null,
+        context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
+    ): DisplayModel {
         return createDisplayModel(partStudio.id, partStudio.name, [
             ...partStudio.objects.map((object) => this.toDisplayObject(object)),
+            ...this.projectSketchFeatures(partStudio, context),
             ...this.projectDraftObjects(draft),
         ]);
     }
@@ -43,6 +76,10 @@ export class DisplayProjector {
             };
         }
 
+        if (object.kind === 'reference-plane') {
+            return projectReferencePlaneObject(object);
+        }
+
         return {
             id: object.id,
             kind: 'cube-wireframe',
@@ -51,6 +88,54 @@ export class DisplayProjector {
             center: createVector3(object.center.x, object.center.y, object.center.z),
             size: object.size,
         };
+    }
+
+    private projectSketchFeatures(
+        partStudio: PartStudio,
+        context: DisplayProjectionContext,
+    ): readonly DisplayObject[] {
+        return partStudio.features.flatMap((feature) => {
+            if (feature.type !== 'sketch' || !feature.payloadRef) {
+                return [];
+            }
+
+            const sketch = context.sketchesById?.[feature.payloadRef];
+
+            if (!sketch) {
+                return [];
+            }
+
+            const segments = listSketchLines(sketch).flatMap((line) => {
+                const startPoint = findSketchPointById(sketch, line.startPointId);
+                const endPoint = findSketchPointById(sketch, line.endPointId);
+
+                if (!startPoint || !endPoint) {
+                    return [];
+                }
+
+                return [
+                    createLineSegment3(
+                        sketchPointToWorld(sketch, startPoint),
+                        sketchPointToWorld(sketch, endPoint),
+                    ),
+                ];
+            });
+
+            if (segments.length === 0) {
+                return [];
+            }
+
+            return [
+                {
+                    id: feature.id,
+                    kind: 'line-segments',
+                    name: feature.name,
+                    visible: !feature.suppressed,
+                    color: createVector3(0.05, 0.38, 0.85),
+                    segments,
+                } satisfies LineSegmentsDisplayObject,
+            ];
+        });
     }
 
     private projectDraftObjects(draft: EditDraft | null): readonly DisplayObject[] {
@@ -80,15 +165,53 @@ export class DisplayProjector {
 export function projectDocumentToDisplayModel(
     document: CadDocument,
     draft: EditDraft | null = null,
+    context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
 ): DisplayModel {
-    return new DisplayProjector().projectDocument(document, draft);
+    return new DisplayProjector().projectDocument(document, draft, context);
 }
 
 export function projectPartStudioToDisplayModel(
     partStudio: PartStudio,
     draft: EditDraft | null = null,
+    context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
 ): DisplayModel {
-    return new DisplayProjector().projectPartStudio(partStudio, draft);
+    return new DisplayProjector().projectPartStudio(partStudio, draft, context);
+}
+
+function projectReferencePlaneObject(object: ReferencePlaneObject): LineSegmentsDisplayObject {
+    const halfSize = object.size / 2;
+    const xAxis = normalizeVector3(object.xAxis);
+    const yAxis = normalizeVector3(crossVector3(object.normal, xAxis));
+    const left = scaleVector3(xAxis, -halfSize);
+    const right = scaleVector3(xAxis, halfSize);
+    const bottom = scaleVector3(yAxis, -halfSize);
+    const top = scaleVector3(yAxis, halfSize);
+    const corners = [
+        addMany(object.origin, left, bottom),
+        addMany(object.origin, right, bottom),
+        addMany(object.origin, right, top),
+        addMany(object.origin, left, top),
+    ] as const;
+
+    return {
+        id: object.id,
+        kind: 'line-segments',
+        name: object.name,
+        visible: object.visible,
+        color: createVector3(0.22, 0.5, 0.9),
+        segments: [
+            createLineSegment3(corners[0], corners[1]),
+            createLineSegment3(corners[1], corners[2]),
+            createLineSegment3(corners[2], corners[3]),
+            createLineSegment3(corners[3], corners[0]),
+            createLineSegment3(addMany(object.origin, left), addMany(object.origin, right)),
+            createLineSegment3(addMany(object.origin, bottom), addMany(object.origin, top)),
+        ],
+    };
+}
+
+function addMany(origin: Vector3, ...vectors: readonly Vector3[]): Vector3 {
+    return vectors.reduce((current, vector) => addVector3(current, vector), origin);
 }
 
 function isDraftLineSegmentObject(object: {

@@ -1,6 +1,6 @@
 import type { SelectionTarget } from '@occt-draw/core';
 
-export type CommandId = 'extrude' | 'select' | 'sketch';
+export type CommandId = 'extrude' | 'select' | 'sketch' | 'sketch-line';
 export type CommandKind = 'modal';
 export type CommandStatus = 'blocked' | 'cancelled' | 'completed' | 'idle' | 'running';
 
@@ -18,8 +18,11 @@ export interface CommandAvailability {
 export type CommandAvailabilityMap = Readonly<Record<CommandId, CommandAvailability>>;
 
 export interface CommandAvailabilityContext {
+    readonly activeSketchTool: 'line' | 'select' | null;
     readonly hasSketchProfile: boolean;
+    readonly isEditingSketch: boolean;
     readonly selectionObjectIds: readonly string[];
+    readonly selectedReferencePlaneCount: number;
 }
 
 export interface CommandSelectionContext {

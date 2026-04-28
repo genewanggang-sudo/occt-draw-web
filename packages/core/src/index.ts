@@ -25,17 +25,7 @@ export {
 } from './editDraft';
 export { createDefaultCadDocument } from './defaultDocument';
 export { findCadObjectById, getActivePartStudio, listVisibleCadObjects } from './documentQueries';
-export type {
-    BaseFeature,
-    Feature,
-    FeatureKind,
-    FeatureStatus,
-    PlaceholderFeature,
-    SketchFeature,
-    SketchFeatureData,
-    SketchPlane,
-    SketchPlaneKind,
-} from './features';
+export { Feature, type FeatureStatus, type FeatureTypeId } from './features';
 export type { CadObjectId, DocumentId, FeatureId, PartStudioId, SketchId } from './ids';
 export {
     CORE_MODULE_MANIFEST,
@@ -51,6 +41,8 @@ export type {
     DebugCubeObject,
     ReferenceAxisObject,
     ReferenceGridObject,
+    ReferencePlaneKind,
+    ReferencePlaneObject,
 } from './objects';
 export {
     SelectionSet,

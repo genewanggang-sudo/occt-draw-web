@@ -8,7 +8,6 @@ import type {
 } from './commandTypes';
 
 const SELECT_MESSAGE = '选择对象或子元素，查看属性并作为后续命令输入。';
-const SKETCH_MESSAGE = '草图命令已进入，真实草图将在下一阶段实现。';
 
 export function createInitialCommandSession(): CommandSession {
     return {
@@ -114,7 +113,11 @@ function createCommandSelectionContext(selection: SelectionSet): CommandSelectio
 
 function getCommandRunningMessage(commandId: CommandId): string {
     if (commandId === 'sketch') {
-        return SKETCH_MESSAGE;
+        return '选择基准面后进入草图。';
+    }
+
+    if (commandId === 'sketch-line') {
+        return '指定直线起点。';
     }
 
     if (commandId === 'extrude') {

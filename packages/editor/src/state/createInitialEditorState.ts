@@ -14,10 +14,14 @@ export function createInitialEditorState({
     navigation,
 }: CreateInitialEditorStateInput): EditorState {
     return {
+        activeSketchSession: null,
         document,
         commandSession: createInitialCommandSession(),
         draft: null,
         navigation,
         selection: createInitialSelectionState(),
+        sketches: {
+            sketchesById: {},
+        },
     };
 }

@@ -74,6 +74,20 @@ export class EditorController {
             };
         }
 
+        if (result.sketches) {
+            nextState = {
+                ...nextState,
+                sketches: result.sketches,
+            };
+        }
+
+        if ('activeSketchSession' in result) {
+            nextState = {
+                ...nextState,
+                activeSketchSession: result.activeSketchSession ?? null,
+            };
+        }
+
         if (result.navigation) {
             nextState = {
                 ...nextState,
@@ -100,6 +114,9 @@ export class EditorController {
             ...this.state,
             commandSession: cancelCommandSession(this.state.commandSession),
             draft: null,
+            activeSketchSession: shouldExitSketchSession(this.state)
+                ? null
+                : this.state.activeSketchSession,
         };
     }
 
@@ -174,8 +191,22 @@ export class EditorController {
 }
 
 function createCommandAvailabilityContext(state: EditorState) {
+    const activePartStudio = state.document.getActivePartStudio();
+    const selectedReferencePlaneCount = state.selection.selection.objectIds.filter((objectId) => {
+        const object = activePartStudio.findObjectById(objectId);
+
+        return object?.kind === 'reference-plane';
+    }).length;
+
     return {
+        activeSketchTool: state.activeSketchSession?.activeTool ?? null,
         hasSketchProfile: false,
+        isEditingSketch: state.activeSketchSession !== null,
         selectionObjectIds: state.selection.selection.objectIds,
+        selectedReferencePlaneCount,
     };
+}
+
+function shouldExitSketchSession(state: EditorState): boolean {
+    return state.activeSketchSession?.pendingLineStartPointId === null;
 }

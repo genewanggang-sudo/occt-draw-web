@@ -4,6 +4,7 @@ export {
     DisplayProjector,
     projectDocumentToDisplayModel,
     projectPartStudioToDisplayModel,
+    type DisplayProjectionContext,
 } from './displayProjector';
 export {
     DISPLAY_MODULE_MANIFEST,

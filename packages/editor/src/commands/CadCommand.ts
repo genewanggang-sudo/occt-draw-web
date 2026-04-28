@@ -5,7 +5,7 @@ import type {
     SelectionTarget,
     TransactionGroup,
 } from '@occt-draw/core';
-import type { EditorState } from '../state/editorState';
+import type { EditorState, SketchDocumentStore, SketchEditSession } from '../state/editorState';
 import type { SelectionState } from '../selection/selectionState';
 import type { ViewNavigationState } from '../view-navigation/viewNavigation';
 import type { ScreenPoint } from '../view-navigation/viewNavigation';
@@ -39,6 +39,8 @@ export interface CommandResult {
     readonly navigation?: ViewNavigationState;
     readonly nextCommandId?: CommandId;
     readonly selection?: SelectionState;
+    readonly sketches?: SketchDocumentStore;
+    readonly activeSketchSession?: SketchEditSession | null;
 }
 
 export abstract class CadCommand {
@@ -107,6 +109,9 @@ export function mergeCommandResults(first: CommandResult, second: CommandResult)
     const navigation = second.navigation ?? first.navigation;
     const nextCommandId = second.nextCommandId ?? first.nextCommandId;
     const selection = second.selection ?? first.selection;
+    const sketches = second.sketches ?? first.sketches;
+    const activeSketchSession =
+        'activeSketchSession' in second ? second.activeSketchSession : first.activeSketchSession;
     const merged: CommandResult = {
         handled: true,
         ...(commandSession ? { commandSession } : {}),
@@ -115,6 +120,10 @@ export function mergeCommandResults(first: CommandResult, second: CommandResult)
         ...(navigation ? { navigation } : {}),
         ...(nextCommandId ? { nextCommandId } : {}),
         ...(selection ? { selection } : {}),
+        ...(sketches ? { sketches } : {}),
+        ...('activeSketchSession' in second || 'activeSketchSession' in first
+            ? { activeSketchSession }
+            : {}),
     };
 
     if ('draft' in second) {

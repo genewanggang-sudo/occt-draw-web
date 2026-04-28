@@ -1,5 +1,5 @@
 import type { Feature } from './features';
-import type { CadObjectId, DocumentId, PartStudioId } from './ids';
+import type { CadObjectId, DocumentId, FeatureId, PartStudioId } from './ids';
 import type { CadObject } from './objects';
 
 export class PartStudio {
@@ -29,8 +29,45 @@ export class PartStudio {
         return this.objects.find((object) => object.id === objectId) ?? null;
     }
 
+    public findFeatureById(featureId: FeatureId): Feature | null {
+        return this.features.find((feature) => feature.id === featureId) ?? null;
+    }
+
+    public listFeatures(): readonly Feature[] {
+        return this.features;
+    }
+
     public listVisibleObjects(): readonly CadObject[] {
         return this.objects.filter((object) => object.visible);
+    }
+
+    public appendFeature(feature: Feature): PartStudio {
+        return new PartStudio({
+            id: this.id,
+            name: this.name,
+            features: [...this.features, feature],
+            objects: this.objects,
+        });
+    }
+
+    public replaceFeature(feature: Feature): PartStudio {
+        return new PartStudio({
+            id: this.id,
+            name: this.name,
+            features: this.features.map((current) =>
+                current.id === feature.id ? feature : current,
+            ),
+            objects: this.objects,
+        });
+    }
+
+    public removeFeature(featureId: FeatureId): PartStudio {
+        return new PartStudio({
+            id: this.id,
+            name: this.name,
+            features: this.features.filter((feature) => feature.id !== featureId),
+            objects: this.objects,
+        });
     }
 }
 

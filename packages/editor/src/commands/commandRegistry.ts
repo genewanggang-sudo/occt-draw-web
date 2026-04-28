@@ -18,6 +18,11 @@ export const commandDefinitions: readonly CommandDefinition[] = [
         kind: 'modal',
     },
     {
+        id: 'sketch-line',
+        label: '直线',
+        kind: 'modal',
+    },
+    {
         id: 'extrude',
         label: '拉伸',
         kind: 'modal',
@@ -45,8 +50,16 @@ export function evaluateCommandAvailability(
 
     if (commandId === 'sketch') {
         return {
-            enabled: true,
-            reason: null,
+            enabled: context.selectedReferencePlaneCount === 1,
+            reason:
+                context.selectedReferencePlaneCount === 1 ? null : '请选择一个基准面后再进入草图。',
+        };
+    }
+
+    if (commandId === 'sketch-line') {
+        return {
+            enabled: context.isEditingSketch,
+            reason: context.isEditingSketch ? null : '进入草图后才能使用直线。',
         };
     }
 
@@ -69,6 +82,7 @@ export function evaluateCommandAvailabilityMap(
     return {
         select: evaluateCommandAvailability('select', context),
         sketch: evaluateCommandAvailability('sketch', context),
+        'sketch-line': evaluateCommandAvailability('sketch-line', context),
         extrude: evaluateCommandAvailability('extrude', context),
     };
 }

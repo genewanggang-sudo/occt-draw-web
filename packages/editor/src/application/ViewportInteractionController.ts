@@ -3,6 +3,7 @@ import type { BoundingBox3, BoundingSphere, StandardCameraView } from '@occt-dra
 import type { CommandContext, CommandPointerEvent, CommandResult } from '../commands/CadCommand';
 import { SelectCommand } from '../commands/SelectCommand';
 import { SketchCommand } from '../commands/SketchCommand';
+import { SketchLineCommand } from '../commands/SketchLineCommand';
 import type { CommandId } from '../commands/commandTypes';
 import type { EditorState } from '../state/editorState';
 import type { ScreenPoint } from '../view-navigation/viewNavigation';
@@ -46,7 +47,7 @@ export class ViewportInteractionController {
         this.context = context;
         this.commandManager = new CommandManager({
             activeCommandId: context.getActiveCommandId(),
-            commands: [new SelectCommand(), new SketchCommand()],
+            commands: [new SelectCommand(), new SketchCommand(), new SketchLineCommand()],
         });
     }
 
@@ -95,11 +96,11 @@ export class ViewportInteractionController {
             this.context.updateState((current) => {
                 const cancelResult = this.commandManager.cancel(this.createCommandContext(current));
 
-                this.commandManager.setActiveCommandId('select');
+                if (cancelResult.handled) {
+                    return new EditorController(current).applyCommandResult(cancelResult);
+                }
 
-                return new EditorController(
-                    new EditorController(current).applyCommandResult(cancelResult),
-                ).cancelActiveCommand();
+                return new EditorController(current).resetToSelectCommand();
             });
             return true;
         }

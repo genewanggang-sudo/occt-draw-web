@@ -90,13 +90,13 @@ module.exports = {
             },
         },
         {
-            name: 'display-only-core-math-shared',
+            name: 'display-only-sketch-core-math-shared',
             severity: 'error',
             from: {
                 path: '^packages/display/src',
             },
             to: {
-                path: '^packages/(?!shared|math|core|display)',
+                path: '^packages/(?!shared|math|core|sketch|display)',
             },
         },
         {
@@ -120,13 +120,13 @@ module.exports = {
             },
         },
         {
-            name: 'editor-only-core-display-renderer-math-shared',
+            name: 'editor-only-sketch-core-display-renderer-math-shared',
             severity: 'error',
             from: {
                 path: '^packages/editor/src',
             },
             to: {
-                path: '^packages/(?!shared|math|core|display|renderer|editor)',
+                path: '^packages/(?!shared|math|core|sketch|display|renderer|editor)',
             },
         },
         {

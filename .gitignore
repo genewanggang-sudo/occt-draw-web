@@ -3,6 +3,7 @@ dist/
 coverage/
 .turbo/
 .cache/
+.playwright-mcp/
 .DS_Store
 *.log
 *.tsbuildinfo

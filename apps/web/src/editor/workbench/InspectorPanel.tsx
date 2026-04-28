@@ -1,20 +1,28 @@
 import type { CadObject, SelectionTarget, SelectionTargetKind } from '@occt-draw/core';
-import type { CommandSession, CommandStatus } from '@occt-draw/editor';
+import type { CommandSession, CommandStatus, SketchEditSession } from '@occt-draw/editor';
+import type { Sketch, SketchId } from '@occt-draw/sketch';
 
 interface InspectorPanelProps {
     readonly activeCommandLabel: string;
+    readonly activeSketchSession: SketchEditSession | null;
     readonly commandSession: CommandSession;
     readonly selectedObjects: readonly CadObject[];
     readonly selectedTarget: SelectionTarget | null;
+    readonly sketchesById: Readonly<Record<SketchId, Sketch>>;
 }
 
 export function InspectorPanel({
     activeCommandLabel,
+    activeSketchSession,
     commandSession,
     selectedObjects,
     selectedTarget,
+    sketchesById,
 }: InspectorPanelProps) {
     const selectedObject = selectedObjects[0] ?? null;
+    const activeSketch = activeSketchSession
+        ? (sketchesById[activeSketchSession.sketchId] ?? null)
+        : null;
 
     return (
         <aside className="cad-workbench__side-panel" aria-label="属性面板">
@@ -33,49 +41,105 @@ export function InspectorPanel({
                 <span className="cad-workbench__inspector-label">命令说明</span>
                 <strong>{commandSession.message}</strong>
             </div>
+            {activeSketch && activeSketchSession ? (
+                <SketchSessionInspector sketch={activeSketch} session={activeSketchSession} />
+            ) : null}
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">选择</span>
                 <strong>{selectedObject ? selectedObject.name : '未选择对象'}</strong>
             </div>
             {selectedObject ? (
-                <>
-                    <div className="cad-workbench__inspector-section">
-                        <span className="cad-workbench__inspector-label">对象类型</span>
-                        <strong>{getObjectKindLabel(selectedObject.kind)}</strong>
-                    </div>
-                    <div className="cad-workbench__inspector-section">
-                        <span className="cad-workbench__inspector-label">拾取目标</span>
-                        <strong>
-                            {selectedTarget
-                                ? getPickTargetKindLabel(selectedTarget.targetKind)
-                                : '对象'}
-                        </strong>
-                    </div>
-                    <div className="cad-workbench__inspector-section">
-                        <span className="cad-workbench__inspector-label">Primitive ID</span>
-                        <strong>{selectedTarget?.primitiveId ?? '-'}</strong>
-                    </div>
-                    <div className="cad-workbench__inspector-section">
-                        <span className="cad-workbench__inspector-label">可见性</span>
-                        <strong>{selectedObject.visible ? '可见' : '隐藏'}</strong>
-                    </div>
-                </>
+                <ObjectInspector object={selectedObject} selectedTarget={selectedTarget} />
             ) : (
                 <div className="cad-workbench__empty-note">
-                    后续命令参数、草图属性和特征编辑将在这里展开。
+                    选择基准面后可进入草图；进入草图后可使用直线工具绘制草图线。
                 </div>
             )}
         </aside>
     );
 }
 
-function getObjectKindLabel(kind: CadObject['kind']): string {
-    if (kind === 'debug-cube') {
+function SketchSessionInspector({
+    session,
+    sketch,
+}: {
+    readonly session: SketchEditSession;
+    readonly sketch: Sketch;
+}) {
+    return (
+        <>
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">当前模式</span>
+                <strong>编辑草图</strong>
+            </div>
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">当前草图</span>
+                <strong>{sketch.name}</strong>
+            </div>
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">草图平面</span>
+                <strong>{sketch.planeKind.toUpperCase()}</strong>
+            </div>
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">当前工具</span>
+                <strong>{session.activeTool === 'line' ? '直线' : '选择'}</strong>
+            </div>
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">元素数量</span>
+                <strong>{sketch.entities.length}</strong>
+            </div>
+        </>
+    );
+}
+
+function ObjectInspector({
+    object,
+    selectedTarget,
+}: {
+    readonly object: CadObject;
+    readonly selectedTarget: SelectionTarget | null;
+}) {
+    return (
+        <>
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">对象类型</span>
+                <strong>{getObjectKindLabel(object)}</strong>
+            </div>
+            {object.kind === 'reference-plane' ? (
+                <div className="cad-workbench__inspector-section">
+                    <span className="cad-workbench__inspector-label">平面</span>
+                    <strong>{object.planeKind.toUpperCase()}</strong>
+                </div>
+            ) : null}
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">拾取目标</span>
+                <strong>
+                    {selectedTarget ? getPickTargetKindLabel(selectedTarget.targetKind) : '对象'}
+                </strong>
+            </div>
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">Primitive ID</span>
+                <strong>{selectedTarget?.primitiveId ?? '-'}</strong>
+            </div>
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">可见性</span>
+                <strong>{object.visible ? '可见' : '隐藏'}</strong>
+            </div>
+        </>
+    );
+}
+
+function getObjectKindLabel(object: CadObject): string {
+    if (object.kind === 'debug-cube') {
         return '调试立方体';
     }
 
-    if (kind === 'reference-axis') {
+    if (object.kind === 'reference-axis') {
         return '坐标轴';
+    }
+
+    if (object.kind === 'reference-plane') {
+        return '基准面';
     }
 
     return '基准网格';

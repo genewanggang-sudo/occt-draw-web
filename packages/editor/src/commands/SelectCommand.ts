@@ -21,7 +21,20 @@ export class SelectCommand extends CadCommand {
     public readonly id = 'select';
     private pendingSelectionPointer: PendingSelectionPointer | null = null;
 
-    public override enter(): CommandResult {
+    public override enter(context: CommandContext): CommandResult {
+        const state = context.getState();
+
+        if (state.activeSketchSession) {
+            return createHandledCommandResult({
+                activeSketchSession: {
+                    ...state.activeSketchSession,
+                    activeTool: 'select',
+                    pendingLineStartPointId: null,
+                },
+                draft: null,
+            });
+        }
+
         return createHandledCommandResult({ draft: null });
     }
 

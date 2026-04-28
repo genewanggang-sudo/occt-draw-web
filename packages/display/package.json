@@ -5,6 +5,7 @@
     "dependencies": {
         "@occt-draw/core": "workspace:*",
         "@occt-draw/math": "workspace:*",
+        "@occt-draw/sketch": "workspace:*",
         "@occt-draw/shared": "workspace:*"
     },
     "types": "./src/index.ts",

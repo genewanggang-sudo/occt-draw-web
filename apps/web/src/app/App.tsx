@@ -61,8 +61,11 @@ export function App() {
         [editorState.document],
     );
     const displayModel = useMemo(
-        () => projectPartStudioToDisplayModel(activePartStudio, editorState.draft),
-        [activePartStudio, editorState.draft],
+        () =>
+            projectPartStudioToDisplayModel(activePartStudio, editorState.draft, {
+                sketchesById: editorState.sketches.sketchesById,
+            }),
+        [activePartStudio, editorState.draft, editorState.sketches.sketchesById],
     );
     const displayBounds = useMemo(() => calculateDisplayBoundingBox(displayModel), [displayModel]);
     const displaySphere = useMemo(
@@ -92,13 +95,19 @@ export function App() {
     );
     const activeCommandId = editorState.commandSession.id;
     const activeCommandLabel = getCommandLabel(activeCommandId);
+    const selectedReferencePlaneCount = selectedObjects.filter(
+        (object) => object.kind === 'reference-plane',
+    ).length;
     const commandAvailability = useMemo(
         () =>
             evaluateCommandAvailabilityMap({
+                activeSketchTool: editorState.activeSketchSession?.activeTool ?? null,
                 hasSketchProfile: false,
+                isEditingSketch: editorState.activeSketchSession !== null,
                 selectionObjectIds: selectedObjectIds,
+                selectedReferencePlaneCount,
             }),
-        [selectedObjectIds],
+        [editorState.activeSketchSession, selectedObjectIds, selectedReferencePlaneCount],
     );
 
     const editorStateRef = useRef(editorState);
@@ -328,6 +337,7 @@ export function App() {
                         }}
                         partStudio={activePartStudio}
                         selectedObjectIds={selectedObjectIds}
+                        sketchesById={editorState.sketches.sketchesById}
                     />
                 }
                 viewport={
@@ -342,9 +352,11 @@ export function App() {
                 inspectorPanel={
                     <InspectorPanel
                         activeCommandLabel={activeCommandLabel}
+                        activeSketchSession={editorState.activeSketchSession}
                         commandSession={editorState.commandSession}
                         selectedObjects={selectedObjects}
                         selectedTarget={selectedTarget}
+                        sketchesById={editorState.sketches.sketchesById}
                     />
                 }
             />

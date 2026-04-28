@@ -46,10 +46,11 @@ export type {
 } from './commands/commandTypes';
 export { SelectCommand } from './commands/SelectCommand';
 export { SketchCommand } from './commands/SketchCommand';
+export { SketchLineCommand } from './commands/SketchLineCommand';
 export { clearSelection, replaceSelection, updatePreselection } from './selection/selectionReducer';
 export { createInitialSelectionState, type SelectionState } from './selection/selectionState';
 export { createInitialEditorState } from './state/createInitialEditorState';
-export type { EditorState } from './state/editorState';
+export type { EditorState, SketchDocumentStore, SketchEditSession } from './state/editorState';
 export {
     beginViewNavigation,
     createViewNavigationState,
