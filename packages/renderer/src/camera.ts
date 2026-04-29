@@ -115,28 +115,65 @@ export function frameCameraClippingToBounds(
     camera: CameraState,
     bounds: BoundingBox3,
 ): CameraState {
-    const forward = normalizeVector3(subtractVector3(camera.target, camera.position));
+    const framedCamera = ensureCameraOutsideBounds(camera, bounds);
+    const forward = normalizeVector3(subtractVector3(framedCamera.target, framedCamera.position));
     const corners = getBoundingBoxCorners(bounds);
+    const boundsDiameter = getBoundsDiameter(bounds);
     let minDepth = Number.POSITIVE_INFINITY;
     let maxDepth = Number.NEGATIVE_INFINITY;
 
     for (const corner of corners) {
-        const depth = dotVector3(subtractVector3(corner, camera.position), forward);
+        const depth = dotVector3(subtractVector3(corner, framedCamera.position), forward);
 
         minDepth = Math.min(minDepth, depth);
         maxDepth = Math.max(maxDepth, depth);
     }
 
-    const sceneDepth = Math.max(maxDepth - minDepth, 0);
-    const margin = Math.max(sceneDepth * 0.25, 1);
-    const near = Math.max(minDepth - margin, 0.01);
-    const far = Math.max(maxDepth + margin, near + 1);
+    if (maxDepth < minDepth) {
+        return {
+            ...framedCamera,
+            near: 0.001,
+            far: boundsDiameter * 2,
+        };
+    }
+
+    const margin = boundsDiameter * 0.1;
+    const near = Math.max(boundsDiameter * 0.01, minDepth - margin);
+    const far = Math.max(boundsDiameter, maxDepth + margin, near + boundsDiameter * 0.01);
 
     return {
-        ...camera,
+        ...framedCamera,
         near,
         far,
     };
+}
+
+function ensureCameraOutsideBounds(camera: CameraState, bounds: BoundingBox3): CameraState {
+    const forward = normalizeVector3(subtractVector3(camera.target, camera.position));
+    const center = scaleVector3(addVector3(bounds.min, bounds.max), 0.5);
+    const boundsDiameter = getBoundsDiameter(bounds);
+    const safeCenterDepth = boundsDiameter * 0.6;
+    const centerDepth = dotVector3(subtractVector3(center, camera.position), forward);
+
+    if (centerDepth >= safeCenterDepth) {
+        return camera;
+    }
+
+    return {
+        ...camera,
+        position: addVector3(camera.position, scaleVector3(forward, centerDepth - safeCenterDepth)),
+    };
+}
+
+function getBoundsDiameter(bounds: BoundingBox3): number {
+    return Math.max(
+        Math.hypot(
+            bounds.max.x - bounds.min.x,
+            bounds.max.y - bounds.min.y,
+            bounds.max.z - bounds.min.z,
+        ),
+        1,
+    );
 }
 
 export function cameraDepth01ToViewDepth(camera: CameraState, depth01: number): number {
