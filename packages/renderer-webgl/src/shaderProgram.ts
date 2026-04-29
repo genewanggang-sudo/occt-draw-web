@@ -52,7 +52,7 @@ void main() {
 }
 `;
 
-export function createProgram(context: WebGLRenderingContext): WebGLProgram {
+export function createProgram(context: WebGL2RenderingContext): WebGLProgram {
     const vertexShader = createShader(context, context.VERTEX_SHADER, vertexShaderSource);
     const fragmentShader = createShader(context, context.FRAGMENT_SHADER, fragmentShaderSource);
     const program = context.createProgram();
@@ -74,7 +74,7 @@ export function createProgram(context: WebGLRenderingContext): WebGLProgram {
     return program;
 }
 
-function createShader(context: WebGLRenderingContext, type: number, source: string): WebGLShader {
+function createShader(context: WebGL2RenderingContext, type: number, source: string): WebGLShader {
     const shader = context.createShader(type);
 
     if (!shader) {

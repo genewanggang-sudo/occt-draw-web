@@ -32,7 +32,7 @@ void main() {
 }
 `;
 
-export function createLabelProgram(context: WebGLRenderingContext): WebGLProgram {
+export function createLabelProgram(context: WebGL2RenderingContext): WebGLProgram {
     const vertexShader = createShader(context, context.VERTEX_SHADER, labelVertexShaderSource);
     const fragmentShader = createShader(
         context,
@@ -58,7 +58,7 @@ export function createLabelProgram(context: WebGLRenderingContext): WebGLProgram
     return program;
 }
 
-function createShader(context: WebGLRenderingContext, type: number, source: string): WebGLShader {
+function createShader(context: WebGL2RenderingContext, type: number, source: string): WebGLShader {
     const shader = context.createShader(type);
 
     if (!shader) {

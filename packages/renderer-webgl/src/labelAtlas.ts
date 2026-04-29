@@ -37,7 +37,7 @@ export function createLabelGlyphKey(text: LabelText, fontWeight: LabelFontWeight
 }
 
 export function createLabelAtlas(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     fontWeights: readonly LabelFontWeight[] = [DEFAULT_LABEL_FONT_WEIGHT],
 ): LabelAtlas {
     const normalizedFontWeights = normalizeLabelFontWeights(fontWeights);

@@ -54,7 +54,7 @@ export function App() {
             navigation,
         });
     });
-    const [rendererStatus, setRendererStatus] = useState('正在初始化 WebGL');
+    const [rendererStatus, setRendererStatus] = useState('正在初始化 WebGL2');
 
     const activePartStudio = useMemo(
         () => getActivePartStudio(editorState.document),
@@ -151,9 +151,9 @@ export function App() {
 
         try {
             rendererRef.current = createWebglRenderer(canvas);
-            setRendererStatus('WebGL 已就绪');
+            setRendererStatus('WebGL2 已就绪');
         } catch (error) {
-            setRendererStatus(error instanceof Error ? error.message : '当前浏览器不支持 WebGL');
+            setRendererStatus(error instanceof Error ? error.message : '当前浏览器不支持 WebGL2');
         }
 
         return () => {

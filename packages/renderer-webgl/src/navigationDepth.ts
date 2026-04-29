@@ -114,7 +114,7 @@ void main() {
 `;
 
 export function createNavigationDepthResources(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
 ): NavigationDepthResources {
     const program = createProgram(context);
     const buffer = context.createBuffer();
@@ -149,7 +149,7 @@ export function createNavigationDepthResources(
 }
 
 export function disposeNavigationDepthResources(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     resources: NavigationDepthResources,
 ): void {
     disposeNavigationDepthTarget(context, resources.target);
@@ -160,7 +160,7 @@ export function disposeNavigationDepthResources(
 }
 
 export function sampleNavigationDepths(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     canvas: HTMLCanvasElement,
     resources: NavigationDepthResources,
     input: NavigationDepthSampleInput,
@@ -196,7 +196,7 @@ export function sampleNavigationDepths(
 }
 
 function renderNavigationDepth(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     resources: NavigationDepthResources,
     target: NavigationDepthTarget,
     input: NavigationDepthSampleInput,
@@ -239,7 +239,7 @@ function renderNavigationDepth(
 }
 
 function readPointSamples(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     canvas: HTMLCanvasElement,
     input: NavigationDepthSampleInput,
 ): readonly NavigationDepthSample[] {
@@ -270,7 +270,7 @@ function readPointSamples(
 }
 
 function readRectSamples(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     canvas: HTMLCanvasElement,
     input: NavigationDepthSampleInput,
 ): readonly NavigationDepthSample[] {
@@ -374,7 +374,7 @@ function decodeNavigationDepthPixel(
 }
 
 function createNavigationDepthBatches(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     displayModel: DisplayModel,
     includePlanes: boolean,
 ): readonly NavigationDepthBatch[] {
@@ -428,7 +428,7 @@ function createNavigationDepthBatches(
 }
 
 function createMarkerBatches(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     object: MarkerBatchDisplayObject,
     role: NavigationDepthRole,
 ): readonly NavigationDepthBatch[] {
@@ -474,7 +474,7 @@ function shouldRenderNavigationDepth(
 }
 
 function ensureNavigationDepthTarget(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     resources: NavigationDepthResources,
     width: number,
     height: number,
@@ -540,7 +540,7 @@ function ensureNavigationDepthTarget(
 }
 
 function disposeNavigationDepthTarget(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     target: NavigationDepthTarget | null,
 ): void {
     if (!target) {
@@ -552,7 +552,7 @@ function disposeNavigationDepthTarget(
     context.deleteTexture(target.texture);
 }
 
-function createProgram(context: WebGLRenderingContext): WebGLProgram {
+function createProgram(context: WebGL2RenderingContext): WebGLProgram {
     const vertexShader = createShader(context, context.VERTEX_SHADER, vertexShaderSource);
     const fragmentShader = createShader(context, context.FRAGMENT_SHADER, fragmentShaderSource);
     const program = context.createProgram();
@@ -574,7 +574,7 @@ function createProgram(context: WebGLRenderingContext): WebGLProgram {
     return program;
 }
 
-function createShader(context: WebGLRenderingContext, type: number, source: string): WebGLShader {
+function createShader(context: WebGL2RenderingContext, type: number, source: string): WebGLShader {
     const shader = context.createShader(type);
 
     if (!shader) {

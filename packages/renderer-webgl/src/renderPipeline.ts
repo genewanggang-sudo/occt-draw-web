@@ -33,7 +33,7 @@ export interface RenderPipelineResources {
 }
 
 export function renderPipeline(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     resources: RenderPipelineResources,
     input: RenderFrameInput,
 ): void {
@@ -77,7 +77,7 @@ export function renderPipeline(
 }
 
 function bindVertexLayout(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     resources: RenderPipelineResources,
 ): void {
     const stride = 7 * Float32Array.BYTES_PER_ELEMENT;
@@ -106,7 +106,7 @@ function bindVertexLayout(
 }
 
 function drawVertices(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     resources: RenderPipelineResources,
     vertices: readonly RenderVertex[],
     mode: number,
@@ -125,7 +125,7 @@ function drawVertices(
 }
 
 function drawMarkerVertices(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     resources: RenderPipelineResources,
     vertices: readonly MarkerVertex[],
 ): void {
@@ -139,7 +139,7 @@ function drawMarkerVertices(
 }
 
 function drawLabelVertices(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     resources: RenderPipelineResources,
     vertices: readonly LabelVertex[],
     matrix: Float32Array,
@@ -160,7 +160,7 @@ function drawLabelVertices(
 }
 
 function bindLabelVertexLayout(
-    context: WebGLRenderingContext,
+    context: WebGL2RenderingContext,
     resources: RenderPipelineResources,
 ): void {
     const stride = 9 * Float32Array.BYTES_PER_ELEMENT;

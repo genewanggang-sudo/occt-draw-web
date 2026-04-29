@@ -23,14 +23,14 @@ import { renderPipeline, type RenderPipelineResources } from './renderPipeline';
 import { createProgram } from './shaderProgram';
 
 export function createWebglRenderer(canvas: HTMLCanvasElement): CadRenderer {
-    const context = canvas.getContext('webgl', {
+    const context = canvas.getContext('webgl2', {
         alpha: false,
         antialias: true,
         depth: true,
     });
 
     if (!context) {
-        throw new Error('当前浏览器不支持 WebGL');
+        throw new Error('当前浏览器不支持 WebGL2');
     }
 
     return new WebglCadRenderer(canvas, context);
@@ -39,7 +39,7 @@ export function createWebglRenderer(canvas: HTMLCanvasElement): CadRenderer {
 class WebglCadRenderer implements CadRenderer {
     private readonly buffer: WebGLBuffer;
     private readonly canvas: HTMLCanvasElement;
-    private readonly context: WebGLRenderingContext;
+    private readonly context: WebGL2RenderingContext;
     private readonly labelBuffer: WebGLBuffer;
     private readonly labelProgram: WebGLProgram;
     private labelAtlas: LabelAtlas;
@@ -48,7 +48,7 @@ class WebglCadRenderer implements CadRenderer {
     private readonly program: WebGLProgram;
     private renderPipelineResources: RenderPipelineResources;
 
-    constructor(canvas: HTMLCanvasElement, context: WebGLRenderingContext) {
+    constructor(canvas: HTMLCanvasElement, context: WebGL2RenderingContext) {
         this.canvas = canvas;
         this.context = context;
         this.program = createProgram(context);
