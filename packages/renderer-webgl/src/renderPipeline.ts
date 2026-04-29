@@ -15,6 +15,7 @@ export interface RenderPipelineResources {
     readonly alphaLocation: number;
     readonly buffer: WebGLBuffer;
     readonly colorLocation: number;
+    readonly vertexArray: WebGLVertexArrayObject;
     readonly matrixLocation: WebGLUniformLocation;
     readonly pointShapeLocation: WebGLUniformLocation;
     readonly pointSizeLocation: WebGLUniformLocation;
@@ -25,6 +26,7 @@ export interface RenderPipelineResources {
     readonly labelAtlasTexture: WebGLTexture;
     readonly labelBuffer: WebGLBuffer;
     readonly labelColorLocation: number;
+    readonly labelVertexArray: WebGLVertexArrayObject;
     readonly labelMatrixLocation: WebGLUniformLocation;
     readonly labelPositionLocation: number;
     readonly labelProgram: WebGLProgram;
@@ -52,7 +54,7 @@ export function renderPipeline(
     context.clear(context.COLOR_BUFFER_BIT | context.DEPTH_BUFFER_BIT);
     context.useProgram(resources.program);
     context.uniformMatrix4fv(resources.matrixLocation, false, matrix);
-    bindVertexLayout(context, resources);
+    context.bindVertexArray(resources.vertexArray);
 
     context.enable(context.BLEND);
     context.blendFunc(context.SRC_ALPHA, context.ONE_MINUS_SRC_ALPHA);
@@ -74,35 +76,7 @@ export function renderPipeline(
     drawLabelVertices(context, resources, labelVertices, matrix);
     context.depthMask(true);
     context.disable(context.BLEND);
-}
-
-function bindVertexLayout(
-    context: WebGL2RenderingContext,
-    resources: RenderPipelineResources,
-): void {
-    const stride = 7 * Float32Array.BYTES_PER_ELEMENT;
-
-    context.bindBuffer(context.ARRAY_BUFFER, resources.buffer);
-    context.enableVertexAttribArray(resources.positionLocation);
-    context.vertexAttribPointer(resources.positionLocation, 3, context.FLOAT, false, stride, 0);
-    context.enableVertexAttribArray(resources.colorLocation);
-    context.vertexAttribPointer(
-        resources.colorLocation,
-        3,
-        context.FLOAT,
-        false,
-        stride,
-        3 * Float32Array.BYTES_PER_ELEMENT,
-    );
-    context.enableVertexAttribArray(resources.alphaLocation);
-    context.vertexAttribPointer(
-        resources.alphaLocation,
-        1,
-        context.FLOAT,
-        false,
-        stride,
-        6 * Float32Array.BYTES_PER_ELEMENT,
-    );
+    context.bindVertexArray(null);
 }
 
 function drawVertices(
@@ -153,53 +127,8 @@ function drawLabelVertices(
     context.activeTexture(context.TEXTURE0);
     context.bindTexture(context.TEXTURE_2D, resources.labelAtlasTexture);
     context.uniform1i(resources.labelTextureLocation, 0);
-    bindLabelVertexLayout(context, resources);
+    context.bindVertexArray(resources.labelVertexArray);
     context.bindBuffer(context.ARRAY_BUFFER, resources.labelBuffer);
     context.bufferData(context.ARRAY_BUFFER, toLabelVertexBuffer(vertices), context.STATIC_DRAW);
     context.drawArrays(context.TRIANGLES, 0, vertices.length);
-}
-
-function bindLabelVertexLayout(
-    context: WebGL2RenderingContext,
-    resources: RenderPipelineResources,
-): void {
-    const stride = 9 * Float32Array.BYTES_PER_ELEMENT;
-
-    context.bindBuffer(context.ARRAY_BUFFER, resources.labelBuffer);
-    context.enableVertexAttribArray(resources.labelPositionLocation);
-    context.vertexAttribPointer(
-        resources.labelPositionLocation,
-        3,
-        context.FLOAT,
-        false,
-        stride,
-        0,
-    );
-    context.enableVertexAttribArray(resources.labelUvLocation);
-    context.vertexAttribPointer(
-        resources.labelUvLocation,
-        2,
-        context.FLOAT,
-        false,
-        stride,
-        3 * Float32Array.BYTES_PER_ELEMENT,
-    );
-    context.enableVertexAttribArray(resources.labelColorLocation);
-    context.vertexAttribPointer(
-        resources.labelColorLocation,
-        3,
-        context.FLOAT,
-        false,
-        stride,
-        5 * Float32Array.BYTES_PER_ELEMENT,
-    );
-    context.enableVertexAttribArray(resources.labelAlphaLocation);
-    context.vertexAttribPointer(
-        resources.labelAlphaLocation,
-        1,
-        context.FLOAT,
-        false,
-        stride,
-        8 * Float32Array.BYTES_PER_ELEMENT,
-    );
 }

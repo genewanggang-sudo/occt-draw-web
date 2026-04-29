@@ -42,11 +42,13 @@ class WebglCadRenderer implements CadRenderer {
     private readonly context: WebGL2RenderingContext;
     private readonly labelBuffer: WebGLBuffer;
     private readonly labelProgram: WebGLProgram;
+    private readonly labelVertexArray: WebGLVertexArrayObject;
     private labelAtlas: LabelAtlas;
     private labelAtlasFontWeightSignature: string;
     private readonly navigationDepthResources: NavigationDepthResources;
     private readonly program: WebGLProgram;
     private renderPipelineResources: RenderPipelineResources;
+    private readonly vertexArray: WebGLVertexArrayObject;
 
     constructor(canvas: HTMLCanvasElement, context: WebGL2RenderingContext) {
         this.canvas = canvas;
@@ -79,15 +81,31 @@ class WebglCadRenderer implements CadRenderer {
         const buffer = context.createBuffer();
         const labelBuffer = context.createBuffer();
         const labelAtlas = createLabelAtlas(context);
+        const vertexArray = createRenderVertexArray(context, {
+            alphaLocation,
+            buffer,
+            colorLocation,
+            positionLocation,
+        });
+        const labelVertexArray = createLabelVertexArray(context, {
+            labelAlphaLocation,
+            labelBuffer,
+            labelColorLocation,
+            labelPositionLocation,
+            labelUvLocation,
+        });
 
         this.buffer = buffer;
         this.labelBuffer = labelBuffer;
+        this.labelVertexArray = labelVertexArray;
         this.labelAtlas = labelAtlas;
         this.labelAtlasFontWeightSignature = labelAtlas.fontWeightSignature;
+        this.vertexArray = vertexArray;
         this.renderPipelineResources = {
             alphaLocation,
             buffer,
             colorLocation,
+            vertexArray,
             matrixLocation,
             pointShapeLocation,
             pointSizeLocation,
@@ -98,6 +116,7 @@ class WebglCadRenderer implements CadRenderer {
             labelAtlasTexture: labelAtlas.texture,
             labelBuffer,
             labelColorLocation,
+            labelVertexArray,
             labelMatrixLocation,
             labelPositionLocation,
             labelProgram: this.labelProgram,
@@ -110,6 +129,8 @@ class WebglCadRenderer implements CadRenderer {
     }
 
     public dispose(): void {
+        this.context.deleteVertexArray(this.vertexArray);
+        this.context.deleteVertexArray(this.labelVertexArray);
         this.context.deleteBuffer(this.buffer);
         this.context.deleteBuffer(this.labelBuffer);
         this.context.deleteProgram(this.program);
@@ -168,6 +189,96 @@ class WebglCadRenderer implements CadRenderer {
             labelAtlasTexture: this.labelAtlas.texture,
         };
     }
+}
+
+function createRenderVertexArray(
+    context: WebGL2RenderingContext,
+    input: {
+        readonly alphaLocation: number;
+        readonly buffer: WebGLBuffer;
+        readonly colorLocation: number;
+        readonly positionLocation: number;
+    },
+): WebGLVertexArrayObject {
+    const vertexArray = context.createVertexArray();
+    const stride = 7 * Float32Array.BYTES_PER_ELEMENT;
+
+    context.bindVertexArray(vertexArray);
+    context.bindBuffer(context.ARRAY_BUFFER, input.buffer);
+    context.enableVertexAttribArray(input.positionLocation);
+    context.vertexAttribPointer(input.positionLocation, 3, context.FLOAT, false, stride, 0);
+    context.enableVertexAttribArray(input.colorLocation);
+    context.vertexAttribPointer(
+        input.colorLocation,
+        3,
+        context.FLOAT,
+        false,
+        stride,
+        3 * Float32Array.BYTES_PER_ELEMENT,
+    );
+    context.enableVertexAttribArray(input.alphaLocation);
+    context.vertexAttribPointer(
+        input.alphaLocation,
+        1,
+        context.FLOAT,
+        false,
+        stride,
+        6 * Float32Array.BYTES_PER_ELEMENT,
+    );
+    context.bindVertexArray(null);
+    context.bindBuffer(context.ARRAY_BUFFER, null);
+
+    return vertexArray;
+}
+
+function createLabelVertexArray(
+    context: WebGL2RenderingContext,
+    input: {
+        readonly labelAlphaLocation: number;
+        readonly labelBuffer: WebGLBuffer;
+        readonly labelColorLocation: number;
+        readonly labelPositionLocation: number;
+        readonly labelUvLocation: number;
+    },
+): WebGLVertexArrayObject {
+    const vertexArray = context.createVertexArray();
+    const stride = 9 * Float32Array.BYTES_PER_ELEMENT;
+
+    context.bindVertexArray(vertexArray);
+    context.bindBuffer(context.ARRAY_BUFFER, input.labelBuffer);
+    context.enableVertexAttribArray(input.labelPositionLocation);
+    context.vertexAttribPointer(input.labelPositionLocation, 3, context.FLOAT, false, stride, 0);
+    context.enableVertexAttribArray(input.labelUvLocation);
+    context.vertexAttribPointer(
+        input.labelUvLocation,
+        2,
+        context.FLOAT,
+        false,
+        stride,
+        3 * Float32Array.BYTES_PER_ELEMENT,
+    );
+    context.enableVertexAttribArray(input.labelColorLocation);
+    context.vertexAttribPointer(
+        input.labelColorLocation,
+        3,
+        context.FLOAT,
+        false,
+        stride,
+        5 * Float32Array.BYTES_PER_ELEMENT,
+    );
+    context.enableVertexAttribArray(input.labelAlphaLocation);
+    context.vertexAttribPointer(
+        input.labelAlphaLocation,
+        1,
+        context.FLOAT,
+        false,
+        stride,
+        8 * Float32Array.BYTES_PER_ELEMENT,
+    );
+    context.bindVertexArray(null);
+    context.bindBuffer(context.ARRAY_BUFFER, null);
+
+    return vertexArray;
 }
 
 function collectLabelFontWeights(displayModel: DisplayModel): readonly LabelFontWeight[] {
