@@ -1,11 +1,11 @@
-const labelVertexShaderSource = `
-attribute vec3 a_position;
-attribute vec2 a_uv;
-attribute vec3 a_color;
-attribute float a_alpha;
+const labelVertexShaderSource = `#version 300 es
+in vec3 a_position;
+in vec2 a_uv;
+in vec3 a_color;
+in float a_alpha;
 uniform mat4 u_matrix;
-varying vec2 v_uv;
-varying vec4 v_color;
+out vec2 v_uv;
+out vec4 v_color;
 
 void main() {
     gl_Position = u_matrix * vec4(a_position, 1.0);
@@ -14,21 +14,22 @@ void main() {
 }
 `;
 
-const labelFragmentShaderSource = `
+const labelFragmentShaderSource = `#version 300 es
 precision mediump float;
 uniform sampler2D u_texture;
-varying vec2 v_uv;
-varying vec4 v_color;
+in vec2 v_uv;
+in vec4 v_color;
+out vec4 out_color;
 
 void main() {
-    vec4 sampleColor = texture2D(u_texture, v_uv);
+    vec4 sampleColor = texture(u_texture, v_uv);
     float alpha = sampleColor.a * v_color.a;
 
     if (alpha <= 0.0) {
         discard;
     }
 
-    gl_FragColor = vec4(v_color.rgb, alpha);
+    out_color = vec4(v_color.rgb, alpha);
 }
 `;
 

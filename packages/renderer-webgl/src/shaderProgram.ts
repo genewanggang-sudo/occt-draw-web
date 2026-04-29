@@ -1,10 +1,10 @@
-const vertexShaderSource = `
-attribute vec3 a_position;
-attribute vec3 a_color;
-attribute float a_alpha;
+const vertexShaderSource = `#version 300 es
+in vec3 a_position;
+in vec3 a_color;
+in float a_alpha;
 uniform mat4 u_matrix;
 uniform float u_point_size;
-varying vec4 v_color;
+out vec4 v_color;
 
 void main() {
     gl_Position = u_matrix * vec4(a_position, 1.0);
@@ -13,10 +13,11 @@ void main() {
 }
 `;
 
-const fragmentShaderSource = `
+const fragmentShaderSource = `#version 300 es
 precision mediump float;
 uniform float u_point_shape;
-varying vec4 v_color;
+in vec4 v_color;
+out vec4 out_color;
 
 void main() {
     if (u_point_shape > 1.5) {
@@ -31,7 +32,7 @@ void main() {
             discard;
         }
 
-        gl_FragColor = vec4(v_color.rgb, v_color.a * alpha);
+        out_color = vec4(v_color.rgb, v_color.a * alpha);
         return;
     }
 
@@ -44,11 +45,11 @@ void main() {
             discard;
         }
 
-        gl_FragColor = vec4(v_color.rgb, v_color.a * edgeAlpha);
+        out_color = vec4(v_color.rgb, v_color.a * edgeAlpha);
         return;
     }
 
-    gl_FragColor = v_color;
+    out_color = v_color;
 }
 `;
 

@@ -16,10 +16,10 @@ import type { Vector3 } from '@occt-draw/math';
 import { createViewProjectionMatrix } from './matrix';
 
 interface NavigationDepthTarget {
-    readonly depthBuffer: WebGLRenderbuffer;
+    readonly depthTexture: WebGLTexture;
     readonly framebuffer: WebGLFramebuffer;
     readonly height: number;
-    readonly texture: WebGLTexture;
+    readonly roleTexture: WebGLTexture;
     readonly width: number;
 }
 
@@ -57,8 +57,8 @@ const MODEL_ROLE_CODE = 64 / 255;
 const REFERENCE_PLANE_ROLE_CODE = 192 / 255;
 const DEPTH_MAX_INT = 16_777_215;
 
-const vertexShaderSource = `
-attribute vec3 a_position;
+const vertexShaderSource = `#version 300 es
+in vec3 a_position;
 uniform mat4 u_matrix;
 uniform float u_point_size;
 
@@ -68,7 +68,7 @@ void main() {
 }
 `;
 
-const fragmentShaderSource = `
+const fragmentShaderSource = `#version 300 es
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
 #else
@@ -77,6 +77,8 @@ precision mediump float;
 
 uniform float u_point_shape;
 uniform float u_role_code;
+
+out vec4 out_role;
 
 vec3 encodeDepth(float depth) {
     float scaledDepth = clamp(depth, 0.0, 1.0) * 16777215.0;
@@ -109,7 +111,7 @@ void main() {
         }
     }
 
-    gl_FragColor = vec4(encodeDepth(gl_FragCoord.z), u_role_code);
+    out_role = vec4(encodeDepth(gl_FragCoord.z), u_role_code);
 }
 `;
 
@@ -181,6 +183,7 @@ export function sampleNavigationDepths(
     }
 
     context.bindFramebuffer(context.FRAMEBUFFER, target.framebuffer);
+    context.readBuffer(context.COLOR_ATTACHMENT0);
 
     const samples =
         input.area.kind === 'points'
@@ -188,6 +191,7 @@ export function sampleNavigationDepths(
             : readRectSamples(context, canvas, input);
 
     context.bindFramebuffer(context.FRAMEBUFFER, null);
+    context.readBuffer(context.BACK);
     context.viewport(0, 0, canvas.width, canvas.height);
     context.clearColor(0.035, 0.043, 0.055, 1);
     context.depthMask(true);
@@ -348,9 +352,9 @@ function decodeNavigationDepthPixel(
     canvasPoint: ScreenPoint2,
     input: NavigationDepthSampleInput,
 ): NavigationDepthSample | null {
-    const alpha = pixels[index + 3] ?? 0;
+    const roleCode = pixels[index + 3] ?? 0;
 
-    if (alpha < 32) {
+    if (roleCode < 32) {
         return null;
     }
 
@@ -358,7 +362,7 @@ function decodeNavigationDepthPixel(
     const green = pixels[index + 1] ?? 0;
     const blue = pixels[index + 2] ?? 0;
     const depth01 = (red * 65536 + green * 256 + blue) / DEPTH_MAX_INT;
-    const role = alpha >= 128 ? 'reference-plane' : 'model';
+    const role = roleCode >= 128 ? 'reference-plane' : 'model';
 
     if (!input.includePlanes && role === 'reference-plane') {
         return null;
@@ -486,10 +490,10 @@ function ensureNavigationDepthTarget(
     disposeNavigationDepthTarget(context, resources.target);
 
     const framebuffer = context.createFramebuffer();
-    const texture = context.createTexture();
-    const depthBuffer = context.createRenderbuffer();
+    const roleTexture = context.createTexture();
+    const depthTexture = context.createTexture();
 
-    context.bindTexture(context.TEXTURE_2D, texture);
+    context.bindTexture(context.TEXTURE_2D, roleTexture);
     context.texImage2D(
         context.TEXTURE_2D,
         0,
@@ -506,35 +510,57 @@ function ensureNavigationDepthTarget(
     context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
     context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
 
-    context.bindRenderbuffer(context.RENDERBUFFER, depthBuffer);
-    context.renderbufferStorage(context.RENDERBUFFER, context.DEPTH_COMPONENT16, width, height);
+    context.bindTexture(context.TEXTURE_2D, depthTexture);
+    context.texImage2D(
+        context.TEXTURE_2D,
+        0,
+        context.DEPTH_COMPONENT32F,
+        width,
+        height,
+        0,
+        context.DEPTH_COMPONENT,
+        context.FLOAT,
+        null,
+    );
+    context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+    context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+    context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+    context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
 
     context.bindFramebuffer(context.FRAMEBUFFER, framebuffer);
     context.framebufferTexture2D(
         context.FRAMEBUFFER,
         context.COLOR_ATTACHMENT0,
         context.TEXTURE_2D,
-        texture,
+        roleTexture,
         0,
     );
-    context.framebufferRenderbuffer(
+    context.framebufferTexture2D(
         context.FRAMEBUFFER,
         context.DEPTH_ATTACHMENT,
-        context.RENDERBUFFER,
-        depthBuffer,
+        context.TEXTURE_2D,
+        depthTexture,
+        0,
     );
+    context.drawBuffers([context.COLOR_ATTACHMENT0]);
+    context.readBuffer(context.COLOR_ATTACHMENT0);
 
     if (context.checkFramebufferStatus(context.FRAMEBUFFER) !== context.FRAMEBUFFER_COMPLETE) {
-        disposeNavigationDepthTarget(context, { depthBuffer, framebuffer, height, texture, width });
+        disposeNavigationDepthTarget(context, {
+            depthTexture,
+            framebuffer,
+            height,
+            roleTexture,
+            width,
+        });
         throw new Error('WebGL navigation depth framebuffer is incomplete.');
     }
 
     context.bindFramebuffer(context.FRAMEBUFFER, null);
     context.bindTexture(context.TEXTURE_2D, null);
-    context.bindRenderbuffer(context.RENDERBUFFER, null);
 
     resources.cache = null;
-    resources.target = { depthBuffer, framebuffer, height, texture, width };
+    resources.target = { depthTexture, framebuffer, height, roleTexture, width };
 
     return resources.target;
 }
@@ -547,9 +573,9 @@ function disposeNavigationDepthTarget(
         return;
     }
 
-    context.deleteRenderbuffer(target.depthBuffer);
+    context.deleteTexture(target.depthTexture);
     context.deleteFramebuffer(target.framebuffer);
-    context.deleteTexture(target.texture);
+    context.deleteTexture(target.roleTexture);
 }
 
 function createProgram(context: WebGL2RenderingContext): WebGLProgram {
