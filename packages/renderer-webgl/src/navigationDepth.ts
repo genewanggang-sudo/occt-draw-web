@@ -51,6 +51,7 @@ export interface NavigationDepthResources {
     readonly positionLocation: number;
     readonly program: WebGLProgram;
     readonly roleCodeLocation: WebGLUniformLocation;
+    readonly vertexArray: WebGLVertexArrayObject;
 }
 
 const MODEL_ROLE_CODE = 64 / 255;
@@ -137,6 +138,11 @@ export function createNavigationDepthResources(
         throw new Error('WebGL navigation depth renderer initialization failed.');
     }
 
+    const vertexArray = createNavigationDepthVertexArray(context, {
+        buffer,
+        positionLocation,
+    });
+
     return {
         buffer,
         cache: null,
@@ -147,6 +153,7 @@ export function createNavigationDepthResources(
         program,
         roleCodeLocation,
         target: null,
+        vertexArray,
     };
 }
 
@@ -155,6 +162,7 @@ export function disposeNavigationDepthResources(
     resources: NavigationDepthResources,
 ): void {
     disposeNavigationDepthTarget(context, resources.target);
+    context.deleteVertexArray(resources.vertexArray);
     context.deleteBuffer(resources.buffer);
     context.deleteProgram(resources.program);
     resources.cache = null;
@@ -219,9 +227,8 @@ function renderNavigationDepth(
     context.depthFunc(context.LEQUAL);
     context.useProgram(resources.program);
     context.uniformMatrix4fv(resources.matrixLocation, false, matrix);
+    context.bindVertexArray(resources.vertexArray);
     context.bindBuffer(context.ARRAY_BUFFER, resources.buffer);
-    context.enableVertexAttribArray(resources.positionLocation);
-    context.vertexAttribPointer(resources.positionLocation, 3, context.FLOAT, false, 0, 0);
 
     for (const batch of batches) {
         if (batch.positions.length === 0) {
@@ -240,6 +247,26 @@ function renderNavigationDepth(
     }
 
     context.depthFunc(context.LESS);
+    context.bindVertexArray(null);
+}
+
+function createNavigationDepthVertexArray(
+    context: WebGL2RenderingContext,
+    input: {
+        readonly buffer: WebGLBuffer;
+        readonly positionLocation: number;
+    },
+): WebGLVertexArrayObject {
+    const vertexArray = context.createVertexArray();
+
+    context.bindVertexArray(vertexArray);
+    context.bindBuffer(context.ARRAY_BUFFER, input.buffer);
+    context.enableVertexAttribArray(input.positionLocation);
+    context.vertexAttribPointer(input.positionLocation, 3, context.FLOAT, false, 0, 0);
+    context.bindVertexArray(null);
+    context.bindBuffer(context.ARRAY_BUFFER, null);
+
+    return vertexArray;
 }
 
 function readPointSamples(

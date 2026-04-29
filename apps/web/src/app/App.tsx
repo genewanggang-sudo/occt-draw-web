@@ -24,7 +24,7 @@ import {
 } from '@occt-draw/renderer';
 import { createWebglRenderer } from '@occt-draw/renderer-webgl';
 import { APP_NAME } from '@occt-draw/shared';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ViewportInputAdapter } from '../editor/application/ViewportInputAdapter';
 import { CommandToolbar } from '../editor/commands/CommandToolbar';
 import { ViewToolbar } from '../editor/view-toolbar/ViewToolbar';
@@ -142,7 +142,7 @@ export function App() {
         },
     });
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         const canvas = canvasRef.current;
 
         if (!canvas) {
@@ -151,6 +151,16 @@ export function App() {
 
         try {
             rendererRef.current = createWebglRenderer(canvas);
+            setEditorState((current) => {
+                const navigation = new ViewNavigationController(current.navigation).updateViewport(
+                    getCanvasViewportSize(canvas),
+                );
+
+                return {
+                    ...current,
+                    navigation,
+                };
+            });
             setRendererStatus('WebGL2 已就绪');
         } catch (error) {
             setRendererStatus(error instanceof Error ? error.message : '当前浏览器不支持 WebGL2');
@@ -176,10 +186,7 @@ export function App() {
                 return;
             }
 
-            const viewportSize = {
-                width: Math.max(1, Math.round(entry.contentRect.width)),
-                height: Math.max(1, Math.round(entry.contentRect.height)),
-            };
+            const viewportSize = getContentRectViewportSize(entry.contentRect);
 
             setEditorState((current) => {
                 const navigation = new ViewNavigationController(current.navigation).updateViewport(
@@ -374,6 +381,17 @@ function getScreenPoint(canvas: HTMLCanvasElement, event: MouseEvent): ScreenPoi
     return {
         x: event.clientX - rect.left,
         y: event.clientY - rect.top,
+    };
+}
+
+function getCanvasViewportSize(canvas: HTMLCanvasElement) {
+    return getContentRectViewportSize(canvas.getBoundingClientRect());
+}
+
+function getContentRectViewportSize(rect: Pick<DOMRectReadOnly, 'height' | 'width'>) {
+    return {
+        width: Math.max(1, Math.round(rect.width)),
+        height: Math.max(1, Math.round(rect.height)),
     };
 }
 
