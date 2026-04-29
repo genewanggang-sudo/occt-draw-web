@@ -10,10 +10,34 @@ import {
 import type { BoundingBox3, BoundingSphere } from './types';
 
 export function calculateDisplayBoundingBox(displayModel: DisplayModel): BoundingBox3 {
+    return calculateDisplayBoundingBoxByPredicate(displayModel, () => true);
+}
+
+export function calculateDisplayNavigationBoundingBox(displayModel: DisplayModel): BoundingBox3 {
+    return calculateDisplayBoundingBoxByPredicate(
+        displayModel,
+        (object) => object.navigationRole !== 'annotation',
+    );
+}
+
+export function calculateDisplayBoundingSphere(displayModel: DisplayModel): BoundingSphere {
+    return calculateBoundingSphere(calculateDisplayBoundingBox(displayModel));
+}
+
+export function calculateDisplayNavigationBoundingSphere(
+    displayModel: DisplayModel,
+): BoundingSphere {
+    return calculateBoundingSphere(calculateDisplayNavigationBoundingBox(displayModel));
+}
+
+function calculateDisplayBoundingBoxByPredicate(
+    displayModel: DisplayModel,
+    shouldIncludeObject: (object: DisplayObject) => boolean,
+): BoundingBox3 {
     let bounds: BoundingBox3 | null = null;
 
     for (const object of displayModel.objects) {
-        if (!object.visible) {
+        if (!object.visible || !shouldIncludeObject(object)) {
             continue;
         }
 
@@ -26,10 +50,6 @@ export function calculateDisplayBoundingBox(displayModel: DisplayModel): Boundin
             max: createVector3(1, 1, 1),
         }
     );
-}
-
-export function calculateDisplayBoundingSphere(displayModel: DisplayModel): BoundingSphere {
-    return calculateBoundingSphere(calculateDisplayBoundingBox(displayModel));
 }
 
 export function calculateBoundingSphere(bounds: BoundingBox3): BoundingSphere {

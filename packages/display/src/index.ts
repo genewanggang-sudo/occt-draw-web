@@ -17,6 +17,7 @@ export type {
     DisplayObject,
     DisplayObjectId,
     DisplayObjectKind,
+    DisplayNavigationRole,
     LabelBatchDisplayObject,
     LabelDisplayItem,
     LabelFontWeight,

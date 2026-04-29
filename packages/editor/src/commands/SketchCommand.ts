@@ -81,7 +81,8 @@ export class SketchCommand extends CadCommand {
                 ...state.navigation,
                 camera: createSketchPlaneCamera(selectedPlane, state.navigation.camera),
                 drag: null,
-                pivot: selectedPlane.origin,
+                orbitPivot: selectedPlane.origin,
+                sceneCenter: selectedPlane.origin,
                 sceneRadius: selectedPlane.size,
             },
             sketches: {

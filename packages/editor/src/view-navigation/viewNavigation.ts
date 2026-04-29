@@ -18,19 +18,22 @@ export interface ScreenPoint {
 export interface ViewNavigationPointer {
     readonly button: number;
     readonly ctrlKey: boolean;
+    readonly orbitPivot?: Vector3;
     readonly pointerId: number;
     readonly point: ScreenPoint;
 }
 
 export interface ViewNavigationWheel {
     readonly deltaY: number;
+    readonly zoomAnchor?: Vector3;
     readonly point: ScreenPoint;
 }
 
 export interface ViewNavigationState {
     readonly camera: CameraState;
     readonly drag: null | ViewNavigationDragState;
-    readonly pivot: Vector3;
+    readonly orbitPivot: Vector3;
+    readonly sceneCenter: Vector3;
     readonly sceneRadius: number;
     readonly viewportSize: ViewportSize;
 }
@@ -45,8 +48,8 @@ interface ViewNavigationDragState {
     readonly anchorWorldPoint: null | Vector3;
     readonly camera: CameraState;
     readonly mode: ViewNavigationMode;
+    readonly orbitPivot: Vector3;
     readonly pointerId: number;
-    readonly pivot: Vector3;
     readonly rotateFrame: null | ViewNavigationRotateFrame;
     readonly previousPoint: ScreenPoint;
     readonly startPoint: ScreenPoint;
@@ -57,7 +60,7 @@ type ViewNavigationMode = 'pan' | 'rotate';
 
 interface ViewNavigationRotateFrame {
     readonly camera: CameraState;
-    readonly pivot: Vector3;
+    readonly orbitPivot: Vector3;
 }
 
 const ROTATION_SENSITIVITY = 0.0065;
@@ -71,7 +74,8 @@ export function createViewNavigationState(
     return {
         camera,
         drag: null,
-        pivot: bounds.center,
+        orbitPivot: bounds.center,
+        sceneCenter: bounds.center,
         sceneRadius: bounds.radius,
         viewportSize,
     };
@@ -96,7 +100,8 @@ export function updateViewNavigationCamera(
         ...state,
         camera,
         drag: null,
-        pivot: bounds.center,
+        orbitPivot: bounds.center,
+        sceneCenter: bounds.center,
         sceneRadius: bounds.radius,
     };
 }
@@ -112,9 +117,11 @@ export function beginViewNavigation(
     }
 
     const dragCamera = state.camera;
+    const orbitPivot = pointer.orbitPivot ?? state.orbitPivot;
 
     return {
         ...state,
+        orbitPivot,
         drag: {
             anchorWorldPoint:
                 mode === 'pan'
@@ -122,18 +129,18 @@ export function beginViewNavigation(
                           dragCamera,
                           state.viewportSize,
                           pointer.point,
-                          state.pivot,
+                          orbitPivot,
                       )
                     : null,
             camera: dragCamera,
             mode,
+            orbitPivot,
             pointerId: pointer.pointerId,
-            pivot: state.pivot,
             rotateFrame:
                 mode === 'rotate'
                     ? {
                           camera: dragCamera,
-                          pivot: state.pivot,
+                          orbitPivot,
                       }
                     : null,
             previousPoint: pointer.point,
@@ -156,7 +163,7 @@ export function updateViewNavigation(
     if (drag.mode === 'rotate' && drag.rotateFrame) {
         const nextCamera = rotateCameraByScreenAxes(
             drag.camera,
-            drag.pivot,
+            drag.orbitPivot,
             pointer.point.x - drag.previousPoint.x,
             pointer.point.y - drag.previousPoint.y,
         );
@@ -181,7 +188,7 @@ export function updateViewNavigation(
         drag.camera,
         drag.viewportSize,
         pointer.point,
-        drag.pivot,
+        drag.orbitPivot,
     );
     const translation = subtractVector3(drag.anchorWorldPoint, currentWorldPoint);
     const nextCamera = translateCamera(drag.camera, translation);
@@ -192,10 +199,10 @@ export function updateViewNavigation(
         drag: {
             ...drag,
             camera: nextCamera,
-            pivot: addVector3(drag.pivot, translation),
+            orbitPivot: addVector3(drag.orbitPivot, translation),
             previousPoint: pointer.point,
         },
-        pivot: addVector3(state.pivot, translation),
+        orbitPivot: addVector3(state.orbitPivot, translation),
     };
 }
 
@@ -217,11 +224,12 @@ export function zoomViewNavigation(
     state: ViewNavigationState,
     wheel: ViewNavigationWheel,
 ): ViewNavigationState {
+    const zoomAnchor = wheel.zoomAnchor ?? state.orbitPivot;
     const before = screenToWorldOnViewPlane(
         state.camera,
         state.viewportSize,
         wheel.point,
-        state.pivot,
+        zoomAnchor,
     );
     const minHeight = Math.max(state.sceneRadius / 1000, 0.001);
     const maxHeight = Math.max(state.sceneRadius * 80, 10);
@@ -238,14 +246,13 @@ export function zoomViewNavigation(
         zoomedCamera,
         state.viewportSize,
         wheel.point,
-        state.pivot,
+        zoomAnchor,
     );
     const translation = subtractVector3(before, after);
 
     return {
         ...state,
         camera: translateCamera(zoomedCamera, translation),
-        pivot: addVector3(state.pivot, translation),
     };
 }
 
@@ -268,21 +275,24 @@ function rotateCameraByScreenAxes(
     deltaY: number,
 ): CameraState {
     const basis = getCameraBasis(camera);
-    const offset = subtractVector3(camera.position, pivot);
+    const positionOffset = subtractVector3(camera.position, pivot);
+    const targetOffset = subtractVector3(camera.target, pivot);
     const pitchAngle = -deltaY * ROTATION_SENSITIVITY;
     const yawAngle = -deltaX * ROTATION_SENSITIVITY;
-    const pitchedOffset = rotateVectorAroundAxis(offset, basis.right, pitchAngle);
+    const pitchedPositionOffset = rotateVectorAroundAxis(positionOffset, basis.right, pitchAngle);
+    const pitchedTargetOffset = rotateVectorAroundAxis(targetOffset, basis.right, pitchAngle);
     const pitchedUp = rotateVectorAroundAxis(camera.up, basis.right, pitchAngle);
-    const rotatedOffset = rotateVectorAroundAxis(pitchedOffset, basis.up, yawAngle);
+    const rotatedPositionOffset = rotateVectorAroundAxis(pitchedPositionOffset, basis.up, yawAngle);
+    const rotatedTargetOffset = rotateVectorAroundAxis(pitchedTargetOffset, basis.up, yawAngle);
     const rotatedRawUp = rotateVectorAroundAxis(pitchedUp, basis.up, yawAngle);
-    const forward = normalizeVector3(scaleVector3(rotatedOffset, -1));
+    const forward = normalizeVector3(subtractVector3(rotatedTargetOffset, rotatedPositionOffset));
     const right = normalizeVector3(crossVector3(forward, rotatedRawUp));
     const up = normalizeVector3(crossVector3(right, forward));
 
     return {
         ...camera,
-        position: addVector3(pivot, rotatedOffset),
-        target: pivot,
+        position: addVector3(pivot, rotatedPositionOffset),
+        target: addVector3(pivot, rotatedTargetOffset),
         up,
     };
 }

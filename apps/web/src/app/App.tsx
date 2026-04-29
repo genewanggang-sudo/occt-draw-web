@@ -16,8 +16,8 @@ import {
     type ScreenPoint,
 } from '@occt-draw/editor';
 import {
-    calculateDisplayBoundingBox,
-    calculateDisplayBoundingSphere,
+    calculateDisplayNavigationBoundingBox,
+    calculateDisplayNavigationBoundingSphere,
     createStandardCameraState,
     type CadRenderer,
     type RenderHighlightState,
@@ -44,8 +44,8 @@ export function App() {
         const document = createDefaultCadDocument();
         const activePartStudio = getActivePartStudio(document);
         const displayModel = projectPartStudioToDisplayModel(activePartStudio);
-        const displayBounds = calculateDisplayBoundingBox(displayModel);
-        const displaySphere = calculateDisplayBoundingSphere(displayModel);
+        const displayBounds = calculateDisplayNavigationBoundingBox(displayModel);
+        const displaySphere = calculateDisplayNavigationBoundingSphere(displayModel);
         const camera = createStandardCameraState(displayBounds, 'isometric', INITIAL_VIEWPORT_SIZE);
         const navigation = createViewNavigationState(camera, displaySphere, INITIAL_VIEWPORT_SIZE);
 
@@ -67,9 +67,12 @@ export function App() {
             }),
         [activePartStudio, editorState.draft, editorState.sketches.sketchesById],
     );
-    const displayBounds = useMemo(() => calculateDisplayBoundingBox(displayModel), [displayModel]);
+    const displayBounds = useMemo(
+        () => calculateDisplayNavigationBoundingBox(displayModel),
+        [displayModel],
+    );
     const displaySphere = useMemo(
-        () => calculateDisplayBoundingSphere(displayModel),
+        () => calculateDisplayNavigationBoundingSphere(displayModel),
         [displayModel],
     );
     const selectedObjectIds = editorState.selection.selection.objectIds;
@@ -133,6 +136,7 @@ export function App() {
         getDisplaySphere: () => displaySphereRef.current,
         getState: () => editorStateRef.current,
         pickService: pickServiceRef.current,
+        sampleNavigationDepths: (input) => rendererRef.current?.sampleNavigationDepths(input) ?? [],
         updateState: (updater) => {
             setEditorState(updater);
         },

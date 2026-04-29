@@ -13,6 +13,7 @@ import {
     type BoundingBox3,
     createStandardCameraState,
     fitCameraToBounds,
+    frameCameraClippingToBounds,
     type BoundingSphere,
     type CameraState,
     type StandardCameraView,
@@ -35,7 +36,10 @@ export class ViewNavigationController {
     }
 
     public fit(bounds: BoundingBox3, sphere: BoundingSphere): ViewNavigationState {
-        const camera = fitCameraToBounds(this.state.camera, bounds, this.state.viewportSize);
+        const camera = frameCameraClippingToBounds(
+            fitCameraToBounds(this.state.camera, bounds, this.state.viewportSize),
+            bounds,
+        );
 
         return updateViewNavigationCamera(this.state, camera, sphere);
     }
@@ -44,8 +48,16 @@ export class ViewNavigationController {
         return this.state;
     }
 
-    public setCamera(camera: CameraState, bounds: BoundingSphere): ViewNavigationState {
-        return updateViewNavigationCamera(this.state, camera, bounds);
+    public setCamera(
+        camera: CameraState,
+        bounds: BoundingSphere,
+        displayBounds: BoundingBox3,
+    ): ViewNavigationState {
+        return updateViewNavigationCamera(
+            this.state,
+            frameCameraClippingToBounds(camera, displayBounds),
+            bounds,
+        );
     }
 
     public setStandardView(
@@ -53,20 +65,33 @@ export class ViewNavigationController {
         sphere: BoundingSphere,
         view: StandardCameraView,
     ): ViewNavigationState {
-        const camera = createStandardCameraState(bounds, view, this.state.viewportSize);
+        const camera = frameCameraClippingToBounds(
+            createStandardCameraState(bounds, view, this.state.viewportSize),
+            bounds,
+        );
 
         return updateViewNavigationCamera(this.state, camera, sphere);
     }
 
-    public update(pointer: ViewNavigationPointer): ViewNavigationState {
-        return updateViewNavigation(this.state, pointer);
+    public update(pointer: ViewNavigationPointer, bounds: BoundingBox3): ViewNavigationState {
+        return withFramedCamera(updateViewNavigation(this.state, pointer), bounds);
     }
 
     public updateViewport(viewportSize: ViewportSize): ViewNavigationState {
         return updateViewNavigationViewport(this.state, viewportSize);
     }
 
-    public zoom(wheel: ViewNavigationWheel): ViewNavigationState {
-        return zoomViewNavigation(this.state, wheel);
+    public zoom(wheel: ViewNavigationWheel, bounds: BoundingBox3): ViewNavigationState {
+        return withFramedCamera(zoomViewNavigation(this.state, wheel), bounds);
     }
+}
+
+function withFramedCamera(
+    navigation: ViewNavigationState,
+    bounds: BoundingBox3,
+): ViewNavigationState {
+    return {
+        ...navigation,
+        camera: frameCameraClippingToBounds(navigation.camera, bounds),
+    };
 }

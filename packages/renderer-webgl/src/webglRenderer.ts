@@ -1,5 +1,11 @@
 import type { DisplayModel, LabelFontWeight } from '@occt-draw/display';
-import type { CadRenderer, RenderFrameInput, ViewportSize } from '@occt-draw/renderer';
+import type {
+    CadRenderer,
+    NavigationDepthSample,
+    NavigationDepthSampleInput,
+    RenderFrameInput,
+    ViewportSize,
+} from '@occt-draw/renderer';
 import {
     createLabelAtlas,
     createLabelAtlasFontWeightSignature,
@@ -7,6 +13,12 @@ import {
     type LabelAtlas,
 } from './labelAtlas';
 import { createLabelProgram } from './labelShaderProgram';
+import {
+    createNavigationDepthResources,
+    disposeNavigationDepthResources,
+    sampleNavigationDepths,
+    type NavigationDepthResources,
+} from './navigationDepth';
 import { renderPipeline, type RenderPipelineResources } from './renderPipeline';
 import { createProgram } from './shaderProgram';
 
@@ -32,6 +44,7 @@ class WebglCadRenderer implements CadRenderer {
     private readonly labelProgram: WebGLProgram;
     private labelAtlas: LabelAtlas;
     private labelAtlasFontWeightSignature: string;
+    private readonly navigationDepthResources: NavigationDepthResources;
     private readonly program: WebGLProgram;
     private renderPipelineResources: RenderPipelineResources;
 
@@ -40,6 +53,7 @@ class WebglCadRenderer implements CadRenderer {
         this.context = context;
         this.program = createProgram(context);
         this.labelProgram = createLabelProgram(context);
+        this.navigationDepthResources = createNavigationDepthResources(context);
 
         const positionLocation = context.getAttribLocation(this.program, 'a_position');
         const colorLocation = context.getAttribLocation(this.program, 'a_color');
@@ -101,6 +115,7 @@ class WebglCadRenderer implements CadRenderer {
         this.context.deleteProgram(this.program);
         this.context.deleteProgram(this.labelProgram);
         this.context.deleteTexture(this.labelAtlas.texture);
+        disposeNavigationDepthResources(this.context, this.navigationDepthResources);
     }
 
     public resize(viewportSize: ViewportSize): void {
@@ -119,7 +134,21 @@ class WebglCadRenderer implements CadRenderer {
     public render(input: RenderFrameInput): void {
         this.resize(input.viewportSize);
         this.ensureLabelAtlas(input.displayModel);
+        this.context.bindFramebuffer(this.context.FRAMEBUFFER, null);
         renderPipeline(this.context, this.renderPipelineResources, input);
+    }
+
+    public sampleNavigationDepths(
+        input: NavigationDepthSampleInput,
+    ): readonly NavigationDepthSample[] {
+        this.resize(input.viewportSize);
+
+        return sampleNavigationDepths(
+            this.context,
+            this.canvas,
+            this.navigationDepthResources,
+            input,
+        );
     }
 
     private ensureLabelAtlas(displayModel: DisplayModel): void {

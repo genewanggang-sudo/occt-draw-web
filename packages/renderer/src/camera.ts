@@ -11,10 +11,10 @@ import {
 } from '@occt-draw/math';
 import {
     calculateBoundingSphere,
-    calculateDisplayBoundingBox,
+    calculateDisplayNavigationBoundingBox,
     getBoundingBoxCorners,
 } from './bounds';
-import type { BoundingBox3, CameraState, ViewportSize } from './types';
+import type { BoundingBox3, CameraState, ScreenPoint2, ViewportSize } from './types';
 
 export type StandardCameraView =
     | 'back'
@@ -37,13 +37,17 @@ export const DEFAULT_CAMERA_STATE: CameraState = {
 };
 
 interface CameraBasis {
+    readonly forward: Vector3;
     readonly right: Vector3;
     readonly up: Vector3;
     readonly view: Vector3;
 }
 
 export function createCameraStateForDisplay(displayModel: DisplayModel): CameraState {
-    return createStandardCameraState(calculateDisplayBoundingBox(displayModel), 'isometric');
+    return createStandardCameraState(
+        calculateDisplayNavigationBoundingBox(displayModel),
+        'isometric',
+    );
 }
 
 export function createStandardCameraState(
@@ -107,6 +111,78 @@ export function fitCameraToBounds(
     };
 }
 
+export function frameCameraClippingToBounds(
+    camera: CameraState,
+    bounds: BoundingBox3,
+): CameraState {
+    const forward = normalizeVector3(subtractVector3(camera.target, camera.position));
+    const corners = getBoundingBoxCorners(bounds);
+    let minDepth = Number.POSITIVE_INFINITY;
+    let maxDepth = Number.NEGATIVE_INFINITY;
+
+    for (const corner of corners) {
+        const depth = dotVector3(subtractVector3(corner, camera.position), forward);
+
+        minDepth = Math.min(minDepth, depth);
+        maxDepth = Math.max(maxDepth, depth);
+    }
+
+    const sceneDepth = Math.max(maxDepth - minDepth, 0);
+    const margin = Math.max(sceneDepth * 0.25, 1);
+    const near = Math.max(minDepth - margin, 0.01);
+    const far = Math.max(maxDepth + margin, near + 1);
+
+    return {
+        ...camera,
+        near,
+        far,
+    };
+}
+
+export function cameraDepth01ToViewDepth(camera: CameraState, depth01: number): number {
+    const clampedDepth = Math.min(Math.max(depth01, 0), 1);
+
+    if (camera.projection === 'orthographic') {
+        return camera.near + clampedDepth * (camera.far - camera.near);
+    }
+
+    const ndcDepth = clampedDepth * 2 - 1;
+
+    return (
+        (2 * camera.near * camera.far) /
+        (camera.far + camera.near - ndcDepth * (camera.far - camera.near))
+    );
+}
+
+export function canvasDepthToWorld(
+    camera: CameraState,
+    viewportSize: ViewportSize,
+    point: ScreenPoint2,
+    depth01: number,
+): Vector3 {
+    const basis = calculateCameraBasis(camera);
+    const viewDepth = cameraDepth01ToViewDepth(camera, depth01);
+    const aspect = Math.max(viewportSize.width / viewportSize.height, 0.001);
+    const ndcX = (point.x / Math.max(viewportSize.width, 1)) * 2 - 1;
+    const ndcY = 1 - (point.y / Math.max(viewportSize.height, 1)) * 2;
+    const halfHeight =
+        camera.projection === 'orthographic'
+            ? camera.orthographicHeight / 2
+            : viewDepth * Math.tan(camera.fovYRadians / 2);
+    const halfWidth = halfHeight * aspect;
+
+    return addVector3(
+        camera.position,
+        addVector3(
+            scaleVector3(basis.forward, viewDepth),
+            addVector3(
+                scaleVector3(basis.right, ndcX * halfWidth),
+                scaleVector3(basis.up, ndcY * halfHeight),
+            ),
+        ),
+    );
+}
+
 function createCameraFromView(bounds: BoundingBox3, view: StandardCameraView): CameraState {
     const sphere = calculateBoundingSphere(bounds);
     const viewDirection = getStandardViewDirection(view);
@@ -164,6 +240,7 @@ function calculateCameraBasis(camera: CameraState): CameraBasis {
     const view = normalizeVector3(subtractVector3(camera.position, camera.target));
     const right = normalizeVector3(crossVector3(camera.up, view));
     const up = normalizeVector3(crossVector3(view, right));
+    const forward = scaleVector3(view, -1);
 
-    return { right, up, view };
+    return { forward, right, up, view };
 }

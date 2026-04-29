@@ -7,6 +7,7 @@ export type DisplayObjectKind =
     | 'marker-batch'
     | 'point-batch'
     | 'surface-batch';
+export type DisplayNavigationRole = 'annotation' | 'model' | 'reference-plane';
 export type LabelBaseline = 'alphabetic' | 'hanging' | 'ideographic' | 'middle';
 export type LabelFontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
 export type LabelHorizontalJustify = 'center' | 'left' | 'right';
@@ -18,6 +19,7 @@ export interface BaseDisplayObject {
     readonly id: DisplayObjectId;
     readonly kind: DisplayObjectKind;
     readonly name: string;
+    readonly navigationRole: DisplayNavigationRole;
     readonly visible: boolean;
 }
 

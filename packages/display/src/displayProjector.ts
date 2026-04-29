@@ -129,6 +129,7 @@ export class DisplayProjector {
                     id: feature.id,
                     kind: 'line-batch',
                     name: feature.name,
+                    navigationRole: 'model',
                     visible: !feature.suppressed,
                     color: createVector3(0.05, 0.38, 0.85),
                     segments,
@@ -140,6 +141,7 @@ export class DisplayProjector {
                     id: `${feature.id}:points`,
                     kind: 'point-batch',
                     name: `${feature.name} 端点`,
+                    navigationRole: 'model',
                     visible: !feature.suppressed,
                     color: createVector3(0.05, 0.38, 0.85),
                     points,
@@ -169,6 +171,7 @@ export class DisplayProjector {
                 id: `${draft.id}:temporary-lines`,
                 kind: 'line-batch',
                 name: '临时线段',
+                navigationRole: 'model',
                 visible: true,
                 color: createVector3(0.35, 0.72, 1),
                 segments,
@@ -177,6 +180,7 @@ export class DisplayProjector {
                 id: `${draft.id}:temporary-points`,
                 kind: 'point-batch',
                 name: '临时端点',
+                navigationRole: 'model',
                 visible: true,
                 color: createVector3(0.35, 0.72, 1),
                 points: segments.flatMap((segment) => [segment.start, segment.end]),
@@ -207,6 +211,7 @@ function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerBatc
         id: object.id,
         kind: 'marker-batch',
         name: object.name,
+        navigationRole: 'model',
         visible: object.visible,
         markers: [
             {
@@ -244,6 +249,7 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
             id: `${object.id}:surface`,
             kind: 'surface-batch',
             name: `${object.name} 面`,
+            navigationRole: 'reference-plane',
             visible: object.visible,
             color: createVector3(0.12, 0.42, 0.8),
             opacity: 0.18,
@@ -256,6 +262,7 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
             id: object.id,
             kind: 'line-batch',
             name: object.name,
+            navigationRole: 'reference-plane',
             visible: object.visible,
             color: createVector3(0.22, 0.5, 0.9),
             segments: [
@@ -269,6 +276,7 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
             id: `${object.id}:label`,
             kind: 'label-batch',
             name: `${object.name} 标注`,
+            navigationRole: 'annotation',
             visible: object.visible,
             labels: [
                 {

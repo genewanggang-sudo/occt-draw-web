@@ -44,8 +44,50 @@ export interface RenderHighlightState {
     readonly selectedPrimitiveId: string | null;
 }
 
+export interface ScreenPoint2 {
+    readonly x: number;
+    readonly y: number;
+}
+
+export interface ScreenRect {
+    readonly maxX: number;
+    readonly maxY: number;
+    readonly minX: number;
+    readonly minY: number;
+}
+
+export type NavigationDepthRole = 'model' | 'reference-plane';
+
+export type NavigationDepthSamplingArea =
+    | {
+          readonly kind: 'points';
+          readonly points: readonly ScreenPoint2[];
+      }
+    | {
+          readonly kind: 'rect';
+          readonly rect: ScreenRect;
+          readonly stepPixels: number;
+      };
+
+export interface NavigationDepthSampleInput {
+    readonly area: NavigationDepthSamplingArea;
+    readonly camera: CameraState;
+    readonly displayModel: DisplayModel;
+    readonly includePlanes: boolean;
+    readonly viewportSize: ViewportSize;
+}
+
+export interface NavigationDepthSample {
+    readonly canvasPoint: ScreenPoint2;
+    readonly depth01: number;
+    readonly role: NavigationDepthRole;
+    readonly viewDepth: number;
+    readonly worldPoint: Vector3;
+}
+
 export interface CadRenderer {
     dispose(): void;
     render(input: RenderFrameInput): void;
     resize(viewportSize: ViewportSize): void;
+    sampleNavigationDepths(input: NavigationDepthSampleInput): readonly NavigationDepthSample[];
 }

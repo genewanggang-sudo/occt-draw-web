@@ -1,14 +1,19 @@
 export {
     DEFAULT_CAMERA_STATE,
+    cameraDepth01ToViewDepth,
+    canvasDepthToWorld,
     createCameraStateForDisplay,
     createStandardCameraState,
     fitCameraToBounds,
+    frameCameraClippingToBounds,
     type StandardCameraView,
 } from './camera';
 export {
     calculateBoundingSphere,
     calculateDisplayBoundingBox,
     calculateDisplayBoundingSphere,
+    calculateDisplayNavigationBoundingBox,
+    calculateDisplayNavigationBoundingSphere,
     getBoundingBoxCorners,
 } from './bounds';
 export {
@@ -23,7 +28,6 @@ export {
     type PickDisplayObjectInput,
     type PickDisplayObjectResult,
     type PickTargetKind,
-    type ScreenPoint2,
 } from './picking';
 export { createRenderPrimitiveId, type RenderPrimitiveKind } from './primitiveId';
 export type {
@@ -32,7 +36,13 @@ export type {
     CadRenderer,
     CameraProjection,
     CameraState,
+    NavigationDepthRole,
+    NavigationDepthSample,
+    NavigationDepthSampleInput,
+    NavigationDepthSamplingArea,
     RenderFrameInput,
     RenderHighlightState,
+    ScreenPoint2,
+    ScreenRect,
     ViewportSize,
 } from './types';
