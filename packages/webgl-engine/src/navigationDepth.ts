@@ -1,17 +1,11 @@
+import type { RenderScene, RenderDepthRole, RenderNode, MarkerBatchRenderNode } from './types';
+import { cameraDepth01ToViewDepth, canvasDepthToWorld } from './camera';
 import type {
-    DisplayModel,
-    DisplayNavigationRole,
-    DisplayObject,
-    MarkerBatchDisplayObject,
-} from '@occt-draw/display';
-import {
-    cameraDepth01ToViewDepth,
-    canvasDepthToWorld,
-    type NavigationDepthRole,
-    type NavigationDepthSample,
-    type NavigationDepthSampleInput,
-    type ScreenPoint2,
-} from '@occt-draw/renderer';
+    NavigationDepthRole,
+    NavigationDepthSample,
+    NavigationDepthSampleInput,
+    ScreenPoint2,
+} from './types';
 import type { Vector3 } from '@occt-draw/math';
 import { createViewProjectionMatrix } from './matrix';
 
@@ -25,9 +19,9 @@ interface NavigationDepthTarget {
 
 interface NavigationDepthCache {
     readonly camera: NavigationDepthSampleInput['camera'];
-    readonly displayModel: DisplayModel;
+    readonly scene: RenderScene;
     readonly height: number;
-    readonly includePlanes: boolean;
+    readonly includeSecondary: boolean;
     readonly viewportHeight: number;
     readonly viewportWidth: number;
     readonly width: number;
@@ -54,8 +48,8 @@ export interface NavigationDepthResources {
     readonly vertexArray: WebGLVertexArrayObject;
 }
 
-const MODEL_ROLE_CODE = 64 / 255;
-const REFERENCE_PLANE_ROLE_CODE = 192 / 255;
+const PRIMARY_ROLE_CODE = 64 / 255;
+const SECONDARY_ROLE_CODE = 192 / 255;
 const DEPTH_MAX_INT = 16_777_215;
 
 const vertexShaderSource = `#version 300 es
@@ -181,9 +175,9 @@ export function sampleNavigationDepths(
         renderNavigationDepth(context, resources, target, input);
         resources.cache = {
             camera: input.camera,
-            displayModel: input.displayModel,
+            scene: input.scene,
             height: target.height,
-            includePlanes: input.includePlanes,
+            includeSecondary: input.includeSecondary,
             viewportHeight: input.viewportSize.height,
             viewportWidth: input.viewportSize.width,
             width: target.width,
@@ -214,7 +208,7 @@ function renderNavigationDepth(
     input: NavigationDepthSampleInput,
 ): void {
     const matrix = createViewProjectionMatrix(input.camera, input.viewportSize);
-    const batches = createNavigationDepthBatches(context, input.displayModel, input.includePlanes);
+    const batches = createNavigationDepthBatches(context, input.scene, input.includeSecondary);
 
     context.bindFramebuffer(context.FRAMEBUFFER, target.framebuffer);
     context.viewport(0, 0, target.width, target.height);
@@ -389,9 +383,9 @@ function decodeNavigationDepthPixel(
     const green = pixels[index + 1] ?? 0;
     const blue = pixels[index + 2] ?? 0;
     const depth01 = (red * 65536 + green * 256 + blue) / DEPTH_MAX_INT;
-    const role = roleCode >= 128 ? 'reference-plane' : 'model';
+    const role = roleCode >= 128 ? 'secondary' : 'primary';
 
-    if (!input.includePlanes && role === 'reference-plane') {
+    if (!input.includeSecondary && role === 'secondary') {
         return null;
     }
 
@@ -406,17 +400,17 @@ function decodeNavigationDepthPixel(
 
 function createNavigationDepthBatches(
     context: WebGL2RenderingContext,
-    displayModel: DisplayModel,
-    includePlanes: boolean,
+    scene: RenderScene,
+    includeSecondary: boolean,
 ): readonly NavigationDepthBatch[] {
     const batches: NavigationDepthBatch[] = [];
 
-    for (const object of displayModel.objects) {
-        if (!shouldIncludeObject(object, includePlanes)) {
+    for (const object of scene.nodes) {
+        if (!shouldIncludeObject(object, includeSecondary)) {
             continue;
         }
 
-        const role = toNavigationDepthRole(object.navigationRole);
+        const role = toNavigationDepthRole(object.depthRole);
 
         if (!role) {
             continue;
@@ -460,7 +454,7 @@ function createNavigationDepthBatches(
 
 function createMarkerBatches(
     context: WebGL2RenderingContext,
-    object: MarkerBatchDisplayObject,
+    object: MarkerBatchRenderNode,
     role: NavigationDepthRole,
 ): readonly NavigationDepthBatch[] {
     return object.markers.map((marker) => ({
@@ -472,16 +466,16 @@ function createMarkerBatches(
     }));
 }
 
-function shouldIncludeObject(object: DisplayObject, includePlanes: boolean): boolean {
-    if (!object.visible || object.navigationRole === 'annotation') {
+function shouldIncludeObject(object: RenderNode, includeSecondary: boolean): boolean {
+    if (!object.visible || object.depthRole === 'excluded') {
         return false;
     }
 
-    return object.navigationRole === 'model' || includePlanes;
+    return object.depthRole === 'primary' || includeSecondary;
 }
 
-function toNavigationDepthRole(role: DisplayNavigationRole): NavigationDepthRole | null {
-    if (role === 'model' || role === 'reference-plane') {
+function toNavigationDepthRole(role: RenderDepthRole): NavigationDepthRole | null {
+    if (role === 'primary' || role === 'secondary') {
         return role;
     }
 
@@ -495,8 +489,8 @@ function shouldRenderNavigationDepth(
 ): boolean {
     return (
         cache?.camera !== input.camera ||
-        cache.displayModel !== input.displayModel ||
-        cache.includePlanes !== input.includePlanes ||
+        cache.scene !== input.scene ||
+        cache.includeSecondary !== input.includeSecondary ||
         cache.viewportWidth !== input.viewportSize.width ||
         cache.viewportHeight !== input.viewportSize.height ||
         cache.width !== target.width ||
@@ -664,7 +658,7 @@ function toPositionBuffer(positions: readonly Vector3[]): Float32Array {
 }
 
 function roleToCode(role: NavigationDepthRole): number {
-    return role === 'reference-plane' ? REFERENCE_PLANE_ROLE_CODE : MODEL_ROLE_CODE;
+    return role === 'secondary' ? SECONDARY_ROLE_CODE : PRIMARY_ROLE_CODE;
 }
 
 function clampInteger(value: number, min: number, max: number): number {

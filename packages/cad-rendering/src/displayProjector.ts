@@ -23,17 +23,17 @@ import {
     type Sketch,
     type SketchId,
 } from '@occt-draw/sketch';
-import { createDisplayModel } from './displayModel';
+import { createRenderScene } from '@occt-draw/webgl-engine';
 import type {
-    DisplayModel,
-    DisplayObject,
-    LabelBatchDisplayObject,
+    RenderScene,
+    RenderNode,
+    LabelBatchRenderNode,
     LabelText,
-    LineBatchDisplayObject,
-    MarkerBatchDisplayObject,
-    PointBatchDisplayObject,
-    SurfaceBatchDisplayObject,
-} from './types';
+    LineBatchRenderNode,
+    MarkerBatchRenderNode,
+    PointBatchRenderNode,
+    SurfaceBatchRenderNode,
+} from '@occt-draw/webgl-engine';
 
 export interface DisplayProjectionContext {
     readonly sketchesById?: Readonly<Record<SketchId, Sketch>>;
@@ -48,7 +48,7 @@ export class DisplayProjector {
         document: CadDocument,
         draft: EditDraft | null = null,
         context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
-    ): DisplayModel {
+    ): RenderScene {
         return this.projectPartStudio(document.getActivePartStudio(), draft, context);
     }
 
@@ -56,25 +56,25 @@ export class DisplayProjector {
         partStudio: PartStudio,
         draft: EditDraft | null = null,
         context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
-    ): DisplayModel {
-        return createDisplayModel(partStudio.id, partStudio.name, [
-            ...partStudio.objects.flatMap((object) => this.toDisplayObjects(object)),
+    ): RenderScene {
+        return createRenderScene(partStudio.id, partStudio.name, [
+            ...partStudio.objects.flatMap((object) => this.toRenderNodes(object)),
             ...this.projectSketchFeatures(partStudio, context),
             ...this.projectDraftObjects(draft),
         ]);
     }
 
-    public toDisplayObject(object: CadObject): DisplayObject {
-        const [displayObject] = this.toDisplayObjects(object);
+    public toRenderNode(object: CadObject): RenderNode {
+        const [renderNode] = this.toRenderNodes(object);
 
-        if (!displayObject) {
+        if (!renderNode) {
             throw new Error(`对象投影失败：${object.id}`);
         }
 
-        return displayObject;
+        return renderNode;
     }
 
-    public toDisplayObjects(object: CadObject): readonly DisplayObject[] {
+    public toRenderNodes(object: CadObject): readonly RenderNode[] {
         if (object.kind === 'reference-origin') {
             return [projectReferenceOriginObject(object)];
         }
@@ -85,7 +85,7 @@ export class DisplayProjector {
     private projectSketchFeatures(
         partStudio: PartStudio,
         context: DisplayProjectionContext,
-    ): readonly DisplayObject[] {
+    ): readonly RenderNode[] {
         return partStudio.features.flatMap((feature) => {
             if (feature.type !== 'sketch' || !feature.payloadRef) {
                 return [];
@@ -104,7 +104,7 @@ export class DisplayProjector {
             }
 
             const plane = referencePlaneToPlane(sketchPlane);
-            const objects: DisplayObject[] = [];
+            const objects: RenderNode[] = [];
             const segments = listSketchLines(sketch).flatMap((line) => {
                 const startPoint = findSketchPointById(sketch, line.startPointId);
                 const endPoint = findSketchPointById(sketch, line.endPointId);
@@ -129,11 +129,11 @@ export class DisplayProjector {
                     id: feature.id,
                     kind: 'line-batch',
                     name: feature.name,
-                    navigationRole: 'model',
+                    depthRole: 'primary',
                     visible: !feature.suppressed,
                     color: createVector3(0.05, 0.38, 0.85),
                     segments,
-                } satisfies LineBatchDisplayObject);
+                } satisfies LineBatchRenderNode);
             }
 
             if (points.length > 0) {
@@ -141,19 +141,19 @@ export class DisplayProjector {
                     id: `${feature.id}:points`,
                     kind: 'point-batch',
                     name: `${feature.name} 端点`,
-                    navigationRole: 'model',
+                    depthRole: 'primary',
                     visible: !feature.suppressed,
                     color: createVector3(0.05, 0.38, 0.85),
                     points,
                     sizePixels: 7,
-                } satisfies PointBatchDisplayObject);
+                } satisfies PointBatchRenderNode);
             }
 
             return objects;
         });
     }
 
-    private projectDraftObjects(draft: EditDraft | null): readonly DisplayObject[] {
+    private projectDraftObjects(draft: EditDraft | null): readonly RenderNode[] {
         if (!draft) {
             return [];
         }
@@ -171,47 +171,47 @@ export class DisplayProjector {
                 id: `${draft.id}:temporary-lines`,
                 kind: 'line-batch',
                 name: '临时线段',
-                navigationRole: 'model',
+                depthRole: 'primary',
                 visible: true,
                 color: createVector3(0.35, 0.72, 1),
                 segments,
-            } satisfies LineBatchDisplayObject,
+            } satisfies LineBatchRenderNode,
             {
                 id: `${draft.id}:temporary-points`,
                 kind: 'point-batch',
                 name: '临时端点',
-                navigationRole: 'model',
+                depthRole: 'primary',
                 visible: true,
                 color: createVector3(0.35, 0.72, 1),
                 points: segments.flatMap((segment) => [segment.start, segment.end]),
                 sizePixels: 7,
-            } satisfies PointBatchDisplayObject,
+            } satisfies PointBatchRenderNode,
         ];
     }
 }
 
-export function projectDocumentToDisplayModel(
+export function projectDocumentToRenderScene(
     document: CadDocument,
     draft: EditDraft | null = null,
     context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
-): DisplayModel {
+): RenderScene {
     return new DisplayProjector().projectDocument(document, draft, context);
 }
 
-export function projectPartStudioToDisplayModel(
+export function projectPartStudioToRenderScene(
     partStudio: PartStudio,
     draft: EditDraft | null = null,
     context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
-): DisplayModel {
+): RenderScene {
     return new DisplayProjector().projectPartStudio(partStudio, draft, context);
 }
 
-function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerBatchDisplayObject {
+function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerBatchRenderNode {
     return {
         id: object.id,
         kind: 'marker-batch',
         name: object.name,
-        navigationRole: 'model',
+        depthRole: 'primary',
         visible: object.visible,
         markers: [
             {
@@ -224,7 +224,7 @@ function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerBatc
     };
 }
 
-function projectReferencePlaneObject(object: ReferencePlaneObject): readonly DisplayObject[] {
+function projectReferencePlaneObject(object: ReferencePlaneObject): readonly RenderNode[] {
     const plane = referencePlaneToPlane(object);
     const halfSize = object.size / 2;
     const labelYAxis = scaleVector3(plane.yAxis, -1);
@@ -249,7 +249,7 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
             id: `${object.id}:surface`,
             kind: 'surface-batch',
             name: `${object.name} 面`,
-            navigationRole: 'reference-plane',
+            depthRole: 'secondary',
             visible: object.visible,
             color: createVector3(0.12, 0.42, 0.8),
             opacity: 0.18,
@@ -257,12 +257,12 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
                 { a: corners[0], b: corners[1], c: corners[2] },
                 { a: corners[0], b: corners[2], c: corners[3] },
             ],
-        } satisfies SurfaceBatchDisplayObject,
+        } satisfies SurfaceBatchRenderNode,
         {
             id: object.id,
             kind: 'line-batch',
             name: object.name,
-            navigationRole: 'reference-plane',
+            depthRole: 'secondary',
             visible: object.visible,
             color: createVector3(0.22, 0.5, 0.9),
             segments: [
@@ -271,12 +271,12 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
                 createLineSegment3(corners[2], corners[3]),
                 createLineSegment3(corners[3], corners[0]),
             ],
-        } satisfies LineBatchDisplayObject,
+        } satisfies LineBatchRenderNode,
         {
             id: `${object.id}:label`,
             kind: 'label-batch',
             name: `${object.name} 标注`,
-            navigationRole: 'annotation',
+            depthRole: 'excluded',
             visible: object.visible,
             labels: [
                 {
@@ -304,7 +304,7 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Dis
                     text: getReferencePlaneLabel(object.planeKind),
                 },
             ],
-        } satisfies LabelBatchDisplayObject,
+        } satisfies LabelBatchRenderNode,
     ];
 }
 

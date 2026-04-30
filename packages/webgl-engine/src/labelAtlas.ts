@@ -1,4 +1,4 @@
-import type { LabelFontWeight, LabelText } from '@occt-draw/display';
+import type { LabelFontWeight, LabelText } from './types';
 
 export interface LabelGlyph {
     readonly ascentPixels: number;

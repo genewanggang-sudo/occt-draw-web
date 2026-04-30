@@ -1,4 +1,4 @@
-import type { DisplayModel, DisplayObject } from '@occt-draw/display';
+import type { RenderScene, RenderNode } from './types';
 import {
     addVector3,
     createVector3,
@@ -9,34 +9,32 @@ import {
 } from '@occt-draw/math';
 import type { BoundingBox3, BoundingSphere } from './types';
 
-export function calculateDisplayBoundingBox(displayModel: DisplayModel): BoundingBox3 {
-    return calculateDisplayBoundingBoxByPredicate(displayModel, () => true);
+export function calculateRenderSceneBoundingBox(scene: RenderScene): BoundingBox3 {
+    return calculateRenderSceneBoundingBoxByPredicate(scene, () => true);
 }
 
-export function calculateDisplayNavigationBoundingBox(displayModel: DisplayModel): BoundingBox3 {
-    return calculateDisplayBoundingBoxByPredicate(
-        displayModel,
-        (object) => object.navigationRole !== 'annotation',
+export function calculateRenderSceneNavigationBoundingBox(scene: RenderScene): BoundingBox3 {
+    return calculateRenderSceneBoundingBoxByPredicate(
+        scene,
+        (object) => object.depthRole !== 'excluded',
     );
 }
 
-export function calculateDisplayBoundingSphere(displayModel: DisplayModel): BoundingSphere {
-    return calculateBoundingSphere(calculateDisplayBoundingBox(displayModel));
+export function calculateRenderSceneBoundingSphere(scene: RenderScene): BoundingSphere {
+    return calculateBoundingSphere(calculateRenderSceneBoundingBox(scene));
 }
 
-export function calculateDisplayNavigationBoundingSphere(
-    displayModel: DisplayModel,
-): BoundingSphere {
-    return calculateBoundingSphere(calculateDisplayNavigationBoundingBox(displayModel));
+export function calculateRenderSceneNavigationBoundingSphere(scene: RenderScene): BoundingSphere {
+    return calculateBoundingSphere(calculateRenderSceneNavigationBoundingBox(scene));
 }
 
-function calculateDisplayBoundingBoxByPredicate(
-    displayModel: DisplayModel,
-    shouldIncludeObject: (object: DisplayObject) => boolean,
+function calculateRenderSceneBoundingBoxByPredicate(
+    scene: RenderScene,
+    shouldIncludeObject: (object: RenderNode) => boolean,
 ): BoundingBox3 {
     let bounds: BoundingBox3 | null = null;
 
-    for (const object of displayModel.objects) {
+    for (const object of scene.nodes) {
         if (!object.visible || !shouldIncludeObject(object)) {
             continue;
         }
@@ -72,7 +70,7 @@ export function getBoundingBoxCorners(bounds: BoundingBox3): readonly Vector3[] 
     ];
 }
 
-function expandBoundsByObject(bounds: BoundingBox3 | null, object: DisplayObject): BoundingBox3 {
+function expandBoundsByObject(bounds: BoundingBox3 | null, object: RenderNode): BoundingBox3 {
     if (object.kind === 'label-batch') {
         return expandBoundsByPoints(
             bounds,

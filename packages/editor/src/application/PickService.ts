@@ -1,11 +1,11 @@
-import type { DisplayModel } from '@occt-draw/display';
+import type { RenderScene } from '@occt-draw/cad-rendering';
 import type { SelectionTarget } from '@occt-draw/core';
-import { pickDisplayObject, type CameraState, type ViewportSize } from '@occt-draw/renderer';
+import { pickRenderNode, type CameraState, type ViewportSize } from '@occt-draw/webgl-engine';
 import type { ScreenPoint } from '../view-navigation/viewNavigation';
 
 export interface PickSelectionTargetInput {
     readonly camera: CameraState;
-    readonly displayModel: DisplayModel;
+    readonly scene: RenderScene;
     readonly point: ScreenPoint;
     readonly thresholdPixels: number;
     readonly viewportSize: ViewportSize;
@@ -13,7 +13,7 @@ export interface PickSelectionTargetInput {
 
 export class PickService {
     public pickSelectionTarget(input: PickSelectionTargetInput): SelectionTarget | null {
-        const pickResult = pickDisplayObject(input);
+        const pickResult = pickRenderNode(input);
 
         if (!pickResult) {
             return null;

@@ -1,11 +1,11 @@
 import type {
-    DisplayModel,
-    DisplayNavigationRole,
-    LineBatchDisplayObject,
-    MarkerBatchDisplayObject,
-    PointBatchDisplayObject,
-    SurfaceBatchDisplayObject,
-} from '@occt-draw/display';
+    RenderScene,
+    RenderDepthRole,
+    LineBatchRenderNode,
+    MarkerBatchRenderNode,
+    PointBatchRenderNode,
+    SurfaceBatchRenderNode,
+} from './types';
 import {
     addVector3,
     crossVector3,
@@ -20,20 +20,20 @@ import type { CameraState, ScreenPoint2, ViewportSize } from './types';
 
 export type PickTargetKind = 'edge' | 'face' | 'object' | 'vertex';
 
-export interface PickDisplayObjectInput {
+export interface PickRenderNodeInput {
     readonly camera: CameraState;
-    readonly displayModel: DisplayModel;
+    readonly scene: RenderScene;
     readonly point: ScreenPoint2;
     readonly thresholdPixels: number;
     readonly viewportSize: ViewportSize;
 }
 
-export interface PickDisplayObjectResult {
+export interface PickRenderNodeResult {
     readonly depth: number;
     readonly distancePixels: number;
     readonly objectId: string;
     readonly primitiveId: string | null;
-    readonly role: DisplayNavigationRole;
+    readonly role: RenderDepthRole;
     readonly targetKind: PickTargetKind;
     readonly worldPoint: Vector3;
 }
@@ -51,24 +51,24 @@ interface ScreenRay {
 
 const DEPTH_EPSILON = 1e-6;
 
-export function pickDisplayObject(input: PickDisplayObjectInput): PickDisplayObjectResult | null {
+export function pickRenderNode(input: PickRenderNodeInput): PickRenderNodeResult | null {
     return pickDisplayHit(input, () => true);
 }
 
 function pickDisplayHit(
-    input: PickDisplayObjectInput,
-    shouldIncludeRole: (role: DisplayNavigationRole) => boolean,
-): PickDisplayObjectResult | null {
+    input: PickRenderNodeInput,
+    shouldIncludeRole: (role: RenderDepthRole) => boolean,
+): PickRenderNodeResult | null {
     const basis = calculateCameraBasis(input.camera);
     const ray = screenPointToWorldRay(input.point, input.camera, basis, input.viewportSize);
-    let nearestResult: PickDisplayObjectResult | null = null;
+    let nearestResult: PickRenderNodeResult | null = null;
     let nearestScreenDistance = input.thresholdPixels;
 
-    for (const object of input.displayModel.objects) {
+    for (const object of input.scene.nodes) {
         if (
             !object.visible ||
-            object.navigationRole === 'annotation' ||
-            !shouldIncludeRole(object.navigationRole)
+            object.depthRole === 'excluded' ||
+            !shouldIncludeRole(object.depthRole)
         ) {
             continue;
         }
@@ -103,11 +103,11 @@ function pickDisplayHit(
 }
 
 function pickLineBatch(
-    object: LineBatchDisplayObject,
-    input: PickDisplayObjectInput,
+    object: LineBatchRenderNode,
+    input: PickRenderNodeInput,
     basis: CameraBasis,
-): PickDisplayObjectResult | null {
-    let nearestResult: PickDisplayObjectResult | null = null;
+): PickRenderNodeResult | null {
+    let nearestResult: PickRenderNodeResult | null = null;
     let nearestDistance = input.thresholdPixels;
 
     for (let index = 0; index < object.segments.length; index += 1) {
@@ -132,7 +132,7 @@ function pickLineBatch(
                 distancePixels: closest.distancePixels,
                 objectId: object.id,
                 primitiveId: createRenderPrimitiveId(object.id, 'edge', index),
-                role: object.navigationRole,
+                role: object.depthRole,
                 targetKind: 'object',
                 worldPoint,
             };
@@ -143,11 +143,11 @@ function pickLineBatch(
 }
 
 function pickMarkerBatch(
-    object: MarkerBatchDisplayObject,
-    input: PickDisplayObjectInput,
+    object: MarkerBatchRenderNode,
+    input: PickRenderNodeInput,
     basis: CameraBasis,
-): PickDisplayObjectResult | null {
-    let nearestResult: PickDisplayObjectResult | null = null;
+): PickRenderNodeResult | null {
+    let nearestResult: PickRenderNodeResult | null = null;
     let nearestDistance = input.thresholdPixels;
 
     for (let index = 0; index < object.markers.length; index += 1) {
@@ -173,7 +173,7 @@ function pickMarkerBatch(
                 distancePixels: hitDistance,
                 objectId: object.id,
                 primitiveId: createRenderPrimitiveId(object.id, 'vertex', index),
-                role: object.navigationRole,
+                role: object.depthRole,
                 targetKind: 'vertex',
                 worldPoint: marker.position,
             };
@@ -184,11 +184,11 @@ function pickMarkerBatch(
 }
 
 function pickPointBatch(
-    object: PointBatchDisplayObject,
-    input: PickDisplayObjectInput,
+    object: PointBatchRenderNode,
+    input: PickRenderNodeInput,
     basis: CameraBasis,
-): PickDisplayObjectResult | null {
-    let nearestResult: PickDisplayObjectResult | null = null;
+): PickRenderNodeResult | null {
+    let nearestResult: PickRenderNodeResult | null = null;
     let nearestDistance = input.thresholdPixels;
 
     for (let index = 0; index < object.points.length; index += 1) {
@@ -209,7 +209,7 @@ function pickPointBatch(
                 distancePixels: hitDistance,
                 objectId: object.id,
                 primitiveId: createRenderPrimitiveId(object.id, 'vertex', index),
-                role: object.navigationRole,
+                role: object.depthRole,
                 targetKind: 'vertex',
                 worldPoint: point,
             };
@@ -220,12 +220,12 @@ function pickPointBatch(
 }
 
 function pickSurfaceBatch(
-    object: SurfaceBatchDisplayObject,
-    input: PickDisplayObjectInput,
+    object: SurfaceBatchRenderNode,
+    input: PickRenderNodeInput,
     basis: CameraBasis,
     ray: ScreenRay,
-): PickDisplayObjectResult | null {
-    let nearestResult: PickDisplayObjectResult | null = null;
+): PickRenderNodeResult | null {
+    let nearestResult: PickRenderNodeResult | null = null;
     let nearestDepth = Number.POSITIVE_INFINITY;
 
     for (let index = 0; index < object.triangles.length; index += 1) {
@@ -250,7 +250,7 @@ function pickSurfaceBatch(
                 distancePixels: 0,
                 objectId: object.id,
                 primitiveId: createRenderPrimitiveId(object.id, 'face', index),
-                role: object.navigationRole,
+                role: object.depthRole,
                 targetKind: 'face',
                 worldPoint,
             };

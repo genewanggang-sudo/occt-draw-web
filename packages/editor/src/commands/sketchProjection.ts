@@ -8,7 +8,7 @@ import {
     subtractVector3,
     type Vector3,
 } from '@occt-draw/math';
-import type { CameraState, ViewportSize } from '@occt-draw/renderer';
+import type { CameraState, ViewportSize } from '@occt-draw/webgl-engine';
 import { worldPointToSketchPointOnPlane } from '@occt-draw/sketch';
 import type { ScreenPoint } from '../view-navigation/viewNavigation';
 

@@ -1,11 +1,12 @@
 {
-    "name": "@occt-draw/renderer-webgl",
+    "name": "@occt-draw/cad-rendering",
     "private": true,
     "version": "0.1.0",
     "dependencies": {
-        "@occt-draw/display": "workspace:*",
+        "@occt-draw/core": "workspace:*",
         "@occt-draw/math": "workspace:*",
-        "@occt-draw/renderer": "workspace:*",
+        "@occt-draw/webgl-engine": "workspace:*",
+        "@occt-draw/sketch": "workspace:*",
         "@occt-draw/shared": "workspace:*"
     },
     "types": "./src/index.ts",

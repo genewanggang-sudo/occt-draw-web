@@ -1,4 +1,4 @@
-import type { DisplayModel } from '@occt-draw/display';
+import type { RenderScene } from './types';
 import {
     addVector3,
     createVector3,
@@ -11,7 +11,7 @@ import {
 } from '@occt-draw/math';
 import {
     calculateBoundingSphere,
-    calculateDisplayNavigationBoundingBox,
+    calculateRenderSceneNavigationBoundingBox,
     getBoundingBoxCorners,
 } from './bounds';
 import type { BoundingBox3, CameraState, ScreenPoint2, ViewportSize } from './types';
@@ -43,11 +43,8 @@ interface CameraBasis {
     readonly view: Vector3;
 }
 
-export function createCameraStateForDisplay(displayModel: DisplayModel): CameraState {
-    return createStandardCameraState(
-        calculateDisplayNavigationBoundingBox(displayModel),
-        'isometric',
-    );
+export function createCameraStateForScene(scene: RenderScene): CameraState {
+    return createStandardCameraState(calculateRenderSceneNavigationBoundingBox(scene), 'isometric');
 }
 
 export function createStandardCameraState(

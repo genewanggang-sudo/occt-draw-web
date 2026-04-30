@@ -1,17 +1,17 @@
 import type {
-    DisplayModel,
-    MarkerBatchDisplayObject,
-    PointBatchDisplayObject,
-    SurfaceBatchDisplayObject,
-} from '@occt-draw/display';
+    RenderScene,
+    MarkerBatchRenderNode,
+    PointBatchRenderNode,
+    SurfaceBatchRenderNode,
+} from './types';
 import { appendDisplayLineSegments } from './displayLineGeometry';
 import type { LineVertex, MarkerVertex, RenderVertex } from './types';
 export { toVertexBuffer } from './vertexBuffer';
 
-export function createDisplaySurfaceVertices(displayModel: DisplayModel): readonly RenderVertex[] {
+export function createRenderSurfaceVertices(scene: RenderScene): readonly RenderVertex[] {
     const vertices: RenderVertex[] = [];
 
-    for (const object of displayModel.objects) {
+    for (const object of scene.nodes) {
         if (!object.visible || object.kind !== 'surface-batch') {
             continue;
         }
@@ -22,10 +22,10 @@ export function createDisplaySurfaceVertices(displayModel: DisplayModel): readon
     return vertices;
 }
 
-export function createDisplayLineVertices(displayModel: DisplayModel): readonly LineVertex[] {
+export function createRenderLineVertices(scene: RenderScene): readonly LineVertex[] {
     const vertices: LineVertex[] = [];
 
-    for (const object of displayModel.objects) {
+    for (const object of scene.nodes) {
         if (object.visible && object.kind === 'line-batch') {
             appendDisplayLineSegments(vertices, object);
         }
@@ -34,10 +34,10 @@ export function createDisplayLineVertices(displayModel: DisplayModel): readonly 
     return vertices;
 }
 
-export function createDisplayPointVertices(displayModel: DisplayModel): readonly RenderVertex[] {
+export function createRenderPointVertices(scene: RenderScene): readonly RenderVertex[] {
     const vertices: RenderVertex[] = [];
 
-    for (const object of displayModel.objects) {
+    for (const object of scene.nodes) {
         if (!object.visible || object.kind !== 'point-batch') {
             continue;
         }
@@ -48,10 +48,10 @@ export function createDisplayPointVertices(displayModel: DisplayModel): readonly
     return vertices;
 }
 
-export function createDisplayMarkerVertices(displayModel: DisplayModel): readonly MarkerVertex[] {
+export function createRenderMarkerVertices(scene: RenderScene): readonly MarkerVertex[] {
     const vertices: MarkerVertex[] = [];
 
-    for (const object of displayModel.objects) {
+    for (const object of scene.nodes) {
         if (!object.visible || object.kind !== 'marker-batch') {
             continue;
         }
@@ -62,7 +62,7 @@ export function createDisplayMarkerVertices(displayModel: DisplayModel): readonl
     return vertices;
 }
 
-function appendMarkerBatch(vertices: MarkerVertex[], object: MarkerBatchDisplayObject): void {
+function appendMarkerBatch(vertices: MarkerVertex[], object: MarkerBatchRenderNode): void {
     for (const marker of object.markers) {
         vertices.push({
             position: marker.position,
@@ -73,7 +73,7 @@ function appendMarkerBatch(vertices: MarkerVertex[], object: MarkerBatchDisplayO
     }
 }
 
-function appendPointBatch(vertices: RenderVertex[], object: PointBatchDisplayObject): void {
+function appendPointBatch(vertices: RenderVertex[], object: PointBatchRenderNode): void {
     for (const point of object.points) {
         vertices.push({
             position: point,
@@ -83,7 +83,7 @@ function appendPointBatch(vertices: RenderVertex[], object: PointBatchDisplayObj
     }
 }
 
-function appendSurfaceBatch(vertices: RenderVertex[], object: SurfaceBatchDisplayObject): void {
+function appendSurfaceBatch(vertices: RenderVertex[], object: SurfaceBatchRenderNode): void {
     for (const triangle of object.triangles) {
         vertices.push(
             { position: triangle.a, color: object.color, alpha: object.opacity },

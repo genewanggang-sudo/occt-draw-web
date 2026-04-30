@@ -1,4 +1,4 @@
-import type { DisplayModel } from '@occt-draw/display';
+import type { RenderScene } from '@occt-draw/cad-rendering';
 import type {
     DocumentTransaction,
     EditDraft,
@@ -24,7 +24,7 @@ export interface CommandKeyEvent {
 }
 
 export interface CommandContext {
-    getDisplayModel(): DisplayModel;
+    getRenderScene(): RenderScene;
     getDraft(): EditDraft | null;
     getState(): EditorState;
     pick(point: ScreenPoint): SelectionTarget | null;

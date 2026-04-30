@@ -1,13 +1,13 @@
 export type RendererWebglModuleStatus = 'ready';
 
 export interface RendererWebglModuleManifest {
-    readonly name: '@occt-draw/renderer-webgl';
+    readonly name: '@occt-draw/webgl-engine';
     readonly status: RendererWebglModuleStatus;
     readonly summary: string;
 }
 
 export const RENDERER_WEBGL_MODULE_MANIFEST: RendererWebglModuleManifest = {
-    name: '@occt-draw/renderer-webgl',
+    name: '@occt-draw/webgl-engine',
     status: 'ready',
     summary: 'WebGL2 三维渲染后端，负责网格、边线、选择高亮和视窗绘制。',
 };

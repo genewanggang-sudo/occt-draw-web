@@ -1,11 +1,11 @@
-import type { DisplayModel, LabelFontWeight } from '@occt-draw/display';
+import type { RenderScene, LabelFontWeight } from './types';
 import type {
-    CadRenderer,
+    RenderEngine,
     NavigationDepthSample,
     NavigationDepthSampleInput,
     RenderFrameInput,
     ViewportSize,
-} from '@occt-draw/renderer';
+} from './types';
 import {
     createLabelAtlas,
     createLabelAtlasFontWeightSignature,
@@ -22,7 +22,7 @@ import {
 import { renderPipeline, type RenderPipelineResources } from './renderPipeline';
 import { createProgram } from './shaderProgram';
 
-export function createWebglRenderer(canvas: HTMLCanvasElement): CadRenderer {
+export function createWebglRenderer(canvas: HTMLCanvasElement): RenderEngine {
     const context = canvas.getContext('webgl2', {
         alpha: false,
         antialias: true,
@@ -33,10 +33,10 @@ export function createWebglRenderer(canvas: HTMLCanvasElement): CadRenderer {
         throw new Error('当前浏览器不支持 WebGL2');
     }
 
-    return new WebglCadRenderer(canvas, context);
+    return new WebglRenderEngine(canvas, context);
 }
 
-class WebglCadRenderer implements CadRenderer {
+class WebglRenderEngine implements RenderEngine {
     private readonly buffer: WebGLBuffer;
     private readonly canvas: HTMLCanvasElement;
     private readonly context: WebGL2RenderingContext;
@@ -154,7 +154,7 @@ class WebglCadRenderer implements CadRenderer {
 
     public render(input: RenderFrameInput): void {
         this.resize(input.viewportSize);
-        this.ensureLabelAtlas(input.displayModel);
+        this.ensureLabelAtlas(input.scene);
         this.context.bindFramebuffer(this.context.FRAMEBUFFER, null);
         renderPipeline(this.context, this.renderPipelineResources, input);
     }
@@ -172,8 +172,8 @@ class WebglCadRenderer implements CadRenderer {
         );
     }
 
-    private ensureLabelAtlas(displayModel: DisplayModel): void {
-        const fontWeights = collectLabelFontWeights(displayModel);
+    private ensureLabelAtlas(scene: RenderScene): void {
+        const fontWeights = collectLabelFontWeights(scene);
         const signature = createLabelAtlasFontWeightSignature(fontWeights);
 
         if (signature === this.labelAtlasFontWeightSignature) {
@@ -281,11 +281,11 @@ function createLabelVertexArray(
     return vertexArray;
 }
 
-function collectLabelFontWeights(displayModel: DisplayModel): readonly LabelFontWeight[] {
+function collectLabelFontWeights(scene: RenderScene): readonly LabelFontWeight[] {
     const seen = new Set<LabelFontWeight>();
     const fontWeights: LabelFontWeight[] = [];
 
-    for (const object of displayModel.objects) {
+    for (const object of scene.nodes) {
         if (!object.visible || object.kind !== 'label-batch') {
             continue;
         }

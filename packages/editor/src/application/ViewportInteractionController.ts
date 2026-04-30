@@ -1,4 +1,4 @@
-import type { DisplayModel } from '@occt-draw/display';
+import type { RenderScene } from '@occt-draw/cad-rendering';
 import {
     getBoundingBoxCorners,
     type BoundingBox3,
@@ -8,7 +8,7 @@ import {
     type NavigationDepthSampleInput,
     type StandardCameraView,
     type ViewportSize,
-} from '@occt-draw/renderer';
+} from '@occt-draw/webgl-engine';
 import {
     addVector3,
     crossVector3,
@@ -34,7 +34,7 @@ import { ViewNavigationController } from './ViewNavigationController';
 export interface ViewportInteractionContext {
     readonly getActiveCommandId: () => CommandId;
     readonly getDisplayBounds: () => BoundingBox3;
-    readonly getDisplayModel: () => DisplayModel;
+    readonly getRenderScene: () => RenderScene;
     readonly getDisplaySphere: () => BoundingSphere;
     readonly getState: () => EditorState;
     readonly pickService: PickService;
@@ -208,19 +208,19 @@ export class ViewportInteractionController {
                 stepPixels: 1,
             },
             camera: state.navigation.camera,
-            displayModel: this.context.getDisplayModel(),
+            scene: this.context.getRenderScene(),
             viewportSize: state.navigation.viewportSize,
-        } satisfies Omit<NavigationDepthSampleInput, 'includePlanes'>;
+        } satisfies Omit<NavigationDepthSampleInput, 'includeSecondary'>;
         const modelSamples = this.context.sampleNavigationDepths({
             ...sampleInput,
-            includePlanes: false,
+            includeSecondary: false,
         });
         const samples =
             modelSamples.length > 0
                 ? modelSamples
                 : this.context.sampleNavigationDepths({
                       ...sampleInput,
-                      includePlanes: true,
+                      includeSecondary: true,
                   });
 
         const nearest = [...samples].sort((left, right) => {
@@ -245,7 +245,7 @@ export class ViewportInteractionController {
 
     private getRotateCenterBasedOnWindowDepths(
         state: EditorState,
-        includePlanes: boolean,
+        includeSecondary: boolean,
     ): Vector3 | null {
         const samples = this.context.sampleNavigationDepths({
             area: {
@@ -256,8 +256,8 @@ export class ViewportInteractionController {
                 ),
             },
             camera: state.navigation.camera,
-            displayModel: this.context.getDisplayModel(),
-            includePlanes,
+            scene: this.context.getRenderScene(),
+            includeSecondary,
             viewportSize: state.navigation.viewportSize,
         });
 
@@ -410,7 +410,7 @@ export class ViewportInteractionController {
 
     private createCommandContext(stateOverride?: EditorState): CommandContext {
         return {
-            getDisplayModel: () => this.context.getDisplayModel(),
+            getRenderScene: () => this.context.getRenderScene(),
             getDraft: () => (stateOverride ?? this.context.getState()).draft,
             getState: () => stateOverride ?? this.context.getState(),
             pick: (point: ScreenPoint) => {
@@ -418,7 +418,7 @@ export class ViewportInteractionController {
 
                 return this.context.pickService.pickSelectionTarget({
                     camera: state.navigation.camera,
-                    displayModel: this.context.getDisplayModel(),
+                    scene: this.context.getRenderScene(),
                     point,
                     thresholdPixels: PICK_THRESHOLD_PIXELS,
                     viewportSize: state.navigation.viewportSize,

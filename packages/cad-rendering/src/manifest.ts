@@ -1,13 +1,13 @@
 export type DisplayModuleStatus = 'ready';
 
 export interface DisplayModuleManifest {
-    readonly name: '@occt-draw/display';
+    readonly name: '@occt-draw/cad-rendering';
     readonly status: DisplayModuleStatus;
     readonly summary: string;
 }
 
 export const DISPLAY_MODULE_MANIFEST: DisplayModuleManifest = {
-    name: '@occt-draw/display',
+    name: '@occt-draw/cad-rendering',
     status: 'ready',
     summary: '显示模型投影层，负责把 CAD 文档和临时编辑层转换成可渲染数据。',
 };

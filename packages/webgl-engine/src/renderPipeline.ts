@@ -1,11 +1,11 @@
-import type { RenderFrameInput } from '@occt-draw/renderer';
+import type { RenderFrameInput } from './types';
 import type { LabelAtlas } from './labelAtlas';
 import { createDisplayLabelVertices, toLabelVertexBuffer } from './labelGeometry';
 import {
-    createDisplayLineVertices,
-    createDisplayMarkerVertices,
-    createDisplayPointVertices,
-    createDisplaySurfaceVertices,
+    createRenderLineVertices,
+    createRenderMarkerVertices,
+    createRenderPointVertices,
+    createRenderSurfaceVertices,
     toVertexBuffer,
 } from './lineGeometry';
 import { createViewProjectionMatrix } from './matrix';
@@ -40,14 +40,14 @@ export function renderPipeline(
     input: RenderFrameInput,
 ): void {
     const matrix = createViewProjectionMatrix(input.camera, input.viewportSize);
-    const surfaceVertices = createDisplaySurfaceVertices(input.displayModel);
-    const lineVertices = createDisplayLineVertices(input.displayModel);
-    const pointVertices = createDisplayPointVertices(input.displayModel);
-    const markerVertices = createDisplayMarkerVertices(input.displayModel);
+    const surfaceVertices = createRenderSurfaceVertices(input.scene);
+    const lineVertices = createRenderLineVertices(input.scene);
+    const pointVertices = createRenderPointVertices(input.scene);
+    const markerVertices = createRenderMarkerVertices(input.scene);
     const labelVertices = createDisplayLabelVertices({
         atlas: { glyphs: resources.labelAtlasGlyphs },
         camera: input.camera,
-        displayModel: input.displayModel,
+        scene: input.scene,
         viewportSize: input.viewportSize,
     });
 

@@ -8,7 +8,7 @@ import {
     subtractVector3,
     type Vector3,
 } from '@occt-draw/math';
-import type { BoundingSphere, CameraState, ViewportSize } from '@occt-draw/renderer';
+import type { BoundingSphere, CameraState, ViewportSize } from '@occt-draw/webgl-engine';
 
 export interface ScreenPoint {
     readonly x: number;

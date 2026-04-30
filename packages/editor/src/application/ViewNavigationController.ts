@@ -18,7 +18,7 @@ import {
     type CameraState,
     type StandardCameraView,
     type ViewportSize,
-} from '@occt-draw/renderer';
+} from '@occt-draw/webgl-engine';
 
 export class ViewNavigationController {
     private readonly state: ViewNavigationState;

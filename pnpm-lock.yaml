@@ -62,6 +62,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@occt-draw/cad-rendering':
+        specifier: workspace:*
+        version: link:../../packages/cad-rendering
       '@occt-draw/cloud-client':
         specifier: workspace:*
         version: link:../../packages/cloud-client
@@ -71,9 +74,6 @@ importers:
       '@occt-draw/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@occt-draw/display':
-        specifier: workspace:*
-        version: link:../../packages/display
       '@occt-draw/editor':
         specifier: workspace:*
         version: link:../../packages/editor
@@ -83,12 +83,6 @@ importers:
       '@occt-draw/parametrics':
         specifier: workspace:*
         version: link:../../packages/parametrics
-      '@occt-draw/renderer':
-        specifier: workspace:*
-        version: link:../../packages/renderer
-      '@occt-draw/renderer-webgl':
-        specifier: workspace:*
-        version: link:../../packages/renderer-webgl
       '@occt-draw/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -98,12 +92,33 @@ importers:
       '@occt-draw/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@occt-draw/webgl-engine':
+        specifier: workspace:*
+        version: link:../../packages/webgl-engine
       react:
         specifier: ^19.2.0
         version: 19.2.5
       react-dom:
         specifier: ^19.2.0
         version: 19.2.5(react@19.2.5)
+
+  packages/cad-rendering:
+    dependencies:
+      '@occt-draw/core':
+        specifier: workspace:*
+        version: link:../core
+      '@occt-draw/math':
+        specifier: workspace:*
+        version: link:../math
+      '@occt-draw/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@occt-draw/sketch':
+        specifier: workspace:*
+        version: link:../sketch
+      '@occt-draw/webgl-engine':
+        specifier: workspace:*
+        version: link:../webgl-engine
 
   packages/cloud-client:
     dependencies:
@@ -140,41 +155,26 @@ importers:
         specifier: workspace:*
         version: link:../shared
 
-  packages/display:
-    dependencies:
-      '@occt-draw/core':
-        specifier: workspace:*
-        version: link:../core
-      '@occt-draw/math':
-        specifier: workspace:*
-        version: link:../math
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
-      '@occt-draw/sketch':
-        specifier: workspace:*
-        version: link:../sketch
-
   packages/editor:
     dependencies:
+      '@occt-draw/cad-rendering':
+        specifier: workspace:*
+        version: link:../cad-rendering
       '@occt-draw/core':
         specifier: workspace:*
         version: link:../core
-      '@occt-draw/display':
-        specifier: workspace:*
-        version: link:../display
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math
-      '@occt-draw/renderer':
-        specifier: workspace:*
-        version: link:../renderer
       '@occt-draw/shared':
         specifier: workspace:*
         version: link:../shared
       '@occt-draw/sketch':
         specifier: workspace:*
         version: link:../sketch
+      '@occt-draw/webgl-engine':
+        specifier: workspace:*
+        version: link:../webgl-engine
 
   packages/math:
     dependencies:
@@ -192,33 +192,6 @@ importers:
         version: link:../shared
 
   packages/protocol: {}
-
-  packages/renderer:
-    dependencies:
-      '@occt-draw/display':
-        specifier: workspace:*
-        version: link:../display
-      '@occt-draw/math':
-        specifier: workspace:*
-        version: link:../math
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
-
-  packages/renderer-webgl:
-    dependencies:
-      '@occt-draw/display':
-        specifier: workspace:*
-        version: link:../display
-      '@occt-draw/math':
-        specifier: workspace:*
-        version: link:../math
-      '@occt-draw/renderer':
-        specifier: workspace:*
-        version: link:../renderer
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
 
   packages/shared: {}
 
@@ -244,6 +217,15 @@ importers:
         version: 19.2.5(react@19.2.5)
 
   packages/wasm-bridge: {}
+
+  packages/webgl-engine:
+    dependencies:
+      '@occt-draw/math':
+        specifier: workspace:*
+        version: link:../math
+      '@occt-draw/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/worker-client:
     dependencies:

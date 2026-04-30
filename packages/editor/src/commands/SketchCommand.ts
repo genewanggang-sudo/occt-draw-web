@@ -7,7 +7,7 @@ import {
 } from '@occt-draw/core';
 import { addVector3, scaleVector3 } from '@occt-draw/math';
 import { createSketchOnReferencePlane } from '@occt-draw/sketch';
-import type { CameraState } from '@occt-draw/renderer';
+import type { CameraState } from '@occt-draw/webgl-engine';
 import {
     CadCommand,
     createHandledCommandResult,

@@ -1,5 +1,5 @@
 import { crossVector3, normalizeVector3, subtractVector3, type Vector3 } from '@occt-draw/math';
-import type { CameraState, ViewportSize } from '@occt-draw/renderer';
+import type { CameraState, ViewportSize } from './types';
 import type { Matrix4 } from './types';
 
 export function createViewProjectionMatrix(

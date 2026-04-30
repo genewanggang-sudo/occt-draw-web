@@ -1,4 +1,4 @@
-import type { DisplayModel, LabelBatchDisplayObject, LabelDisplayItem } from '@occt-draw/display';
+import type { RenderScene, LabelBatchRenderNode, LabelDisplayItem } from './types';
 import {
     addVector3,
     normalizeVector3,
@@ -6,7 +6,7 @@ import {
     subtractVector3,
     type Vector3,
 } from '@occt-draw/math';
-import type { CameraState, ViewportSize } from '@occt-draw/renderer';
+import type { CameraState, ViewportSize } from './types';
 import {
     createLabelGlyphKey,
     DEFAULT_LABEL_FONT_WEIGHT,
@@ -36,18 +36,18 @@ interface TextFrameBasis {
 export function createDisplayLabelVertices({
     atlas,
     camera,
-    displayModel,
+    scene,
     viewportSize,
 }: {
     readonly atlas: Pick<LabelAtlas, 'glyphs'>;
     readonly camera: CameraState;
-    readonly displayModel: DisplayModel;
+    readonly scene: RenderScene;
     readonly viewportSize: ViewportSize;
 }): readonly LabelVertex[] {
     const vertices: LabelVertex[] = [];
     const worldUnitsPerPixel = calculateWorldUnitsPerPixel(camera, viewportSize);
 
-    for (const object of displayModel.objects) {
+    for (const object of scene.nodes) {
         if (!object.visible || object.kind !== 'label-batch') {
             continue;
         }
@@ -80,7 +80,7 @@ export function toLabelVertexBuffer(vertices: readonly LabelVertex[]): Float32Ar
 
 function appendLabelBatch(
     vertices: LabelVertex[],
-    object: LabelBatchDisplayObject,
+    object: LabelBatchRenderNode,
     atlas: Pick<LabelAtlas, 'glyphs'>,
     worldUnitsPerPixel: number,
 ): void {
