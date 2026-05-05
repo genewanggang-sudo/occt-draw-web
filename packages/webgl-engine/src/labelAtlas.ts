@@ -24,7 +24,20 @@ export interface LabelAtlas {
 
 export const DEFAULT_LABEL_FONT_WEIGHT: LabelFontWeight = 400;
 
-const LABEL_TEXTS = ['Top', 'Front', 'Right'] as const;
+const LABEL_TEXTS = [
+    'Top',
+    'Front',
+    'Right',
+    '上',
+    '下',
+    '前',
+    '后',
+    '右',
+    '左',
+    'X',
+    'Y',
+    'Z',
+] as const;
 const GLYPH_SIZE_PIXELS = 24;
 const TEXTURE_SCALE = 4;
 const CELL_PADDING_PIXELS = 8;
@@ -61,7 +74,7 @@ export function createLabelAtlas(
     normalizedFontWeights.forEach((fontWeight, rowIndex) => {
         canvasContext.font = `${String(fontWeight)} ${String(
             GLYPH_SIZE_PIXELS * TEXTURE_SCALE,
-        )}px Arial, sans-serif`;
+        )}px "Microsoft YaHei UI", "PingFang SC", Arial, sans-serif`;
 
         LABEL_TEXTS.forEach((text, columnIndex) => {
             const cellX = columnIndex * CELL_WIDTH;

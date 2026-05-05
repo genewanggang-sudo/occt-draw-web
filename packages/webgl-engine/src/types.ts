@@ -145,6 +145,7 @@ export interface RenderFrameInput {
     readonly scene: RenderScene;
     readonly highlight: RenderHighlightState;
     readonly viewportSize: ViewportSize;
+    readonly viewCube?: ViewCubeRenderInput;
 }
 
 export interface RenderHighlightState {
@@ -205,6 +206,29 @@ export interface RenderEngine {
     render(input: RenderFrameInput): void;
     resize(viewportSize: ViewportSize): void;
     sampleNavigationDepths(input: NavigationDepthSampleInput): readonly NavigationDepthSample[];
+}
+
+export type ViewCubeArrowCommand =
+    | 'arrow-ccw'
+    | 'arrow-cw'
+    | 'arrow-down'
+    | 'arrow-left'
+    | 'arrow-right'
+    | 'arrow-up';
+export type ViewCubeFaceId = 'back' | 'bottom' | 'front' | 'left' | 'right' | 'top';
+export type ViewCubeCornerId =
+    | 'left-back-bottom'
+    | 'left-back-top'
+    | 'left-front-bottom'
+    | 'left-front-top'
+    | 'right-back-bottom'
+    | 'right-back-top'
+    | 'right-front-bottom'
+    | 'right-front-top';
+export type ViewCubeTargetId = ViewCubeArrowCommand | ViewCubeCornerId | ViewCubeFaceId;
+
+export interface ViewCubeRenderInput {
+    readonly hoveredTargetId: ViewCubeTargetId | null;
 }
 
 export interface Vector2 {

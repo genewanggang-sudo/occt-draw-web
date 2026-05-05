@@ -19,24 +19,121 @@ import type { BoundingBox3, CameraState, ScreenPoint2, ViewportSize } from './ty
 export type StandardCameraView =
     | 'back'
     | 'bottom'
+    | 'bottom-back'
+    | 'bottom-front'
+    | 'bottom-left'
+    | 'bottom-right'
     | 'front'
+    | 'front-left'
+    | 'front-left-bottom'
+    | 'front-left-top'
+    | 'front-right'
+    | 'front-right-bottom'
+    | 'front-right-top'
+    | 'home'
     | 'isometric'
     | 'left'
+    | 'left-back'
+    | 'left-back-bottom'
+    | 'left-back-top'
     | 'right'
+    | 'right-back'
+    | 'right-back-bottom'
+    | 'right-back-top'
     | 'top'
+    | 'top-back'
+    | 'top-front'
+    | 'top-left'
+    | 'top-right'
     | 'trimetric';
 
-interface StandardCameraFrame {
+export interface StandardCameraFrame {
     readonly up: Vector3;
     readonly viewDirection: Vector3;
 }
 
-const SQRT_ONE_THIRD = Math.sqrt(1 / 3);
-const SQRT_ONE_SIXTH = Math.sqrt(1 / 6);
-const TRIMETRIC_VIEW_DIRECTION = createVector3(Math.sqrt(3) / 4, -3 / 4, 1 / 2);
-const TRIMETRIC_UP = createVector3(-1 / 4, Math.sqrt(3) / 4, Math.sqrt(3) / 2);
-const ISOMETRIC_VIEW_DIRECTION = createVector3(SQRT_ONE_THIRD, -SQRT_ONE_THIRD, SQRT_ONE_THIRD);
-const ISOMETRIC_UP = createVector3(-SQRT_ONE_SIXTH, SQRT_ONE_SIXTH, 2 * SQRT_ONE_SIXTH);
+const TRIMETRIC_TOP_RIGHT_FRONT_FRAME = createTrimetricCornerFrame(0, true);
+const TRIMETRIC_TOP_RIGHT_BACK_FRAME = createTrimetricCornerFrame(1, true);
+const TRIMETRIC_TOP_LEFT_BACK_FRAME = createTrimetricCornerFrame(2, true);
+const TRIMETRIC_TOP_LEFT_FRONT_FRAME = createTrimetricCornerFrame(3, true);
+const TRIMETRIC_BOTTOM_RIGHT_FRONT_FRAME = createTrimetricCornerFrame(0, false);
+const TRIMETRIC_BOTTOM_RIGHT_BACK_FRAME = createTrimetricCornerFrame(1, false);
+const TRIMETRIC_BOTTOM_LEFT_BACK_FRAME = createTrimetricCornerFrame(2, false);
+const TRIMETRIC_BOTTOM_LEFT_FRONT_FRAME = createTrimetricCornerFrame(3, false);
+const TRIMETRIC_VIEW_DIRECTION = TRIMETRIC_TOP_RIGHT_FRONT_FRAME.viewDirection;
+const TRIMETRIC_UP = TRIMETRIC_TOP_RIGHT_FRONT_FRAME.up;
+const STANDARD_CORNER_FRAMES: Readonly<Partial<Record<StandardCameraView, StandardCameraFrame>>> = {
+    'front-left-bottom': TRIMETRIC_BOTTOM_LEFT_FRONT_FRAME,
+    'front-left-top': TRIMETRIC_TOP_LEFT_FRONT_FRAME,
+    'front-right-bottom': TRIMETRIC_BOTTOM_RIGHT_FRONT_FRAME,
+    'front-right-top': TRIMETRIC_TOP_RIGHT_FRONT_FRAME,
+    'left-back-bottom': TRIMETRIC_BOTTOM_LEFT_BACK_FRAME,
+    'left-back-top': TRIMETRIC_TOP_LEFT_BACK_FRAME,
+    'right-back-bottom': TRIMETRIC_BOTTOM_RIGHT_BACK_FRAME,
+    'right-back-top': TRIMETRIC_TOP_RIGHT_BACK_FRAME,
+};
+const STANDARD_FACE_FRAMES: Readonly<Partial<Record<StandardCameraView, StandardCameraFrame>>> = {
+    back: {
+        up: createVector3(0, 0, 1),
+        viewDirection: createVector3(0, 1, 0),
+    },
+    bottom: {
+        up: createVector3(0, -1, 0),
+        viewDirection: createVector3(0, 0, -1),
+    },
+    front: {
+        up: createVector3(0, 0, 1),
+        viewDirection: createVector3(0, -1, 0),
+    },
+    left: {
+        up: createVector3(0, 0, 1),
+        viewDirection: createVector3(-1, 0, 0),
+    },
+    right: {
+        up: createVector3(0, 0, 1),
+        viewDirection: createVector3(1, 0, 0),
+    },
+    top: {
+        up: createVector3(0, 1, 0),
+        viewDirection: createVector3(0, 0, 1),
+    },
+};
+
+const STANDARD_VIEW_DIRECTIONS: Readonly<Record<StandardCameraView, Vector3>> = {
+    back: createVector3(0, 1, 0),
+    bottom: createVector3(0, 0, -1),
+    'bottom-back': createVector3(0, 1, -1),
+    'bottom-front': createVector3(0, -1, -1),
+    'bottom-left': createVector3(-1, 0, -1),
+    'bottom-right': createVector3(1, 0, -1),
+    front: createVector3(0, -1, 0),
+    'front-left': createVector3(-1, -1, 0),
+    'front-left-bottom': TRIMETRIC_BOTTOM_LEFT_FRONT_FRAME.viewDirection,
+    'front-left-top': TRIMETRIC_TOP_LEFT_FRONT_FRAME.viewDirection,
+    'front-right': createVector3(1, -1, 0),
+    'front-right-bottom': TRIMETRIC_BOTTOM_RIGHT_FRONT_FRAME.viewDirection,
+    'front-right-top': TRIMETRIC_TOP_RIGHT_FRONT_FRAME.viewDirection,
+    home: TRIMETRIC_VIEW_DIRECTION,
+    isometric: createVector3(Math.sqrt(1 / 3), -Math.sqrt(1 / 3), Math.sqrt(1 / 3)),
+    left: createVector3(-1, 0, 0),
+    'left-back': createVector3(-1, 1, 0),
+    'left-back-bottom': TRIMETRIC_BOTTOM_LEFT_BACK_FRAME.viewDirection,
+    'left-back-top': TRIMETRIC_TOP_LEFT_BACK_FRAME.viewDirection,
+    right: createVector3(1, 0, 0),
+    'right-back': createVector3(1, 1, 0),
+    'right-back-bottom': TRIMETRIC_BOTTOM_RIGHT_BACK_FRAME.viewDirection,
+    'right-back-top': TRIMETRIC_TOP_RIGHT_BACK_FRAME.viewDirection,
+    top: createVector3(0, 0, 1),
+    'top-back': createVector3(0, 1, 1),
+    'top-front': createVector3(0, -1, 1),
+    'top-left': createVector3(-1, 0, 1),
+    'top-right': createVector3(1, 0, 1),
+    trimetric: TRIMETRIC_VIEW_DIRECTION,
+};
+
+const ISOMETRIC_UP = createVector3(-Math.sqrt(1 / 6), Math.sqrt(1 / 6), 2 * Math.sqrt(1 / 6));
+const WORLD_UP = createVector3(0, 0, 1);
+const TOP_BOTTOM_UP = createVector3(0, 1, 0);
 
 export const DEFAULT_CAMERA_STATE: CameraState = {
     projection: 'orthographic',
@@ -65,13 +162,59 @@ export function createStandardCameraState(
     view: StandardCameraView,
     viewportSize?: ViewportSize,
 ): CameraState {
-    const baseCamera = createCameraFromView(bounds, view);
+    const baseCamera = createCameraStateFromFrame(bounds, getStandardCameraFrame(view));
 
     if (!viewportSize) {
         return baseCamera;
     }
 
     return fitCameraToBounds(baseCamera, bounds, viewportSize);
+}
+
+export function createCameraStateFromFrame(
+    bounds: BoundingBox3,
+    frame: StandardCameraFrame,
+    viewportSize?: ViewportSize,
+): CameraState {
+    const baseCamera = createCameraFromFrame(bounds, frame);
+
+    if (!viewportSize) {
+        return baseCamera;
+    }
+
+    return fitCameraToBounds(baseCamera, bounds, viewportSize);
+}
+
+export function getStandardCameraFrame(view: StandardCameraView): StandardCameraFrame {
+    const faceFrame = STANDARD_FACE_FRAMES[view];
+
+    if (faceFrame) {
+        return cloneStandardCameraFrame(faceFrame);
+    }
+
+    const cornerFrame = STANDARD_CORNER_FRAMES[view];
+
+    if (cornerFrame) {
+        return cloneStandardCameraFrame(cornerFrame);
+    }
+
+    if (view === 'trimetric' || view === 'home') {
+        return cloneStandardCameraFrame({
+            up: TRIMETRIC_UP,
+            viewDirection: TRIMETRIC_VIEW_DIRECTION,
+        });
+    }
+
+    if (view === 'isometric') {
+        return {
+            up: createVector3(ISOMETRIC_UP.x, ISOMETRIC_UP.y, ISOMETRIC_UP.z),
+            viewDirection: normalizeVector3(STANDARD_VIEW_DIRECTIONS.isometric),
+        };
+    }
+
+    const direction = STANDARD_VIEW_DIRECTIONS[view];
+
+    return createStandardCameraFrame(direction, WORLD_UP);
 }
 
 export function fitCameraToBounds(
@@ -230,9 +373,8 @@ export function canvasDepthToWorld(
     );
 }
 
-function createCameraFromView(bounds: BoundingBox3, view: StandardCameraView): CameraState {
+function createCameraFromFrame(bounds: BoundingBox3, frame: StandardCameraFrame): CameraState {
     const sphere = calculateBoundingSphere(bounds);
-    const frame = getStandardViewFrame(view);
     const distance = sphere.radius * 3.5;
 
     return {
@@ -247,59 +389,53 @@ function createCameraFromView(bounds: BoundingBox3, view: StandardCameraView): C
     };
 }
 
-function getStandardViewFrame(view: StandardCameraView): StandardCameraFrame {
-    if (view === 'front') {
-        return {
-            up: createVector3(0, 0, 1),
-            viewDirection: createVector3(0, 1, 0),
-        };
-    }
+function cloneStandardCameraFrame(frame: StandardCameraFrame): StandardCameraFrame {
+    return {
+        up: createVector3(frame.up.x, frame.up.y, frame.up.z),
+        viewDirection: createVector3(
+            frame.viewDirection.x,
+            frame.viewDirection.y,
+            frame.viewDirection.z,
+        ),
+    };
+}
 
-    if (view === 'back') {
-        return {
-            up: createVector3(0, 0, 1),
-            viewDirection: createVector3(0, -1, 0),
-        };
-    }
-
-    if (view === 'right') {
-        return {
-            up: createVector3(0, 0, 1),
-            viewDirection: createVector3(1, 0, 0),
-        };
-    }
-
-    if (view === 'left') {
-        return {
-            up: createVector3(0, 0, 1),
-            viewDirection: createVector3(-1, 0, 0),
-        };
-    }
-
-    if (view === 'top') {
-        return {
-            up: createVector3(0, 1, 0),
-            viewDirection: createVector3(0, 0, 1),
-        };
-    }
-
-    if (view === 'bottom') {
-        return {
-            up: createVector3(0, 1, 0),
-            viewDirection: createVector3(0, 0, -1),
-        };
-    }
-
-    if (view === 'isometric') {
-        return {
-            up: ISOMETRIC_UP,
-            viewDirection: ISOMETRIC_VIEW_DIRECTION,
-        };
-    }
+function createTrimetricCornerFrame(turnIndex: number, isTop: boolean): StandardCameraFrame {
+    const horizontalAngle = turnIndex * (Math.PI / 2) + Math.PI / 6;
+    const verticalAngle = isTop ? Math.PI / 3 : (Math.PI * 2) / 3;
+    const sinHorizontal = Math.sin(horizontalAngle);
+    const cosHorizontal = Math.cos(horizontalAngle);
+    const sinVertical = Math.sin(verticalAngle);
+    const cosVertical = Math.cos(verticalAngle);
 
     return {
-        up: TRIMETRIC_UP,
-        viewDirection: TRIMETRIC_VIEW_DIRECTION,
+        up: createVector3(-sinHorizontal * cosVertical, cosHorizontal * cosVertical, sinVertical),
+        viewDirection: createVector3(
+            sinHorizontal * sinVertical,
+            -cosHorizontal * sinVertical,
+            cosVertical,
+        ),
+    };
+}
+
+function createStandardCameraFrame(
+    viewDirection: Vector3,
+    preferredUp: Vector3,
+): StandardCameraFrame {
+    const view = normalizeVector3(viewDirection);
+    const projectedUp = subtractVector3(
+        preferredUp,
+        scaleVector3(view, dotVector3(preferredUp, view)),
+    );
+    const up =
+        Math.hypot(projectedUp.x, projectedUp.y, projectedUp.z) > 1e-6
+            ? normalizeVector3(projectedUp)
+            : TOP_BOTTOM_UP;
+    const right = normalizeVector3(crossVector3(up, view));
+
+    return {
+        up: normalizeVector3(crossVector3(view, right)),
+        viewDirection: view,
     };
 }
 

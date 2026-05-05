@@ -10,6 +10,7 @@ import {
 } from './lineGeometry';
 import { createViewProjectionMatrix } from './matrix';
 import type { LabelVertex, MarkerVertex, RenderVertex } from './types';
+import { renderViewCubeOverlay } from './viewCube';
 
 export interface RenderPipelineResources {
     readonly alphaLocation: number;
@@ -77,6 +78,14 @@ export function renderPipeline(
     context.depthMask(true);
     context.disable(context.BLEND);
     context.bindVertexArray(null);
+
+    if (input.viewCube) {
+        renderViewCubeOverlay(context, resources, {
+            camera: input.camera,
+            hoveredTargetId: input.viewCube.hoveredTargetId,
+            viewportSize: input.viewportSize,
+        });
+    }
 }
 
 function drawVertices(

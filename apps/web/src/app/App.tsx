@@ -6,7 +6,9 @@ import {
     EditorController,
     evaluateCommandAvailabilityMap,
     getCommandLabel,
+    interpolateCameraState,
     PickService,
+    rotateCameraByViewCubeArrow,
     ViewNavigationController,
     ViewportInteractionController,
     type EditorKeyInput,
@@ -14,6 +16,7 @@ import {
     type EditorState,
     type EditorWheelInput,
     type ScreenPoint,
+    type ViewCubeRotationStep,
 } from '@occt-draw/editor';
 import {
     calculateRenderSceneNavigationBoundingBox,
@@ -21,8 +24,11 @@ import {
     createStandardCameraState,
     type RenderEngine,
     type RenderHighlightState,
+    type StandardCameraView,
+    type ViewCubeArrowCommand,
+    type ViewCubeTargetId,
 } from '@occt-draw/webgl-engine';
-import { createWebglRenderer } from '@occt-draw/webgl-engine';
+import { createWebglRenderer, hitTestViewCube } from '@occt-draw/webgl-engine';
 import { APP_NAME } from '@occt-draw/shared';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ViewportInputAdapter } from '../editor/application/ViewportInputAdapter';
@@ -34,6 +40,31 @@ import { ModelTreePanel } from '../editor/workbench/ModelTreePanel';
 import { WorkbenchLayout } from '../editor/workbench/WorkbenchLayout';
 
 const INITIAL_VIEWPORT_SIZE = { width: 1, height: 1 } as const;
+const VIEW_CUBE_CLICK_DISTANCE = 4;
+const VIEW_CUBE_STANDARD_VIEWS: Readonly<Partial<Record<ViewCubeTargetId, StandardCameraView>>> = {
+    back: 'back',
+    bottom: 'bottom',
+    front: 'front',
+    left: 'left',
+    'left-back-bottom': 'left-back-bottom',
+    'left-back-top': 'left-back-top',
+    'left-front-bottom': 'front-left-bottom',
+    'left-front-top': 'front-left-top',
+    right: 'right',
+    'right-back-bottom': 'right-back-bottom',
+    'right-back-top': 'right-back-top',
+    'right-front-bottom': 'front-right-bottom',
+    'right-front-top': 'front-right-top',
+    top: 'top',
+};
+const VIEW_CUBE_ARROW_TARGETS = new Set<ViewCubeTargetId>([
+    'arrow-ccw',
+    'arrow-cw',
+    'arrow-down',
+    'arrow-left',
+    'arrow-right',
+    'arrow-up',
+]);
 
 export function App() {
     const appTitle = import.meta.env.VITE_APP_TITLE || APP_NAME;
@@ -55,6 +86,14 @@ export function App() {
         });
     });
     const [rendererStatus, setRendererStatus] = useState('正在初始化 WebGL2');
+    const [hoveredViewCubeTargetId, setHoveredViewCubeTargetId] = useState<ViewCubeTargetId | null>(
+        null,
+    );
+    const viewCubePointerRef = useRef<null | {
+        readonly pointerId: number;
+        readonly point: ScreenPoint;
+        readonly targetId: ViewCubeTargetId;
+    }>(null);
 
     const activePartStudio = useMemo(
         () => getActivePartStudio(editorState.document),
@@ -113,6 +152,7 @@ export function App() {
         [editorState.activeSketchSession, selectedObjectIds, selectedReferencePlaneCount],
     );
 
+    const navigationAnimationRef = useRef<number | null>(null);
     const editorStateRef = useRef(editorState);
     const renderSceneRef = useRef(renderScene);
     const displayBoundsRef = useRef(displayBounds);
@@ -126,6 +166,174 @@ export function App() {
         displaySphereRef.current = displaySphere;
         activeCommandIdRef.current = activeCommandId;
     }, [activeCommandId, displayBounds, renderScene, displaySphere, editorState]);
+
+    useEffect(
+        () => () => {
+            stopNavigationAnimation();
+        },
+        [],
+    );
+
+    function stopNavigationAnimation(): void {
+        const animationFrame = navigationAnimationRef.current;
+
+        if (animationFrame !== null) {
+            window.cancelAnimationFrame(animationFrame);
+            navigationAnimationRef.current = null;
+        }
+    }
+
+    function animateNavigationCamera(
+        targetCamera: EditorState['navigation']['camera'],
+        durationMs: number,
+    ): void {
+        stopNavigationAnimation();
+
+        const startCamera = editorStateRef.current.navigation.camera;
+        const startTime = performance.now();
+
+        const animate = (now: number) => {
+            const progress = Math.min((now - startTime) / durationMs, 1);
+            const easedProgress = 1 - Math.pow(1 - progress, 3);
+            const camera =
+                progress >= 1
+                    ? targetCamera
+                    : interpolateCameraState(startCamera, targetCamera, easedProgress);
+
+            setEditorState((current) => {
+                const navigation = new ViewNavigationController(current.navigation).setCamera(
+                    camera,
+                    displaySphereRef.current,
+                    displayBoundsRef.current,
+                );
+
+                return {
+                    ...current,
+                    navigation,
+                };
+            });
+
+            if (progress < 1) {
+                navigationAnimationRef.current = window.requestAnimationFrame(animate);
+            } else {
+                navigationAnimationRef.current = null;
+            }
+        };
+
+        navigationAnimationRef.current = window.requestAnimationFrame(animate);
+    }
+
+    function animateStandardView(view: StandardCameraView, durationMs = 180): void {
+        const current = editorStateRef.current;
+        const navigation = new ViewNavigationController(current.navigation).setStandardView(
+            displayBoundsRef.current,
+            displaySphereRef.current,
+            view,
+        );
+
+        animateNavigationCamera(navigation.camera, durationMs);
+    }
+
+    function animateFitView(durationMs = 140): void {
+        const current = editorStateRef.current;
+        const navigation = new ViewNavigationController(current.navigation).fit(
+            displayBoundsRef.current,
+            displaySphereRef.current,
+        );
+
+        animateNavigationCamera(navigation.camera, durationMs);
+    }
+
+    function animateViewCubeArrow(command: ViewCubeArrowCommand, step: ViewCubeRotationStep): void {
+        const current = editorStateRef.current;
+        const camera = rotateCameraByViewCubeArrow(
+            current.navigation.camera,
+            current.navigation.orbitPivot,
+            command,
+            step,
+        );
+        const navigation = new ViewNavigationController(current.navigation).setCamera(
+            camera,
+            displaySphereRef.current,
+            displayBoundsRef.current,
+        );
+
+        animateNavigationCamera(navigation.camera, 140);
+    }
+
+    function hitTestCurrentViewCube(point: ScreenPoint): ViewCubeTargetId | null {
+        return hitTestViewCube({
+            camera: editorStateRef.current.navigation.camera,
+            point,
+            viewportSize: editorStateRef.current.navigation.viewportSize,
+        });
+    }
+
+    function handleViewCubePointerMove(point: ScreenPoint): boolean {
+        const targetId = hitTestCurrentViewCube(point);
+
+        setHoveredViewCubeTargetId(targetId);
+
+        return targetId !== null || viewCubePointerRef.current !== null;
+    }
+
+    function handleViewCubePointerDown(pointerId: number, point: ScreenPoint): boolean {
+        const targetId = hitTestCurrentViewCube(point);
+
+        if (!targetId) {
+            viewCubePointerRef.current = null;
+            setHoveredViewCubeTargetId(null);
+            return false;
+        }
+
+        viewCubePointerRef.current = {
+            pointerId,
+            point,
+            targetId,
+        };
+        setHoveredViewCubeTargetId(targetId);
+        stopNavigationAnimation();
+
+        return true;
+    }
+
+    function handleViewCubePointerCancel(pointerId: number): boolean {
+        const handled = viewCubePointerRef.current?.pointerId === pointerId;
+
+        if (handled) {
+            viewCubePointerRef.current = null;
+            setHoveredViewCubeTargetId(null);
+        }
+
+        return handled;
+    }
+
+    function handleViewCubePointerUp(event: PointerEvent, point: ScreenPoint): boolean {
+        const down = viewCubePointerRef.current;
+
+        if (down?.pointerId !== event.pointerId) {
+            return false;
+        }
+
+        viewCubePointerRef.current = null;
+        const targetId = down.targetId;
+
+        if (distanceBetweenScreenPoints(point, down.point) <= VIEW_CUBE_CLICK_DISTANCE) {
+            if (isViewCubeArrowTarget(targetId)) {
+                animateViewCubeArrow(targetId, getViewCubeRotationStep(event));
+            } else {
+                const view = VIEW_CUBE_STANDARD_VIEWS[targetId];
+
+                if (view) {
+                    animateStandardView(view);
+                }
+            }
+        }
+
+        setHoveredViewCubeTargetId(hitTestCurrentViewCube(point));
+
+        return true;
+    }
 
     const interactionControllerRef = useRef<ViewportInteractionController | null>(null);
 
@@ -219,6 +427,7 @@ export function App() {
                 event.preventDefault();
             },
             onKeyDown(event) {
+                stopNavigationAnimation();
                 const handled = interactionControllerRef.current?.handleKeyDown(
                     toEditorKeyInput(event),
                 );
@@ -228,6 +437,13 @@ export function App() {
                 }
             },
             onPointerCancel(event) {
+                if (handleViewCubePointerCancel(event.pointerId)) {
+                    releasePointerCaptureIfNeeded(canvas, event.pointerId);
+                    event.preventDefault();
+                    return;
+                }
+
+                stopNavigationAnimation();
                 const handled = interactionControllerRef.current?.handlePointerCancel(
                     toEditorPointerInput(canvas, event),
                 );
@@ -238,8 +454,17 @@ export function App() {
                 }
             },
             onPointerDown(event) {
+                const point = getScreenPoint(canvas, event);
+
+                if (event.button === 0 && handleViewCubePointerDown(event.pointerId, point)) {
+                    canvas.setPointerCapture(event.pointerId);
+                    event.preventDefault();
+                    return;
+                }
+
+                stopNavigationAnimation();
                 const handled = interactionControllerRef.current?.handlePointerDown(
-                    toEditorPointerInput(canvas, event),
+                    toEditorPointerInputFromPoint(event, point),
                 );
 
                 if (handled) {
@@ -248,8 +473,19 @@ export function App() {
                 }
             },
             onPointerMove(event) {
+                const point = getScreenPoint(canvas, event);
+
+                if (handleViewCubePointerMove(point)) {
+                    event.preventDefault();
+                    return;
+                }
+
+                if (event.buttons !== 0) {
+                    stopNavigationAnimation();
+                }
+
                 const handled = interactionControllerRef.current?.handlePointerMove(
-                    toEditorPointerInput(canvas, event),
+                    toEditorPointerInputFromPoint(event, point),
                 );
 
                 if (handled) {
@@ -257,8 +493,17 @@ export function App() {
                 }
             },
             onPointerUp(event) {
+                const point = getScreenPoint(canvas, event);
+
+                if (handleViewCubePointerUp(event, point)) {
+                    releasePointerCaptureIfNeeded(canvas, event.pointerId);
+                    event.preventDefault();
+                    return;
+                }
+
+                stopNavigationAnimation();
                 const handled = interactionControllerRef.current?.handlePointerUp(
-                    toEditorPointerInput(canvas, event),
+                    toEditorPointerInputFromPoint(event, point),
                 );
                 releasePointerCaptureIfNeeded(canvas, event.pointerId);
 
@@ -267,6 +512,7 @@ export function App() {
                 }
             },
             onWheel(event) {
+                stopNavigationAnimation();
                 const handled = interactionControllerRef.current?.handleWheel(
                     toEditorWheelInput(canvas, event),
                 );
@@ -290,12 +536,16 @@ export function App() {
             scene: renderScene,
             highlight: renderHighlight,
             viewportSize: editorState.navigation.viewportSize,
+            viewCube: {
+                hoveredTargetId: hoveredViewCubeTargetId,
+            },
         });
     }, [
         renderScene,
         editorState.navigation.camera,
         editorState.navigation.viewportSize,
         renderHighlight,
+        hoveredViewCubeTargetId,
     ]);
 
     return (
@@ -325,10 +575,10 @@ export function App() {
                 />
                 <ViewToolbar
                     onFitView={() => {
-                        interactionControllerRef.current?.fitView();
+                        animateFitView();
                     }}
                     onStandardView={(view) => {
-                        interactionControllerRef.current?.handleStandardView(view);
+                        animateStandardView(view);
                     }}
                 />
             </header>
@@ -425,12 +675,19 @@ function toEditorKeyInput(event: KeyboardEvent): EditorKeyInput {
 }
 
 function toEditorPointerInput(canvas: HTMLCanvasElement, event: PointerEvent): EditorPointerInput {
+    return toEditorPointerInputFromPoint(event, getScreenPoint(canvas, event));
+}
+
+function toEditorPointerInputFromPoint(
+    event: PointerEvent,
+    point: ScreenPoint,
+): EditorPointerInput {
     return {
         button: event.button,
         buttons: event.buttons,
         ctrlKey: event.ctrlKey,
         pointerId: event.pointerId,
-        point: getScreenPoint(canvas, event),
+        point,
     };
 }
 
@@ -439,4 +696,24 @@ function toEditorWheelInput(canvas: HTMLCanvasElement, event: WheelEvent): Edito
         deltaY: event.deltaY,
         point: getScreenPoint(canvas, event),
     };
+}
+
+function isViewCubeArrowTarget(targetId: ViewCubeTargetId): targetId is ViewCubeArrowCommand {
+    return VIEW_CUBE_ARROW_TARGETS.has(targetId);
+}
+
+function getViewCubeRotationStep(event: PointerEvent): ViewCubeRotationStep {
+    if (event.shiftKey) {
+        return 'coarse';
+    }
+
+    if (event.ctrlKey || event.metaKey) {
+        return 'fine';
+    }
+
+    return 'default';
+}
+
+function distanceBetweenScreenPoints(left: ScreenPoint, right: ScreenPoint): number {
+    return Math.hypot(left.x - right.x, left.y - right.y);
 }

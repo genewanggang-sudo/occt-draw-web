@@ -8,10 +8,13 @@ export {
     DEFAULT_CAMERA_STATE,
     cameraDepth01ToViewDepth,
     canvasDepthToWorld,
+    createCameraStateFromFrame,
     createCameraStateForScene,
     createStandardCameraState,
     fitCameraToBounds,
     frameCameraClippingToBounds,
+    getStandardCameraFrame,
+    type StandardCameraFrame,
     type StandardCameraView,
 } from './camera';
 export {
@@ -31,6 +34,7 @@ export {
 } from './picking';
 export { createRenderPrimitiveId, type RenderPrimitiveKind } from './primitiveId';
 export { createWebglRenderer } from './webglRenderer';
+export { getViewCubeViewportRect, hitTestViewCube } from './viewCube';
 export type {
     BaseRenderNode,
     BoundingBox3,
@@ -62,5 +66,10 @@ export type {
     ScreenRect,
     SurfaceBatchRenderNode,
     SurfaceTriangle,
+    ViewCubeArrowCommand,
+    ViewCubeCornerId,
+    ViewCubeFaceId,
+    ViewCubeRenderInput,
+    ViewCubeTargetId,
     ViewportSize,
 } from './types';

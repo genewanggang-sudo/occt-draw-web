@@ -1,6 +1,7 @@
 import {
     addVector3,
     clampNumber,
+    createVector3,
     crossVector3,
     normalizeVector3,
     rotateVectorAroundAxis,
@@ -9,6 +10,7 @@ import {
     type Vector3,
 } from '@occt-draw/math';
 import type { BoundingSphere, CameraState, ViewportSize } from '@occt-draw/webgl-engine';
+import type { ViewCubeArrowCommand } from '@occt-draw/webgl-engine';
 
 export interface ScreenPoint {
     readonly x: number;
@@ -38,6 +40,8 @@ export interface ViewNavigationState {
     readonly viewportSize: ViewportSize;
 }
 
+export type ViewCubeRotationStep = 'coarse' | 'default' | 'fine';
+
 interface CameraBasis {
     readonly forward: Vector3;
     readonly right: Vector3;
@@ -64,7 +68,114 @@ interface ViewNavigationRotateFrame {
 }
 
 const ROTATION_SENSITIVITY = 0.0065;
+const VIEW_CUBE_ROTATION_AMOUNTS: Readonly<Record<ViewCubeRotationStep, number>> = {
+    coarse: Math.PI / 2,
+    default: Math.PI / 6,
+    fine: Math.PI / 18,
+};
 const ZOOM_SENSITIVITY = 0.001;
+
+export function createFramedStandardCamera(
+    camera: CameraState,
+    bounds: BoundingSphere,
+): CameraState {
+    const direction = normalizeVector3(subtractVector3(camera.position, camera.target));
+    const distance = Math.max(bounds.radius * 3.5, 1);
+
+    return {
+        ...camera,
+        position: addVector3(bounds.center, scaleVector3(direction, distance)),
+        target: bounds.center,
+    };
+}
+
+export function interpolateCameraState(
+    startCamera: CameraState,
+    endCamera: CameraState,
+    progress: number,
+): CameraState {
+    const t = clampNumber(progress, 0, 1);
+    const startTarget = startCamera.target;
+    const endTarget = endCamera.target;
+    const target = createVector3(
+        lerp(startTarget.x, endTarget.x, t),
+        lerp(startTarget.y, endTarget.y, t),
+        lerp(startTarget.z, endTarget.z, t),
+    );
+    const startView = normalizeVector3(subtractVector3(startCamera.position, startCamera.target));
+    const endView = normalizeVector3(subtractVector3(endCamera.position, endCamera.target));
+    const view = normalizeVector3(
+        createVector3(
+            lerp(startView.x, endView.x, t),
+            lerp(startView.y, endView.y, t),
+            lerp(startView.z, endView.z, t),
+        ),
+    );
+    const startDistance = distanceBetween(startCamera.position, startCamera.target);
+    const endDistance = distanceBetween(endCamera.position, endCamera.target);
+    const distance = lerp(startDistance, endDistance, t);
+    const rawUp = normalizeVector3(
+        createVector3(
+            lerp(startCamera.up.x, endCamera.up.x, t),
+            lerp(startCamera.up.y, endCamera.up.y, t),
+            lerp(startCamera.up.z, endCamera.up.z, t),
+        ),
+    );
+    const right = normalizeVector3(crossVector3(rawUp, view));
+    const up = normalizeVector3(crossVector3(view, right));
+
+    return {
+        ...endCamera,
+        far: lerp(startCamera.far, endCamera.far, t),
+        fovYRadians: lerp(startCamera.fovYRadians, endCamera.fovYRadians, t),
+        near: lerp(startCamera.near, endCamera.near, t),
+        orthographicHeight: lerp(startCamera.orthographicHeight, endCamera.orthographicHeight, t),
+        position: addVector3(target, scaleVector3(view, distance)),
+        target,
+        up,
+    };
+}
+
+export function rotateCameraByScreenDelta(
+    camera: CameraState,
+    pivot: Vector3,
+    deltaX: number,
+    deltaY: number,
+): CameraState {
+    return rotateCameraByScreenAxes(camera, pivot, deltaX, deltaY);
+}
+
+export function rotateCameraByViewCubeArrow(
+    camera: CameraState,
+    pivot: Vector3,
+    command: ViewCubeArrowCommand,
+    step: ViewCubeRotationStep,
+): CameraState {
+    const basis = getCameraBasis(camera);
+    const amount = VIEW_CUBE_ROTATION_AMOUNTS[step];
+
+    if (command === 'arrow-left') {
+        return rotateCameraAroundAxis(camera, pivot, basis.up, amount);
+    }
+
+    if (command === 'arrow-right') {
+        return rotateCameraAroundAxis(camera, pivot, basis.up, -amount);
+    }
+
+    if (command === 'arrow-up') {
+        return rotateCameraAroundAxis(camera, pivot, basis.right, amount);
+    }
+
+    if (command === 'arrow-down') {
+        return rotateCameraAroundAxis(camera, pivot, basis.right, -amount);
+    }
+
+    if (command === 'arrow-cw') {
+        return rotateCameraAroundAxis(camera, pivot, basis.forward, -amount);
+    }
+
+    return rotateCameraAroundAxis(camera, pivot, basis.forward, amount);
+}
 
 export function createViewNavigationState(
     camera: CameraState,
@@ -297,6 +408,29 @@ function rotateCameraByScreenAxes(
     };
 }
 
+function rotateCameraAroundAxis(
+    camera: CameraState,
+    pivot: Vector3,
+    axis: Vector3,
+    angle: number,
+): CameraState {
+    const positionOffset = subtractVector3(camera.position, pivot);
+    const targetOffset = subtractVector3(camera.target, pivot);
+    const rotatedPositionOffset = rotateVectorAroundAxis(positionOffset, axis, angle);
+    const rotatedTargetOffset = rotateVectorAroundAxis(targetOffset, axis, angle);
+    const rotatedRawUp = rotateVectorAroundAxis(camera.up, axis, angle);
+    const forward = normalizeVector3(subtractVector3(rotatedTargetOffset, rotatedPositionOffset));
+    const right = normalizeVector3(crossVector3(forward, rotatedRawUp));
+    const up = normalizeVector3(crossVector3(right, forward));
+
+    return {
+        ...camera,
+        position: addVector3(pivot, rotatedPositionOffset),
+        target: addVector3(pivot, rotatedTargetOffset),
+        up,
+    };
+}
+
 function translateCamera(camera: CameraState, translation: Vector3): CameraState {
     return {
         ...camera,
@@ -349,4 +483,12 @@ function getCameraBasis(camera: CameraState): CameraBasis {
         right,
         up,
     };
+}
+
+function distanceBetween(left: Vector3, right: Vector3): number {
+    return Math.hypot(left.x - right.x, left.y - right.y, left.z - right.z);
+}
+
+function lerp(start: number, end: number, progress: number): number {
+    return start + (end - start) * progress;
 }

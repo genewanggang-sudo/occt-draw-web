@@ -53,8 +53,12 @@ export { createInitialEditorState } from './state/createInitialEditorState';
 export type { EditorState, SketchDocumentStore, SketchEditSession } from './state/editorState';
 export {
     beginViewNavigation,
+    createFramedStandardCamera,
     createViewNavigationState,
     endViewNavigation,
+    interpolateCameraState,
+    rotateCameraByViewCubeArrow,
+    rotateCameraByScreenDelta,
     updateViewNavigation,
     updateViewNavigationCamera,
     updateViewNavigationViewport,
@@ -63,4 +67,6 @@ export {
     type ViewNavigationPointer,
     type ViewNavigationState,
     type ViewNavigationWheel,
+    type ViewCubeRotationStep,
 } from './view-navigation/viewNavigation';
+export type { ViewCubeArrowCommand } from '@occt-draw/webgl-engine';
