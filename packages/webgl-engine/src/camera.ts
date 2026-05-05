@@ -23,13 +23,26 @@ export type StandardCameraView =
     | 'isometric'
     | 'left'
     | 'right'
-    | 'top';
+    | 'top'
+    | 'trimetric';
+
+interface StandardCameraFrame {
+    readonly up: Vector3;
+    readonly viewDirection: Vector3;
+}
+
+const SQRT_ONE_THIRD = Math.sqrt(1 / 3);
+const SQRT_ONE_SIXTH = Math.sqrt(1 / 6);
+const TRIMETRIC_VIEW_DIRECTION = createVector3(Math.sqrt(3) / 4, -3 / 4, 1 / 2);
+const TRIMETRIC_UP = createVector3(-1 / 4, Math.sqrt(3) / 4, Math.sqrt(3) / 2);
+const ISOMETRIC_VIEW_DIRECTION = createVector3(SQRT_ONE_THIRD, -SQRT_ONE_THIRD, SQRT_ONE_THIRD);
+const ISOMETRIC_UP = createVector3(-SQRT_ONE_SIXTH, SQRT_ONE_SIXTH, 2 * SQRT_ONE_SIXTH);
 
 export const DEFAULT_CAMERA_STATE: CameraState = {
     projection: 'orthographic',
-    position: createVector3(6, 6, 4.5),
+    position: scaleVector3(TRIMETRIC_VIEW_DIRECTION, 9.604686356149273),
     target: createVector3(0, 0, 0),
-    up: createVector3(0, 0, 1),
+    up: TRIMETRIC_UP,
     orthographicHeight: 9,
     fovYRadians: Math.PI / 4,
     near: 0.1,
@@ -44,7 +57,7 @@ interface CameraBasis {
 }
 
 export function createCameraStateForScene(scene: RenderScene): CameraState {
-    return createStandardCameraState(calculateRenderSceneNavigationBoundingBox(scene), 'isometric');
+    return createStandardCameraState(calculateRenderSceneNavigationBoundingBox(scene), 'trimetric');
 }
 
 export function createStandardCameraState(
@@ -219,14 +232,14 @@ export function canvasDepthToWorld(
 
 function createCameraFromView(bounds: BoundingBox3, view: StandardCameraView): CameraState {
     const sphere = calculateBoundingSphere(bounds);
-    const viewDirection = getStandardViewDirection(view);
+    const frame = getStandardViewFrame(view);
     const distance = sphere.radius * 3.5;
 
     return {
         projection: 'orthographic',
-        position: addVector3(sphere.center, scaleVector3(viewDirection, distance)),
+        position: addVector3(sphere.center, scaleVector3(frame.viewDirection, distance)),
         target: sphere.center,
-        up: getStandardViewUp(view),
+        up: frame.up,
         orthographicHeight: sphere.radius * 2.4,
         fovYRadians: Math.PI / 4,
         near: 0.1,
@@ -234,40 +247,60 @@ function createCameraFromView(bounds: BoundingBox3, view: StandardCameraView): C
     };
 }
 
-function getStandardViewDirection(view: StandardCameraView): Vector3 {
+function getStandardViewFrame(view: StandardCameraView): StandardCameraFrame {
     if (view === 'front') {
-        return createVector3(0, 1, 0);
+        return {
+            up: createVector3(0, 0, 1),
+            viewDirection: createVector3(0, 1, 0),
+        };
     }
 
     if (view === 'back') {
-        return createVector3(0, -1, 0);
+        return {
+            up: createVector3(0, 0, 1),
+            viewDirection: createVector3(0, -1, 0),
+        };
     }
 
     if (view === 'right') {
-        return createVector3(1, 0, 0);
+        return {
+            up: createVector3(0, 0, 1),
+            viewDirection: createVector3(1, 0, 0),
+        };
     }
 
     if (view === 'left') {
-        return createVector3(-1, 0, 0);
+        return {
+            up: createVector3(0, 0, 1),
+            viewDirection: createVector3(-1, 0, 0),
+        };
     }
 
     if (view === 'top') {
-        return createVector3(0, 0, 1);
+        return {
+            up: createVector3(0, 1, 0),
+            viewDirection: createVector3(0, 0, 1),
+        };
     }
 
     if (view === 'bottom') {
-        return createVector3(0, 0, -1);
+        return {
+            up: createVector3(0, 1, 0),
+            viewDirection: createVector3(0, 0, -1),
+        };
     }
 
-    return normalizeVector3(createVector3(1, 1, 0.75));
-}
-
-function getStandardViewUp(view: StandardCameraView): Vector3 {
-    if (view === 'top' || view === 'bottom') {
-        return createVector3(0, 1, 0);
+    if (view === 'isometric') {
+        return {
+            up: ISOMETRIC_UP,
+            viewDirection: ISOMETRIC_VIEW_DIRECTION,
+        };
     }
 
-    return createVector3(0, 0, 1);
+    return {
+        up: TRIMETRIC_UP,
+        viewDirection: TRIMETRIC_VIEW_DIRECTION,
+    };
 }
 
 function calculateCameraBasis(camera: CameraState): CameraBasis {

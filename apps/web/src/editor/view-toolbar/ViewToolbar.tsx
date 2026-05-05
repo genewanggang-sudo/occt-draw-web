@@ -11,7 +11,7 @@ interface ViewToolbarProps {
 }
 
 const standardViewActions: readonly StandardViewAction[] = [
-    { label: '轴测', view: 'isometric' },
+    { label: '轴测', view: 'trimetric' },
     { label: '前', view: 'front' },
     { label: '后', view: 'back' },
     { label: '上', view: 'top' },

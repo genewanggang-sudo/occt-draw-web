@@ -18,10 +18,12 @@ interface NavigationDepthTarget {
 }
 
 interface NavigationDepthCache {
+    readonly areaKind: NavigationDepthSampleInput['area']['kind'];
     readonly camera: NavigationDepthSampleInput['camera'];
     readonly scene: RenderScene;
     readonly height: number;
     readonly includeSecondary: boolean;
+    readonly targetSampleCount: number | null;
     readonly viewportHeight: number;
     readonly viewportWidth: number;
     readonly width: number;
@@ -169,15 +171,28 @@ export function sampleNavigationDepths(
     resources: NavigationDepthResources,
     input: NavigationDepthSampleInput,
 ): readonly NavigationDepthSample[] {
-    const target = ensureNavigationDepthTarget(context, resources, canvas.width, canvas.height);
+    if (!hasNavigationDepthObjects(input.scene, input.includeSecondary)) {
+        return [];
+    }
+
+    const targetSize = getNavigationDepthTargetSize(canvas, input);
+    const target = ensureNavigationDepthTarget(
+        context,
+        resources,
+        targetSize.width,
+        targetSize.height,
+    );
 
     if (shouldRenderNavigationDepth(resources.cache, target, input)) {
         renderNavigationDepth(context, resources, target, input);
         resources.cache = {
+            areaKind: input.area.kind,
             camera: input.camera,
             scene: input.scene,
             height: target.height,
             includeSecondary: input.includeSecondary,
+            targetSampleCount:
+                input.area.kind === 'viewport-grid' ? input.area.targetSampleCount : null,
             viewportHeight: input.viewportSize.height,
             viewportWidth: input.viewportSize.width,
             width: target.width,
@@ -187,10 +202,7 @@ export function sampleNavigationDepths(
     context.bindFramebuffer(context.FRAMEBUFFER, target.framebuffer);
     context.readBuffer(context.COLOR_ATTACHMENT0);
 
-    const samples =
-        input.area.kind === 'points'
-            ? readPointSamples(context, canvas, input)
-            : readRectSamples(context, canvas, input);
+    const samples = readNavigationDepthSamples(context, target, input);
 
     context.bindFramebuffer(context.FRAMEBUFFER, null);
     context.readBuffer(context.BACK);
@@ -199,6 +211,35 @@ export function sampleNavigationDepths(
     context.depthMask(true);
 
     return samples;
+}
+
+function getNavigationDepthTargetSize(
+    canvas: HTMLCanvasElement,
+    input: NavigationDepthSampleInput,
+): Pick<NavigationDepthTarget, 'height' | 'width'> {
+    if (input.area.kind !== 'viewport-grid') {
+        return {
+            height: canvas.height,
+            width: canvas.width,
+        };
+    }
+
+    const viewportWidth = Math.max(input.viewportSize.width, 1);
+    const viewportHeight = Math.max(input.viewportSize.height, 1);
+    const targetSampleCount = Math.max(input.area.targetSampleCount, 1);
+    const viewportSampleScale = Math.min(
+        Math.sqrt(targetSampleCount / (viewportWidth * viewportHeight)),
+        1,
+    );
+    const lowViewportWidth = Math.max(1, Math.ceil(viewportWidth * viewportSampleScale));
+    const lowViewportHeight = Math.max(1, Math.ceil(viewportHeight * viewportSampleScale));
+    const pixelRatioX = canvas.width / viewportWidth;
+    const pixelRatioY = canvas.height / viewportHeight;
+
+    return {
+        height: Math.max(1, Math.ceil(lowViewportHeight * pixelRatioY)),
+        width: Math.max(1, Math.ceil(lowViewportWidth * pixelRatioX)),
+    };
 }
 
 function renderNavigationDepth(
@@ -263,9 +304,25 @@ function createNavigationDepthVertexArray(
     return vertexArray;
 }
 
+function readNavigationDepthSamples(
+    context: WebGL2RenderingContext,
+    target: NavigationDepthTarget,
+    input: NavigationDepthSampleInput,
+): readonly NavigationDepthSample[] {
+    if (input.area.kind === 'points') {
+        return readPointSamples(context, target, input);
+    }
+
+    if (input.area.kind === 'rect') {
+        return readRectSamples(context, target, input);
+    }
+
+    return readViewportGridSamples(context, target, input);
+}
+
 function readPointSamples(
     context: WebGL2RenderingContext,
-    canvas: HTMLCanvasElement,
+    target: NavigationDepthTarget,
     input: NavigationDepthSampleInput,
 ): readonly NavigationDepthSample[] {
     if (input.area.kind !== 'points') {
@@ -274,13 +331,13 @@ function readPointSamples(
 
     const samples: NavigationDepthSample[] = [];
     const pixel = new Uint8Array(4);
-    const scaleX = canvas.width / Math.max(input.viewportSize.width, 1);
-    const scaleY = canvas.height / Math.max(input.viewportSize.height, 1);
+    const scaleX = target.width / Math.max(input.viewportSize.width, 1);
+    const scaleY = target.height / Math.max(input.viewportSize.height, 1);
 
     for (const point of input.area.points) {
-        const deviceX = clampInteger(Math.floor(point.x * scaleX), 0, canvas.width - 1);
-        const deviceYFromTop = clampInteger(Math.floor(point.y * scaleY), 0, canvas.height - 1);
-        const deviceY = canvas.height - 1 - deviceYFromTop;
+        const deviceX = clampInteger(Math.floor(point.x * scaleX), 0, target.width - 1);
+        const deviceYFromTop = clampInteger(Math.floor(point.y * scaleY), 0, target.height - 1);
+        const deviceY = target.height - 1 - deviceYFromTop;
 
         context.readPixels(deviceX, deviceY, 1, 1, context.RGBA, context.UNSIGNED_BYTE, pixel);
 
@@ -296,38 +353,38 @@ function readPointSamples(
 
 function readRectSamples(
     context: WebGL2RenderingContext,
-    canvas: HTMLCanvasElement,
+    target: NavigationDepthTarget,
     input: NavigationDepthSampleInput,
 ): readonly NavigationDepthSample[] {
     if (input.area.kind !== 'rect') {
         return [];
     }
 
-    const scaleX = canvas.width / Math.max(input.viewportSize.width, 1);
-    const scaleY = canvas.height / Math.max(input.viewportSize.height, 1);
+    const scaleX = target.width / Math.max(input.viewportSize.width, 1);
+    const scaleY = target.height / Math.max(input.viewportSize.height, 1);
     const minDeviceX = clampInteger(
         Math.floor(Math.min(input.area.rect.minX, input.area.rect.maxX) * scaleX),
         0,
-        canvas.width - 1,
+        target.width - 1,
     );
     const maxDeviceX = clampInteger(
         Math.ceil(Math.max(input.area.rect.minX, input.area.rect.maxX) * scaleX),
         minDeviceX + 1,
-        canvas.width,
+        target.width,
     );
     const minDeviceYFromTop = clampInteger(
         Math.floor(Math.min(input.area.rect.minY, input.area.rect.maxY) * scaleY),
         0,
-        canvas.height - 1,
+        target.height - 1,
     );
     const maxDeviceYFromTop = clampInteger(
         Math.ceil(Math.max(input.area.rect.minY, input.area.rect.maxY) * scaleY),
         minDeviceYFromTop + 1,
-        canvas.height,
+        target.height,
     );
     const readWidth = maxDeviceX - minDeviceX;
     const readHeight = maxDeviceYFromTop - minDeviceYFromTop;
-    const readY = canvas.height - maxDeviceYFromTop;
+    const readY = target.height - maxDeviceYFromTop;
     const pixels = new Uint8Array(readWidth * readHeight * 4);
     const deviceStep = Math.max(1, Math.round(input.area.stepPixels * Math.max(scaleX, scaleY)));
     const samples: NavigationDepthSample[] = [];
@@ -365,6 +422,50 @@ function readRectSamples(
     }
 
     return dedupeNavigationDepthSamples(samples);
+}
+
+function readViewportGridSamples(
+    context: WebGL2RenderingContext,
+    target: NavigationDepthTarget,
+    input: NavigationDepthSampleInput,
+): readonly NavigationDepthSample[] {
+    if (input.area.kind !== 'viewport-grid') {
+        return [];
+    }
+
+    const pixels = new Uint8Array(target.width * target.height * 4);
+    const scaleX = target.width / Math.max(input.viewportSize.width, 1);
+    const scaleY = target.height / Math.max(input.viewportSize.height, 1);
+    const samples: NavigationDepthSample[] = [];
+
+    context.readPixels(
+        0,
+        0,
+        target.width,
+        target.height,
+        context.RGBA,
+        context.UNSIGNED_BYTE,
+        pixels,
+    );
+
+    for (let row = 0; row < target.height; row += 1) {
+        const canvasY = (target.height - row - 0.5) / scaleY;
+
+        for (let column = 0; column < target.width; column += 1) {
+            const index = (row * target.width + column) * 4;
+            const canvasPoint = {
+                x: (column + 0.5) / scaleX,
+                y: canvasY,
+            };
+            const sample = decodeNavigationDepthPixel(pixels, index, canvasPoint, input);
+
+            if (sample) {
+                samples.push(sample);
+            }
+        }
+    }
+
+    return samples;
 }
 
 function decodeNavigationDepthPixel(
@@ -487,15 +588,26 @@ function shouldRenderNavigationDepth(
     target: NavigationDepthTarget,
     input: NavigationDepthSampleInput,
 ): boolean {
+    if (!cache) {
+        return true;
+    }
+
     return (
-        cache?.camera !== input.camera ||
+        cache.areaKind !== input.area.kind ||
+        cache.camera !== input.camera ||
         cache.scene !== input.scene ||
         cache.includeSecondary !== input.includeSecondary ||
+        cache.targetSampleCount !==
+            (input.area.kind === 'viewport-grid' ? input.area.targetSampleCount : null) ||
         cache.viewportWidth !== input.viewportSize.width ||
         cache.viewportHeight !== input.viewportSize.height ||
         cache.width !== target.width ||
         cache.height !== target.height
     );
+}
+
+function hasNavigationDepthObjects(scene: RenderScene, includeSecondary: boolean): boolean {
+    return scene.nodes.some((object) => shouldIncludeObject(object, includeSecondary));
 }
 
 function ensureNavigationDepthTarget(

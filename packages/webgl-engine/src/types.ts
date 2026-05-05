@@ -178,6 +178,10 @@ export type NavigationDepthSamplingArea =
           readonly kind: 'rect';
           readonly rect: ScreenRect;
           readonly stepPixels: number;
+      }
+    | {
+          readonly kind: 'viewport-grid';
+          readonly targetSampleCount: number;
       };
 
 export interface NavigationDepthSampleInput {

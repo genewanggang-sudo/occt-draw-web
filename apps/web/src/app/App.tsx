@@ -46,7 +46,7 @@ export function App() {
         const renderScene = projectPartStudioToRenderScene(activePartStudio);
         const displayBounds = calculateRenderSceneNavigationBoundingBox(renderScene);
         const displaySphere = calculateRenderSceneNavigationBoundingSphere(renderScene);
-        const camera = createStandardCameraState(displayBounds, 'isometric', INITIAL_VIEWPORT_SIZE);
+        const camera = createStandardCameraState(displayBounds, 'trimetric', INITIAL_VIEWPORT_SIZE);
         const navigation = createViewNavigationState(camera, displaySphere, INITIAL_VIEWPORT_SIZE);
 
         return createInitialEditorState({

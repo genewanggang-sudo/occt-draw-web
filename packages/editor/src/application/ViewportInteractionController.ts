@@ -61,7 +61,7 @@ export interface EditorWheelInput {
 
 const PICK_THRESHOLD_PIXELS = 9;
 const ORBIT_UNDER_POINTER_RADIUS_PIXELS = 12;
-const ORBIT_WINDOW_SAMPLE_STEP_PIXELS = 72;
+const ORBIT_WINDOW_TARGET_SAMPLE_COUNT = 2000;
 const MIN_WINDOW_DEPTH_SAMPLES = 3;
 const BOUNDS_FIT_ROTATE_FACTOR = 2;
 
@@ -249,11 +249,8 @@ export class ViewportInteractionController {
     ): Vector3 | null {
         const samples = this.context.sampleNavigationDepths({
             area: {
-                kind: 'points',
-                points: createViewportSamplePoints(
-                    state.navigation.viewportSize,
-                    ORBIT_WINDOW_SAMPLE_STEP_PIXELS,
-                ),
+                kind: 'viewport-grid',
+                targetSampleCount: ORBIT_WINDOW_TARGET_SAMPLE_COUNT,
             },
             camera: state.navigation.camera,
             scene: this.context.getRenderScene(),
@@ -388,7 +385,7 @@ export class ViewportInteractionController {
                 {
                     deltaY: event.deltaY,
                     point: event.point,
-                    zoomAnchor: this.resolveNavigationCenter(current, event.point),
+                    zoomAnchor: current.navigation.camera.target,
                 },
                 this.context.getDisplayBounds(),
             );
@@ -448,25 +445,6 @@ interface WorldRay {
 
 function getBoundsCenter(bounds: BoundingBox3): Vector3 {
     return scaleVector3(addVector3(bounds.min, bounds.max), 0.5);
-}
-
-function createViewportSamplePoints(
-    viewportSize: ViewportSize,
-    stepPixels: number,
-): readonly ScreenPoint[] {
-    const points: ScreenPoint[] = [];
-    const step = Math.max(stepPixels, 1);
-
-    for (let y = step / 2; y < viewportSize.height; y += step) {
-        for (let x = step / 2; x < viewportSize.width; x += step) {
-            points.push({
-                x,
-                y,
-            });
-        }
-    }
-
-    return points;
 }
 
 function isFiniteBounds(bounds: BoundingBox3): boolean {

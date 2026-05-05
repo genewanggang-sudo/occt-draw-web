@@ -4,3 +4,4 @@ coverage
 .turbo
 pnpm-lock.yaml
 docs/webgl.*.js
+docs/woolsthorpe.*.js
