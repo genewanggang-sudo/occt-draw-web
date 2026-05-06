@@ -1,69 +1,59 @@
-import type {
-    RenderScene,
-    MarkerBatchRenderNode,
-    PointBatchRenderNode,
-    SurfaceBatchRenderNode,
-} from './types';
-import { appendDisplayLineSegments } from './displayLineGeometry';
+import type { RenderGraph } from './core';
+import { collectSceneGraphObjects } from './graphTraversal';
+import { EdgeSet, FaceSet, MarkerSet, PointSet } from './scene';
 import type { LineVertex, MarkerVertex, RenderVertex } from './types';
 export { toVertexBuffer } from './vertexBuffer';
 
-export function createRenderSurfaceVertices(scene: RenderScene): readonly RenderVertex[] {
+export function createRenderSurfaceVertices(graph: RenderGraph): readonly RenderVertex[] {
     const vertices: RenderVertex[] = [];
 
-    for (const object of scene.nodes) {
-        if (!object.visible || object.kind !== 'surface-batch') {
-            continue;
+    for (const { object } of collectSceneGraphObjects(graph)) {
+        if (object instanceof FaceSet) {
+            appendFaceSet(vertices, object);
         }
-
-        appendSurfaceBatch(vertices, object);
     }
 
     return vertices;
 }
 
-export function createRenderLineVertices(scene: RenderScene): readonly LineVertex[] {
+export function createRenderLineVertices(graph: RenderGraph): readonly LineVertex[] {
     const vertices: LineVertex[] = [];
 
-    for (const object of scene.nodes) {
-        if (object.visible && object.kind === 'line-batch') {
-            appendDisplayLineSegments(vertices, object);
+    for (const { object } of collectSceneGraphObjects(graph)) {
+        if (object instanceof EdgeSet) {
+            appendEdgeSet(vertices, object);
         }
     }
 
     return vertices;
 }
 
-export function createRenderPointVertices(scene: RenderScene): readonly RenderVertex[] {
+export function createRenderPointVertices(graph: RenderGraph): readonly RenderVertex[] {
     const vertices: RenderVertex[] = [];
 
-    for (const object of scene.nodes) {
-        if (!object.visible || object.kind !== 'point-batch') {
-            continue;
+    for (const { object } of collectSceneGraphObjects(graph)) {
+        if (object instanceof PointSet) {
+            appendPointSet(vertices, object);
         }
-
-        appendPointBatch(vertices, object);
     }
 
     return vertices;
 }
 
-export function createRenderMarkerVertices(scene: RenderScene): readonly MarkerVertex[] {
+export function createRenderMarkerVertices(graph: RenderGraph): readonly MarkerVertex[] {
     const vertices: MarkerVertex[] = [];
 
-    for (const object of scene.nodes) {
-        if (!object.visible || object.kind !== 'marker-batch') {
-            continue;
+    for (const { object } of collectSceneGraphObjects(graph)) {
+        if (object instanceof MarkerSet) {
+            appendMarkerSet(vertices, object);
         }
-
-        appendMarkerBatch(vertices, object);
     }
 
     return vertices;
 }
 
-function appendMarkerBatch(vertices: MarkerVertex[], object: MarkerBatchRenderNode): void {
-    for (const marker of object.markers) {
+function appendMarkerSet(vertices: MarkerVertex[], object: MarkerSet): void {
+    for (const marker of object.geometry.markers) {
         vertices.push({
             position: marker.position,
             color: marker.color,
@@ -73,22 +63,31 @@ function appendMarkerBatch(vertices: MarkerVertex[], object: MarkerBatchRenderNo
     }
 }
 
-function appendPointBatch(vertices: RenderVertex[], object: PointBatchRenderNode): void {
-    for (const point of object.points) {
+function appendPointSet(vertices: RenderVertex[], object: PointSet): void {
+    for (const point of object.geometry.points) {
         vertices.push({
             position: point,
-            color: object.color,
+            color: object.style.color,
             alpha: 1,
         });
     }
 }
 
-function appendSurfaceBatch(vertices: RenderVertex[], object: SurfaceBatchRenderNode): void {
-    for (const triangle of object.triangles) {
+function appendFaceSet(vertices: RenderVertex[], object: FaceSet): void {
+    for (const triangle of object.geometry.triangles) {
         vertices.push(
-            { position: triangle.a, color: object.color, alpha: object.opacity },
-            { position: triangle.b, color: object.color, alpha: object.opacity },
-            { position: triangle.c, color: object.color, alpha: object.opacity },
+            { position: triangle.a, color: object.style.color, alpha: object.style.opacity },
+            { position: triangle.b, color: object.style.color, alpha: object.style.opacity },
+            { position: triangle.c, color: object.style.color, alpha: object.style.opacity },
+        );
+    }
+}
+
+function appendEdgeSet(vertices: LineVertex[], object: EdgeSet): void {
+    for (const segment of object.geometry.segments) {
+        vertices.push(
+            { position: segment.start, color: object.style.color, alpha: 1 },
+            { position: segment.end, color: object.style.color, alpha: 1 },
         );
     }
 }

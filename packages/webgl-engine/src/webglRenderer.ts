@@ -6,7 +6,6 @@ import type {
     ViewportSize,
 } from './types';
 import type { RenderGraph } from './core';
-import { LegacyRenderSceneGraphAdapter, LegacyWebglRendererFacade } from './legacy';
 import { createLabelProgram } from './labelShaderProgram';
 import {
     createNavigationDepthResources,
@@ -32,12 +31,7 @@ export function createWebglRenderer(canvas: HTMLCanvasElement): RenderEngine {
     return new WebglRenderEngine(canvas, context);
 }
 
-export function createLegacyWebglRenderer(canvas: HTMLCanvasElement): LegacyWebglRendererFacade {
-    return new LegacyWebglRendererFacade(createWebglRenderer(canvas));
-}
-
 class WebglRenderEngine implements RenderEngine {
-    private readonly legacyAdapter = new LegacyRenderSceneGraphAdapter();
     private readonly buffer: WebGLBuffer;
     private readonly canvas: HTMLCanvasElement;
     private readonly context: WebGL2RenderingContext;
@@ -163,11 +157,7 @@ class WebglRenderEngine implements RenderEngine {
             throw new Error('RenderEngine.render(camera) requires setGraph(graph) first.');
         }
 
-        const scene = this.legacyAdapter.toRenderScene(this.graph, {
-            id: 'render-graph',
-            name: 'Render Graph',
-        });
-        const labelAtlas = this.labelAtlasManager.ensureForScene(scene);
+        const labelAtlas = this.labelAtlasManager.ensureForGraph(this.graph);
 
         this.renderPipelineResources = {
             ...this.renderPipelineResources,
@@ -176,23 +166,18 @@ class WebglRenderEngine implements RenderEngine {
         };
         this.resize(this.viewportSize);
         this.context.bindFramebuffer(this.context.FRAMEBUFFER, null);
-        renderPipeline(
-            this.context,
-            this.renderPipelineResources,
-            {
-                camera,
-                scene,
-                highlight: {
-                    hoveredObjectId: null,
-                    preselectedObjectId: null,
-                    preselectedPrimitiveId: null,
-                    selectedObjectIds: [],
-                    selectedPrimitiveId: null,
-                },
-                viewportSize: this.viewportSize,
+        renderPipeline(this.context, this.renderPipelineResources, {
+            camera,
+            graph: this.graph,
+            highlight: {
+                hoveredObjectId: null,
+                preselectedObjectId: null,
+                preselectedPrimitiveId: null,
+                selectedObjectIds: [],
+                selectedPrimitiveId: null,
             },
-            this.graph,
-        );
+            viewportSize: this.viewportSize,
+        });
     }
 
     public sampleNavigationDepths(

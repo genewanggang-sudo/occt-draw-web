@@ -31,6 +31,7 @@ export {
     ColorPass,
     OverlayPass,
     RenderPipeline,
+    type RenderFrameContext,
     type RenderPass,
     type RenderPassContext,
 } from './pipeline';
@@ -43,20 +44,14 @@ export {
     type PickKey,
     type PickRenderObjectInput,
     type PickResult,
+    type PickTargetKind,
 } from './interaction';
 export { ViewCube, ViewportWidget } from './addon';
-export {
-    LegacyRenderSceneGraphAdapter,
-    LegacyRenderNodeToObjectMapper,
-    LegacyWebglRendererFacade,
-    RenderObjectToLegacyNodeMapper,
-} from './legacy';
 export {
     DEFAULT_CAMERA_STATE,
     cameraDepth01ToViewDepth,
     canvasDepthToWorld,
     createCameraStateFromFrame,
-    createCameraStateForScene,
     createStandardCameraState,
     fitCameraToBounds,
     frameCameraClippingToBounds,
@@ -64,14 +59,7 @@ export {
     type StandardCameraFrame,
     type StandardCameraView,
 } from './camera';
-export {
-    calculateBoundingSphere,
-    calculateRenderSceneBoundingBox,
-    calculateRenderSceneBoundingSphere,
-    calculateRenderSceneNavigationBoundingBox,
-    calculateRenderSceneNavigationBoundingSphere,
-    getBoundingBoxCorners,
-} from './bounds';
+export { calculateBoundingSphere, getBoundingBoxCorners, getDefaultBoundingBox } from './bounds';
 export {
     calculateCameraBasis,
     calculateViewDepth,
@@ -82,34 +70,18 @@ export {
     screenPointToWorldRay,
     type CameraBasis,
 } from './cameraGeometry';
-export { createRenderScene } from './renderScene';
-export {
-    pickRenderNode,
-    type PickRenderNodeInput,
-    type PickRenderNodeResult,
-    type PickTargetKind,
-} from './picking';
 export { createRenderPrimitiveId, type RenderPrimitiveKind } from './primitiveId';
-export { createLegacyWebglRenderer, createWebglRenderer } from './webglRenderer';
-export { getViewCubeViewportRect, hitTestViewCube } from './viewCube';
+export { createWebglRenderer } from './webglRenderer';
 export type {
-    BaseRenderNode,
     BoundingBox3,
     BoundingSphere,
     RenderEngine,
     CameraProjection,
     CameraState,
-    RenderScene,
     RenderDepthRole,
-    RenderNode,
-    RenderNodeId,
-    RenderNodeKind,
-    LabelBatchRenderNode,
     LabelDisplayItem,
     LabelFontWeight,
     LabelText,
-    LineBatchRenderNode,
-    MarkerBatchRenderNode,
     MarkerDisplayItem,
     MarkerShape,
     NavigationDepthGraphSampleInput,
@@ -118,13 +90,9 @@ export type {
     NavigationDepthSampleInputBase,
     NavigationDepthSampleInput,
     NavigationDepthSamplingArea,
-    NavigationDepthSceneSampleInput,
-    PointBatchRenderNode,
-    RenderFrameInput,
     RenderHighlightState,
     ScreenPoint2,
     ScreenRect,
-    SurfaceBatchRenderNode,
     SurfaceTriangle,
     ViewCubeArrowCommand,
     ViewCubeCornerId,

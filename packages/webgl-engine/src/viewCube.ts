@@ -276,7 +276,7 @@ export function renderViewCubeOverlay(
     context.bindVertexArray(null);
 }
 
-export function hitTestViewCube(input: {
+export function findViewCubeTargetAtPoint(input: {
     readonly camera: CameraState;
     readonly point: ScreenPoint2;
     readonly viewportSize: ViewportSize;

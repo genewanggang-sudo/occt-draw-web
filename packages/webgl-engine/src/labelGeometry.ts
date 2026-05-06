@@ -1,4 +1,7 @@
-import type { RenderScene, LabelBatchRenderNode, LabelDisplayItem } from './types';
+import type { RenderGraph } from './core';
+import { collectSceneGraphObjects } from './graphTraversal';
+import { TextLabelSet } from './scene';
+import type { LabelDisplayItem } from './types';
 import { Vec3, type Vector3 } from '@occt-draw/math';
 import type { CameraState, ViewportSize } from './types';
 import {
@@ -31,23 +34,21 @@ interface TextFrameBasis {
 export function createDisplayLabelVertices({
     atlas,
     camera,
-    scene,
+    graph,
     viewportSize,
 }: {
     readonly atlas: Pick<LabelAtlas, 'glyphs'>;
     readonly camera: CameraState;
-    readonly scene: RenderScene;
+    readonly graph: RenderGraph;
     readonly viewportSize: ViewportSize;
 }): readonly LabelVertex[] {
     const vertices: LabelVertex[] = [];
     const worldUnitsPerPixel = calculateWorldUnitsPerPixel(camera, viewportSize);
 
-    for (const object of scene.nodes) {
-        if (!object.visible || object.kind !== 'label-batch') {
-            continue;
+    for (const { object } of collectSceneGraphObjects(graph)) {
+        if (object instanceof TextLabelSet) {
+            appendLabelSet(vertices, object, atlas, worldUnitsPerPixel);
         }
-
-        appendLabelBatch(vertices, object, atlas, worldUnitsPerPixel);
     }
 
     return vertices;
@@ -73,13 +74,13 @@ export function toLabelVertexBuffer(vertices: readonly LabelVertex[]): Float32Ar
     return new Float32Array(values);
 }
 
-function appendLabelBatch(
+function appendLabelSet(
     vertices: LabelVertex[],
-    object: LabelBatchRenderNode,
+    object: TextLabelSet,
     atlas: Pick<LabelAtlas, 'glyphs'>,
     worldUnitsPerPixel: number,
 ): void {
-    for (const label of object.labels) {
+    for (const label of object.geometry.labels) {
         const glyph = resolveGlyph(label, atlas);
         const frameBasis = resolveFrameBasis(label);
         const insertWorld = resolveInsertWorld(label, frameBasis);

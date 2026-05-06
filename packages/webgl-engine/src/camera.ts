@@ -1,10 +1,5 @@
-import type { RenderScene } from './types';
 import { BBox3, Measurement, Scalar, Vec3, type Vector3 } from '@occt-draw/math';
-import {
-    calculateBoundingSphere,
-    calculateRenderSceneNavigationBoundingBox,
-    getBoundingBoxCorners,
-} from './bounds';
+import { calculateBoundingSphere, getBoundingBoxCorners } from './bounds';
 import { calculateCameraBasis, calculateViewDepth } from './cameraGeometry';
 import type { BoundingBox3, CameraState, ScreenPoint2, ViewportSize } from './types';
 
@@ -136,10 +131,6 @@ export const DEFAULT_CAMERA_STATE: CameraState = {
     near: 0.1,
     far: 100,
 };
-
-export function createCameraStateForScene(scene: RenderScene): CameraState {
-    return createStandardCameraState(calculateRenderSceneNavigationBoundingBox(scene), 'trimetric');
-}
 
 export function createStandardCameraState(
     bounds: BoundingBox3,

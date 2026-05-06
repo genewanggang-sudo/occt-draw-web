@@ -1,17 +1,12 @@
-import type {
-    LabelDisplayItem,
-    LineBatchRenderNode,
-    MarkerDisplayItem,
-    SurfaceTriangle,
-} from '../types';
-import type { Vector3 } from '@occt-draw/math';
+import type { LineSegment3, Vector3 } from '@occt-draw/math';
+import type { LabelDisplayItem, MarkerDisplayItem, SurfaceTriangle } from '../types';
 
 export class FaceGeometry {
     constructor(public readonly triangles: readonly SurfaceTriangle[]) {}
 }
 
 export class EdgeGeometry {
-    constructor(public readonly segments: LineBatchRenderNode['segments']) {}
+    constructor(public readonly segments: readonly LineSegment3[]) {}
 }
 
 export class PointGeometry {

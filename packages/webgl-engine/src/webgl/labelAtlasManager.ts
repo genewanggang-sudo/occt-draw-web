@@ -4,7 +4,10 @@ import {
     DEFAULT_LABEL_FONT_WEIGHT,
     type LabelAtlas,
 } from '../labelAtlas';
-import type { LabelFontWeight, RenderScene } from '../types';
+import type { RenderGraph } from '../core';
+import { collectSceneGraphObjects } from '../graphTraversal';
+import { TextLabelSet } from '../scene';
+import type { LabelFontWeight } from '../types';
 
 export class LabelAtlasManager {
     private currentAtlas: LabelAtlas;
@@ -19,15 +22,15 @@ export class LabelAtlasManager {
         return this.currentAtlas;
     }
 
-    public ensureForScene(scene: RenderScene): LabelAtlas {
-        const signature = createLabelAtlasFontWeightSignature(collectLabelFontWeights(scene));
+    public ensureForGraph(graph: RenderGraph): LabelAtlas {
+        const signature = createLabelAtlasFontWeightSignature(collectLabelFontWeights(graph));
 
         if (signature === this.fontWeightSignature) {
             return this.currentAtlas;
         }
 
         this.context.deleteTexture(this.currentAtlas.texture);
-        this.currentAtlas = createLabelAtlas(this.context, collectLabelFontWeights(scene));
+        this.currentAtlas = createLabelAtlas(this.context, collectLabelFontWeights(graph));
         this.fontWeightSignature = this.currentAtlas.fontWeightSignature;
 
         return this.currentAtlas;
@@ -38,16 +41,16 @@ export class LabelAtlasManager {
     }
 }
 
-function collectLabelFontWeights(scene: RenderScene): readonly LabelFontWeight[] {
+function collectLabelFontWeights(graph: RenderGraph): readonly LabelFontWeight[] {
     const seen = new Set<LabelFontWeight>();
     const fontWeights: LabelFontWeight[] = [];
 
-    for (const object of scene.nodes) {
-        if (!object.visible || object.kind !== 'label-batch') {
+    for (const { object } of collectSceneGraphObjects(graph)) {
+        if (!(object instanceof TextLabelSet)) {
             continue;
         }
 
-        for (const label of object.labels) {
+        for (const label of object.geometry.labels) {
             const fontWeight = label.fontWeight ?? DEFAULT_LABEL_FONT_WEIGHT;
 
             if (!seen.has(fontWeight)) {

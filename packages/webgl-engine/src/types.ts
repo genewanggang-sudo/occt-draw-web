@@ -1,4 +1,4 @@
-import type { LineSegment3, Vector3 } from '@occt-draw/math';
+import type { Vector3 } from '@occt-draw/math';
 import type { RenderGraph } from './core';
 
 export type CameraProjection = 'orthographic' | 'perspective';
@@ -29,13 +29,6 @@ export interface CameraState {
     readonly up: Vector3;
 }
 
-export type RenderNodeId = string;
-export type RenderNodeKind =
-    | 'label-batch'
-    | 'line-batch'
-    | 'marker-batch'
-    | 'point-batch'
-    | 'surface-batch';
 export type RenderDepthRole = 'excluded' | 'primary' | 'secondary';
 export type LabelBaseline = 'alphabetic' | 'hanging' | 'ideographic' | 'middle';
 export type LabelFontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
@@ -43,14 +36,6 @@ export type LabelHorizontalJustify = 'center' | 'left' | 'right';
 export type LabelText = string;
 export type LabelVerticalJustify = 'baseline' | 'bottom' | 'middle' | 'top';
 export type MarkerShape = string;
-
-export interface BaseRenderNode {
-    readonly id: RenderNodeId;
-    readonly kind: RenderNodeKind;
-    readonly name: string;
-    readonly depthRole: RenderDepthRole;
-    readonly visible: boolean;
-}
 
 export interface LabelFrame {
     readonly origin: Vector3;
@@ -85,17 +70,6 @@ export interface LabelDisplayItem {
     readonly text: LabelText;
 }
 
-export interface LabelBatchRenderNode extends BaseRenderNode {
-    readonly kind: 'label-batch';
-    readonly labels: readonly LabelDisplayItem[];
-}
-
-export interface LineBatchRenderNode extends BaseRenderNode {
-    readonly color: Vector3;
-    readonly kind: 'line-batch';
-    readonly segments: readonly LineSegment3[];
-}
-
 export interface MarkerDisplayItem {
     readonly color: Vector3;
     readonly position: Vector3;
@@ -103,50 +77,10 @@ export interface MarkerDisplayItem {
     readonly sizePixels: number;
 }
 
-export interface MarkerBatchRenderNode extends BaseRenderNode {
-    readonly kind: 'marker-batch';
-    readonly markers: readonly MarkerDisplayItem[];
-}
-
-export interface PointBatchRenderNode extends BaseRenderNode {
-    readonly color: Vector3;
-    readonly kind: 'point-batch';
-    readonly points: readonly Vector3[];
-    readonly sizePixels: number;
-}
-
 export interface SurfaceTriangle {
     readonly a: Vector3;
     readonly b: Vector3;
     readonly c: Vector3;
-}
-
-export interface SurfaceBatchRenderNode extends BaseRenderNode {
-    readonly color: Vector3;
-    readonly kind: 'surface-batch';
-    readonly opacity: number;
-    readonly triangles: readonly SurfaceTriangle[];
-}
-
-export type RenderNode =
-    | LabelBatchRenderNode
-    | LineBatchRenderNode
-    | MarkerBatchRenderNode
-    | PointBatchRenderNode
-    | SurfaceBatchRenderNode;
-
-export interface RenderScene {
-    readonly id: string;
-    readonly name: string;
-    readonly nodes: readonly RenderNode[];
-}
-
-export interface RenderFrameInput {
-    readonly camera: CameraState;
-    readonly scene: RenderScene;
-    readonly highlight: RenderHighlightState;
-    readonly viewportSize: ViewportSize;
-    readonly viewCube?: ViewCubeRenderInput;
 }
 
 export interface RenderHighlightState {
@@ -193,17 +127,11 @@ export interface NavigationDepthSampleInputBase {
     readonly viewportSize: ViewportSize;
 }
 
-export interface NavigationDepthSceneSampleInput extends NavigationDepthSampleInputBase {
-    readonly scene: RenderScene;
-}
-
 export interface NavigationDepthGraphSampleInput extends NavigationDepthSampleInputBase {
     readonly graph: RenderGraph;
 }
 
-export type NavigationDepthSampleInput =
-    | NavigationDepthGraphSampleInput
-    | NavigationDepthSceneSampleInput;
+export type NavigationDepthSampleInput = NavigationDepthGraphSampleInput;
 
 export interface NavigationDepthSample {
     readonly canvasPoint: ScreenPoint2;

@@ -1,6 +1,6 @@
 import { RenderGraph, RenderLayer } from '../core';
-import type { RenderNode, RenderScene } from '../types';
 import { LegacyRenderNodeToObjectMapper } from './legacyRenderNodeToObjectMapper';
+import type { RenderNode, RenderScene } from './legacyTypes';
 import { RenderObjectToLegacyNodeMapper } from './renderObjectToLegacyNodeMapper';
 
 const LEGACY_SCENE_LAYER = 'legacy-scene';

@@ -1,4 +1,4 @@
-import { getViewCubeViewportRect, hitTestViewCube } from '../viewCube';
+import { findViewCubeTargetAtPoint, getViewCubeViewportRect } from '../viewCube';
 import type {
     CameraState,
     ScreenPoint2,
@@ -24,7 +24,7 @@ export class ViewCube extends ViewportWidget {
         readonly point: ScreenPoint2;
         readonly viewportSize: ViewportSize;
     }): ViewCubeTargetId | null {
-        return hitTestViewCube(input);
+        return findViewCubeTargetAtPoint(input);
     }
 
     public getViewportRect(viewportSize: ViewportSize): ReturnType<typeof getViewCubeViewportRect> {

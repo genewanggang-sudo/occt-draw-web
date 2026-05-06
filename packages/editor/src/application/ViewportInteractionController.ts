@@ -1,5 +1,4 @@
 import {
-    LegacyRenderSceneGraphAdapter,
     projectBoundsToScreenRect,
     screenPointToWorldRay,
     type BoundingBox3,
@@ -8,7 +7,6 @@ import {
     type NavigationDepthSample,
     type NavigationDepthSampleInput,
     type RenderGraph,
-    type RenderScene,
     type StandardCameraView,
 } from '@occt-draw/webgl-engine';
 import {
@@ -68,7 +66,6 @@ const BOUNDS_FIT_ROTATE_FACTOR = 2;
 export class ViewportInteractionController {
     private readonly commandManager: CommandManager;
     private readonly context: ViewportInteractionContext;
-    private readonly legacyAdapter = new LegacyRenderSceneGraphAdapter();
 
     constructor(context: ViewportInteractionContext) {
         this.context = context;
@@ -402,7 +399,6 @@ export class ViewportInteractionController {
 
     private createCommandContext(stateOverride?: EditorState): CommandContext {
         return {
-            getLegacyRenderScene: () => this.getLegacyRenderScene(),
             getDraft: () => (stateOverride ?? this.context.getState()).draft,
             getState: () => stateOverride ?? this.context.getState(),
             pick: (point: ScreenPoint) => {
@@ -417,13 +413,6 @@ export class ViewportInteractionController {
                 });
             },
         };
-    }
-
-    private getLegacyRenderScene(): RenderScene {
-        return this.legacyAdapter.toRenderScene(this.context.getRenderGraph(), {
-            id: 'editor-command-graph',
-            name: 'Editor Command Graph',
-        });
     }
 }
 

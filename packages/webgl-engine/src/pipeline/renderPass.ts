@@ -1,11 +1,17 @@
-import type { RenderFrameInput } from '../types';
 import type { RenderPipelineResources } from '../renderPipeline';
 import type { RenderGraph } from '../core';
+import type { CameraState, RenderHighlightState, ViewportSize } from '../types';
+
+export interface RenderFrameContext {
+    readonly camera: CameraState;
+    readonly graph: RenderGraph;
+    readonly highlight?: RenderHighlightState;
+    readonly viewportSize: ViewportSize;
+}
 
 export interface RenderPassContext {
     readonly context: WebGL2RenderingContext;
-    readonly graph?: RenderGraph | undefined;
-    readonly input: RenderFrameInput;
+    readonly input: RenderFrameContext;
     readonly resources: RenderPipelineResources;
 }
 

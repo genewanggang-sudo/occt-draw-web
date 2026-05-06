@@ -24,7 +24,6 @@ import {
     FaceGeometry,
     FaceSet,
     FaceStyle,
-    LegacyRenderSceneGraphAdapter,
     MarkerGeometry,
     MarkerSet,
     MarkerStyle,
@@ -37,9 +36,7 @@ import {
     TextLabelSet,
     TextStyle,
     type LabelText,
-    type RenderNode,
     type RenderObject,
-    type RenderScene,
 } from '@occt-draw/webgl-engine';
 
 export interface DisplayProjectionContext {
@@ -49,7 +46,6 @@ export interface DisplayProjectionContext {
 const EMPTY_DISPLAY_PROJECTION_CONTEXT: DisplayProjectionContext = {
     sketchesById: {},
 };
-const LEGACY_RENDER_SCENE_GRAPH_ADAPTER = new LegacyRenderSceneGraphAdapter();
 const MODEL_LAYER_NAME = 'model';
 const SKETCH_DRAFT_LAYER_NAME = 'sketch-draft';
 const LABEL_HELPER_LAYER_NAME = 'label-helper';
@@ -59,8 +55,8 @@ export class DisplayProjector {
         document: CadDocument,
         draft: EditDraft | null = null,
         context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
-    ): RenderScene {
-        return this.projectDocumentToRenderScene(document, draft, context);
+    ): RenderGraph {
+        return this.projectDocumentToGraph(document, draft, context);
     }
 
     public projectDocumentToGraph(
@@ -71,22 +67,12 @@ export class DisplayProjector {
         return this.projectPartStudioToGraph(document.getActivePartStudio(), draft, context);
     }
 
-    public projectDocumentToRenderScene(
-        document: CadDocument,
-        draft: EditDraft | null = null,
-        context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
-    ): RenderScene {
-        const partStudio = document.getActivePartStudio();
-
-        return this.projectPartStudioToRenderScene(partStudio, draft, context);
-    }
-
     public projectPartStudio(
         partStudio: PartStudio,
         draft: EditDraft | null = null,
         context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
-    ): RenderScene {
-        return this.projectPartStudioToRenderScene(partStudio, draft, context);
+    ): RenderGraph {
+        return this.projectPartStudioToGraph(partStudio, draft, context);
     }
 
     public projectPartStudioToGraph(
@@ -121,17 +107,6 @@ export class DisplayProjector {
         return graph;
     }
 
-    public projectPartStudioToRenderScene(
-        partStudio: PartStudio,
-        draft: EditDraft | null = null,
-        context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
-    ): RenderScene {
-        return LEGACY_RENDER_SCENE_GRAPH_ADAPTER.toRenderScene(
-            this.projectPartStudioToGraph(partStudio, draft, context),
-            { id: partStudio.id, name: partStudio.name },
-        );
-    }
-
     public toRenderObject(object: CadObject): RenderObject {
         const [renderObject] = this.toRenderObjects(object);
 
@@ -148,23 +123,6 @@ export class DisplayProjector {
         }
 
         return projectReferencePlaneObject(object);
-    }
-
-    public toRenderNode(object: CadObject): RenderNode {
-        const [renderNode] = this.toRenderNodes(object);
-
-        if (!renderNode) {
-            throw new Error(`Legacy object projection failed: ${object.id}`);
-        }
-
-        return renderNode;
-    }
-
-    public toRenderNodes(object: CadObject): readonly RenderNode[] {
-        return LEGACY_RENDER_SCENE_GRAPH_ADAPTER.toRenderScene(
-            createRenderGraphFromObjects(this.toRenderObjects(object)),
-            { id: object.id, name: object.name },
-        ).nodes;
     }
 
     private projectSketchFeatures(
@@ -287,28 +245,12 @@ export class DisplayProjector {
     }
 }
 
-export function projectDocumentToRenderScene(
-    document: CadDocument,
-    draft: EditDraft | null = null,
-    context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
-): RenderScene {
-    return new DisplayProjector().projectDocumentToRenderScene(document, draft, context);
-}
-
 export function projectDocumentToRenderGraph(
     document: CadDocument,
     draft: EditDraft | null = null,
     context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
 ): RenderGraph {
     return new DisplayProjector().projectDocumentToGraph(document, draft, context);
-}
-
-export function projectPartStudioToRenderScene(
-    partStudio: PartStudio,
-    draft: EditDraft | null = null,
-    context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
-): RenderScene {
-    return new DisplayProjector().projectPartStudioToRenderScene(partStudio, draft, context);
 }
 
 export function projectPartStudioToRenderGraph(
@@ -434,21 +376,6 @@ function addObjectsToLayers(
             modelLayer.add(object);
         }
     }
-}
-
-function createRenderGraphFromObjects(objects: readonly RenderObject[]): RenderGraph {
-    const graph = new RenderGraph();
-    const modelLayer = new RenderLayer(MODEL_LAYER_NAME);
-    const labelHelperLayer = new RenderLayer(LABEL_HELPER_LAYER_NAME, {
-        navigationRole: 'excluded',
-        pickable: false,
-    });
-
-    addObjectsToLayers(objects, modelLayer, labelHelperLayer);
-    graph.addLayer(modelLayer);
-    graph.addLayer(labelHelperLayer);
-
-    return graph;
 }
 
 function getReferencePlaneLabel(planeKind: ReferencePlaneObject['planeKind']): LabelText {

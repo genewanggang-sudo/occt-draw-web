@@ -1,13 +1,15 @@
-import type { RenderScene, RenderDepthRole, RenderNode, MarkerBatchRenderNode } from './types';
+import type { RenderGraph } from './core';
 import { cameraDepth01ToViewDepth, canvasDepthToWorld } from './camera';
 import type {
     NavigationDepthRole,
     NavigationDepthSample,
-    NavigationDepthSceneSampleInput,
+    NavigationDepthGraphSampleInput,
     ScreenPoint2,
 } from './types';
 import { DEFAULT_TOLERANCE, type Vector3 } from '@occt-draw/math';
 import { createViewProjectionMatrix } from './matrix';
+import { collectNavigationDepthGraphObjects, resolveNavigationDepthRole } from './graphTraversal';
+import { EdgeSet, FaceSet, MarkerSet, PointSet } from './scene';
 
 interface NavigationDepthTarget {
     readonly depthTexture: WebGLTexture;
@@ -18,15 +20,33 @@ interface NavigationDepthTarget {
 }
 
 interface NavigationDepthCache {
-    readonly areaKind: NavigationDepthSceneSampleInput['area']['kind'];
-    readonly camera: NavigationDepthSceneSampleInput['camera'];
-    readonly scene: RenderScene;
+    readonly areaKind: NavigationDepthGraphSampleInput['area']['kind'];
+    readonly camera: NavigationDepthGraphSampleInput['camera'];
+    readonly graph: RenderGraph;
     readonly height: number;
     readonly includeSecondary: boolean;
     readonly targetSampleCount: number | null;
     readonly viewportHeight: number;
     readonly viewportWidth: number;
     readonly width: number;
+}
+
+interface NavigationDepthWebglState {
+    readonly activeTexture: number;
+    readonly arrayBuffer: WebGLBuffer | null;
+    readonly blendEnabled: boolean;
+    readonly clearColor: Float32Array;
+    readonly cullFaceEnabled: boolean;
+    readonly depthFunc: number;
+    readonly depthMask: boolean;
+    readonly depthTestEnabled: boolean;
+    readonly drawFramebuffer: WebGLFramebuffer | null;
+    readonly program: WebGLProgram | null;
+    readonly readBuffer: number;
+    readonly readFramebuffer: WebGLFramebuffer | null;
+    readonly texture2D: WebGLTexture | null;
+    readonly vertexArray: WebGLVertexArrayObject | null;
+    readonly viewport: Int32Array;
 }
 
 interface NavigationDepthBatch {
@@ -169,53 +189,51 @@ export function sampleNavigationDepths(
     context: WebGL2RenderingContext,
     canvas: HTMLCanvasElement,
     resources: NavigationDepthResources,
-    input: NavigationDepthSceneSampleInput,
+    input: NavigationDepthGraphSampleInput,
 ): readonly NavigationDepthSample[] {
-    if (!hasNavigationDepthObjects(input.scene, input.includeSecondary)) {
+    if (!hasNavigationDepthObjects(input.graph, input.includeSecondary)) {
         return [];
     }
 
+    const state = captureNavigationDepthWebglState(context);
     const targetSize = getNavigationDepthTargetSize(canvas, input);
-    const target = ensureNavigationDepthTarget(
-        context,
-        resources,
-        targetSize.width,
-        targetSize.height,
-    );
 
-    if (shouldRenderNavigationDepth(resources.cache, target, input)) {
-        renderNavigationDepth(context, resources, target, input);
-        resources.cache = {
-            areaKind: input.area.kind,
-            camera: input.camera,
-            scene: input.scene,
-            height: target.height,
-            includeSecondary: input.includeSecondary,
-            targetSampleCount:
-                input.area.kind === 'viewport-grid' ? input.area.targetSampleCount : null,
-            viewportHeight: input.viewportSize.height,
-            viewportWidth: input.viewportSize.width,
-            width: target.width,
-        };
+    try {
+        const target = ensureNavigationDepthTarget(
+            context,
+            resources,
+            targetSize.width,
+            targetSize.height,
+        );
+
+        if (shouldRenderNavigationDepth(resources.cache, target, input)) {
+            renderNavigationDepth(context, resources, target, input);
+            resources.cache = {
+                areaKind: input.area.kind,
+                camera: input.camera,
+                graph: input.graph,
+                height: target.height,
+                includeSecondary: input.includeSecondary,
+                targetSampleCount:
+                    input.area.kind === 'viewport-grid' ? input.area.targetSampleCount : null,
+                viewportHeight: input.viewportSize.height,
+                viewportWidth: input.viewportSize.width,
+                width: target.width,
+            };
+        }
+
+        context.bindFramebuffer(context.FRAMEBUFFER, target.framebuffer);
+        context.readBuffer(context.COLOR_ATTACHMENT0);
+
+        return readNavigationDepthSamples(context, target, input);
+    } finally {
+        restoreNavigationDepthWebglState(context, state);
     }
-
-    context.bindFramebuffer(context.FRAMEBUFFER, target.framebuffer);
-    context.readBuffer(context.COLOR_ATTACHMENT0);
-
-    const samples = readNavigationDepthSamples(context, target, input);
-
-    context.bindFramebuffer(context.FRAMEBUFFER, null);
-    context.readBuffer(context.BACK);
-    context.viewport(0, 0, canvas.width, canvas.height);
-    context.clearColor(0.035, 0.043, 0.055, 1);
-    context.depthMask(true);
-
-    return samples;
 }
 
 function getNavigationDepthTargetSize(
     canvas: HTMLCanvasElement,
-    input: NavigationDepthSceneSampleInput,
+    input: NavigationDepthGraphSampleInput,
 ): Pick<NavigationDepthTarget, 'height' | 'width'> {
     if (input.area.kind !== 'viewport-grid') {
         return {
@@ -246,10 +264,10 @@ function renderNavigationDepth(
     context: WebGL2RenderingContext,
     resources: NavigationDepthResources,
     target: NavigationDepthTarget,
-    input: NavigationDepthSceneSampleInput,
+    input: NavigationDepthGraphSampleInput,
 ): void {
     const matrix = createViewProjectionMatrix(input.camera, input.viewportSize);
-    const batches = createNavigationDepthBatches(context, input.scene, input.includeSecondary);
+    const batches = createNavigationDepthBatches(context, input.graph, input.includeSecondary);
 
     context.bindFramebuffer(context.FRAMEBUFFER, target.framebuffer);
     context.viewport(0, 0, target.width, target.height);
@@ -307,7 +325,7 @@ function createNavigationDepthVertexArray(
 function readNavigationDepthSamples(
     context: WebGL2RenderingContext,
     target: NavigationDepthTarget,
-    input: NavigationDepthSceneSampleInput,
+    input: NavigationDepthGraphSampleInput,
 ): readonly NavigationDepthSample[] {
     if (input.area.kind === 'points') {
         return readPointSamples(context, target, input);
@@ -323,7 +341,7 @@ function readNavigationDepthSamples(
 function readPointSamples(
     context: WebGL2RenderingContext,
     target: NavigationDepthTarget,
-    input: NavigationDepthSceneSampleInput,
+    input: NavigationDepthGraphSampleInput,
 ): readonly NavigationDepthSample[] {
     if (input.area.kind !== 'points') {
         return [];
@@ -354,7 +372,7 @@ function readPointSamples(
 function readRectSamples(
     context: WebGL2RenderingContext,
     target: NavigationDepthTarget,
-    input: NavigationDepthSceneSampleInput,
+    input: NavigationDepthGraphSampleInput,
 ): readonly NavigationDepthSample[] {
     if (input.area.kind !== 'rect') {
         return [];
@@ -427,7 +445,7 @@ function readRectSamples(
 function readViewportGridSamples(
     context: WebGL2RenderingContext,
     target: NavigationDepthTarget,
-    input: NavigationDepthSceneSampleInput,
+    input: NavigationDepthGraphSampleInput,
 ): readonly NavigationDepthSample[] {
     if (input.area.kind !== 'viewport-grid') {
         return [];
@@ -472,7 +490,7 @@ function decodeNavigationDepthPixel(
     pixels: Uint8Array,
     index: number,
     canvasPoint: ScreenPoint2,
-    input: NavigationDepthSceneSampleInput,
+    input: NavigationDepthGraphSampleInput,
 ): NavigationDepthSample | null {
     const roleCode = pixels[index + 3] ?? 0;
 
@@ -501,51 +519,50 @@ function decodeNavigationDepthPixel(
 
 function createNavigationDepthBatches(
     context: WebGL2RenderingContext,
-    scene: RenderScene,
+    graph: RenderGraph,
     includeSecondary: boolean,
 ): readonly NavigationDepthBatch[] {
     const batches: NavigationDepthBatch[] = [];
 
-    for (const object of scene.nodes) {
-        if (!shouldIncludeObject(object, includeSecondary)) {
+    for (const { layer, object } of collectNavigationDepthGraphObjects(graph, includeSecondary)) {
+        const role = resolveNavigationDepthRole(layer, object);
+
+        if (role !== 'primary' && role !== 'secondary') {
             continue;
         }
 
-        const role = toNavigationDepthRole(object.depthRole);
-
-        if (!role) {
-            continue;
-        }
-
-        if (object.kind === 'surface-batch') {
+        if (object instanceof FaceSet) {
             batches.push({
                 mode: context.TRIANGLES,
                 pointShape: 0,
                 pointSize: 1,
-                positions: object.triangles.flatMap((triangle) => [
+                positions: object.geometry.triangles.flatMap((triangle) => [
                     triangle.a,
                     triangle.b,
                     triangle.c,
                 ]),
                 role,
             });
-        } else if (object.kind === 'line-batch') {
+        } else if (object instanceof EdgeSet) {
             batches.push({
                 mode: context.LINES,
                 pointShape: 0,
                 pointSize: 1,
-                positions: object.segments.flatMap((segment) => [segment.start, segment.end]),
+                positions: object.geometry.segments.flatMap((segment) => [
+                    segment.start,
+                    segment.end,
+                ]),
                 role,
             });
-        } else if (object.kind === 'point-batch') {
+        } else if (object instanceof PointSet) {
             batches.push({
                 mode: context.POINTS,
                 pointShape: 1,
-                pointSize: object.sizePixels,
-                positions: object.points,
+                pointSize: object.style.sizePixels,
+                positions: object.geometry.points,
                 role,
             });
-        } else if (object.kind === 'marker-batch') {
+        } else if (object instanceof MarkerSet) {
             batches.push(...createMarkerBatches(context, object, role));
         }
     }
@@ -555,10 +572,10 @@ function createNavigationDepthBatches(
 
 function createMarkerBatches(
     context: WebGL2RenderingContext,
-    object: MarkerBatchRenderNode,
+    object: MarkerSet,
     role: NavigationDepthRole,
 ): readonly NavigationDepthBatch[] {
-    return object.markers.map((marker) => ({
+    return object.geometry.markers.map((marker) => ({
         mode: context.POINTS,
         pointShape: 2,
         pointSize: marker.sizePixels,
@@ -567,26 +584,10 @@ function createMarkerBatches(
     }));
 }
 
-function shouldIncludeObject(object: RenderNode, includeSecondary: boolean): boolean {
-    if (!object.visible || object.depthRole === 'excluded') {
-        return false;
-    }
-
-    return object.depthRole === 'primary' || includeSecondary;
-}
-
-function toNavigationDepthRole(role: RenderDepthRole): NavigationDepthRole | null {
-    if (role === 'primary' || role === 'secondary') {
-        return role;
-    }
-
-    return null;
-}
-
 function shouldRenderNavigationDepth(
     cache: NavigationDepthCache | null,
     target: NavigationDepthTarget,
-    input: NavigationDepthSceneSampleInput,
+    input: NavigationDepthGraphSampleInput,
 ): boolean {
     if (!cache) {
         return true;
@@ -595,7 +596,7 @@ function shouldRenderNavigationDepth(
     return (
         cache.areaKind !== input.area.kind ||
         cache.camera !== input.camera ||
-        cache.scene !== input.scene ||
+        cache.graph !== input.graph ||
         cache.includeSecondary !== input.includeSecondary ||
         cache.targetSampleCount !==
             (input.area.kind === 'viewport-grid' ? input.area.targetSampleCount : null) ||
@@ -606,8 +607,79 @@ function shouldRenderNavigationDepth(
     );
 }
 
-function hasNavigationDepthObjects(scene: RenderScene, includeSecondary: boolean): boolean {
-    return scene.nodes.some((object) => shouldIncludeObject(object, includeSecondary));
+function hasNavigationDepthObjects(graph: RenderGraph, includeSecondary: boolean): boolean {
+    return collectNavigationDepthGraphObjects(graph, includeSecondary).length > 0;
+}
+
+function captureNavigationDepthWebglState(
+    context: WebGL2RenderingContext,
+): NavigationDepthWebglState {
+    return {
+        activeTexture: context.getParameter(context.ACTIVE_TEXTURE) as number,
+        arrayBuffer: context.getParameter(context.ARRAY_BUFFER_BINDING) as WebGLBuffer | null,
+        blendEnabled: context.isEnabled(context.BLEND),
+        clearColor: context.getParameter(context.COLOR_CLEAR_VALUE) as Float32Array,
+        cullFaceEnabled: context.isEnabled(context.CULL_FACE),
+        depthFunc: context.getParameter(context.DEPTH_FUNC) as number,
+        depthMask: context.getParameter(context.DEPTH_WRITEMASK) as boolean,
+        depthTestEnabled: context.isEnabled(context.DEPTH_TEST),
+        drawFramebuffer: context.getParameter(
+            context.DRAW_FRAMEBUFFER_BINDING,
+        ) as WebGLFramebuffer | null,
+        program: context.getParameter(context.CURRENT_PROGRAM) as WebGLProgram | null,
+        readBuffer: context.getParameter(context.READ_BUFFER) as number,
+        readFramebuffer: context.getParameter(
+            context.READ_FRAMEBUFFER_BINDING,
+        ) as WebGLFramebuffer | null,
+        texture2D: context.getParameter(context.TEXTURE_BINDING_2D) as WebGLTexture | null,
+        vertexArray: context.getParameter(
+            context.VERTEX_ARRAY_BINDING,
+        ) as WebGLVertexArrayObject | null,
+        viewport: context.getParameter(context.VIEWPORT) as Int32Array,
+    };
+}
+
+function restoreNavigationDepthWebglState(
+    context: WebGL2RenderingContext,
+    state: NavigationDepthWebglState,
+): void {
+    context.bindFramebuffer(context.READ_FRAMEBUFFER, state.readFramebuffer);
+    context.readBuffer(state.readBuffer);
+    context.bindFramebuffer(context.DRAW_FRAMEBUFFER, state.drawFramebuffer);
+    context.viewport(
+        state.viewport[0] ?? 0,
+        state.viewport[1] ?? 0,
+        state.viewport[2] ?? 1,
+        state.viewport[3] ?? 1,
+    );
+    context.clearColor(
+        state.clearColor[0] ?? 0,
+        state.clearColor[1] ?? 0,
+        state.clearColor[2] ?? 0,
+        state.clearColor[3] ?? 1,
+    );
+    context.depthMask(state.depthMask);
+    context.depthFunc(state.depthFunc);
+    setCapability(context, context.BLEND, state.blendEnabled);
+    setCapability(context, context.CULL_FACE, state.cullFaceEnabled);
+    setCapability(context, context.DEPTH_TEST, state.depthTestEnabled);
+    context.useProgram(state.program);
+    context.bindVertexArray(state.vertexArray);
+    context.bindBuffer(context.ARRAY_BUFFER, state.arrayBuffer);
+    context.activeTexture(state.activeTexture);
+    context.bindTexture(context.TEXTURE_2D, state.texture2D);
+}
+
+function setCapability(
+    context: WebGL2RenderingContext,
+    capability: number,
+    enabled: boolean,
+): void {
+    if (enabled) {
+        context.enable(capability);
+    } else {
+        context.disable(capability);
+    }
 }
 
 function ensureNavigationDepthTarget(

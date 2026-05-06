@@ -7,7 +7,7 @@ import type {
     PointBatchRenderNode,
     RenderNode,
     SurfaceBatchRenderNode,
-} from '../types';
+} from './legacyTypes';
 
 export class RenderObjectToLegacyNodeMapper {
     public map(object: RenderObject, layerVisible: boolean): RenderNode | null {

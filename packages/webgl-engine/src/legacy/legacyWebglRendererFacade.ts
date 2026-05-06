@@ -1,5 +1,6 @@
-import type { RenderEngine, RenderFrameInput } from '../types';
+import type { RenderEngine } from '../types';
 import { LegacyRenderSceneGraphAdapter } from './legacyRenderSceneGraphAdapter';
+import type { RenderFrameInput } from './legacyTypes';
 
 export class LegacyWebglRendererFacade {
     private readonly adapter = new LegacyRenderSceneGraphAdapter();

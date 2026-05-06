@@ -8,7 +8,7 @@ import {
 } from '../geometry';
 import { EdgeSet, FaceSet, MarkerSet, PointSet, TextLabelSet } from '../scene';
 import { EdgeStyle, FaceStyle, MarkerStyle, PointStyle, TextStyle } from '../style';
-import type { RenderNode } from '../types';
+import type { RenderNode } from './legacyTypes';
 
 export class LegacyRenderNodeToObjectMapper {
     public map(node: RenderNode): RenderObject {

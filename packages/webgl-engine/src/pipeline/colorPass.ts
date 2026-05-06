@@ -15,14 +15,14 @@ export class ColorPass implements RenderPass {
 
     public execute({ context, input, resources }: RenderPassContext): void {
         const matrix = createViewProjectionMatrix(input.camera, input.viewportSize);
-        const surfaceVertices = createRenderSurfaceVertices(input.scene);
-        const lineVertices = createRenderLineVertices(input.scene);
-        const pointVertices = createRenderPointVertices(input.scene);
-        const markerVertices = createRenderMarkerVertices(input.scene);
+        const surfaceVertices = createRenderSurfaceVertices(input.graph);
+        const lineVertices = createRenderLineVertices(input.graph);
+        const pointVertices = createRenderPointVertices(input.graph);
+        const markerVertices = createRenderMarkerVertices(input.graph);
         const labelVertices = createDisplayLabelVertices({
             atlas: { glyphs: resources.labelAtlasGlyphs },
             camera: input.camera,
-            scene: input.scene,
+            graph: input.graph,
             viewportSize: input.viewportSize,
         });
 
