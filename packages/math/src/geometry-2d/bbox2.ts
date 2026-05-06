@@ -42,7 +42,7 @@ export class BBox2 {
         return this.min.isFinite() && this.max.isFinite();
     }
 
-    public static fromPoints(points: readonly Vector2[], fallback?: BBox2): BBox2 | undefined {
+    public static fromPoints(points: readonly Vector2[]): BBox2 | undefined {
         let bounds: BBox2 | null = null;
 
         for (const point of points) {
@@ -53,6 +53,6 @@ export class BBox2 {
             bounds = bounds ? bounds.expandByPoint(point) : new BBox2(point, point);
         }
 
-        return bounds ?? fallback;
+        return bounds ?? undefined;
     }
 }

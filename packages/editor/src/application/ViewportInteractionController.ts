@@ -8,7 +8,14 @@ import {
     type NavigationDepthSampleInput,
     type StandardCameraView,
 } from '@occt-draw/webgl-engine';
-import { BBox3, Measurement, Projection, Vec3, type Vector3 } from '@occt-draw/math';
+import {
+    BBox3,
+    DEFAULT_TOLERANCE,
+    Measurement,
+    Projection,
+    Vec3,
+    type Vector3,
+} from '@occt-draw/math';
 import type { CommandContext, CommandPointerEvent, CommandResult } from '../commands/CadCommand';
 import { SelectCommand } from '../commands/SelectCommand';
 import { SketchCommand } from '../commands/SketchCommand';
@@ -217,7 +224,7 @@ export class ViewportInteractionController {
             const leftDistance = Measurement.distance2(left.canvasPoint, point).value;
             const rightDistance = Measurement.distance2(right.canvasPoint, point).value;
 
-            if (Math.abs(leftDistance - rightDistance) > 1e-6) {
+            if (Math.abs(leftDistance - rightDistance) > DEFAULT_TOLERANCE.distance) {
                 return leftDistance - rightDistance;
             }
 
@@ -300,7 +307,8 @@ export class ViewportInteractionController {
             state.navigation.viewportSize,
         );
         const diameter = Math.max(Measurement.boundsDiameter3(bbox).value, 1);
-        const projectedCenterDistance = Projection.pointToRayParameter3(bbox.center, ray).value;
+        const projection = Projection.pointToRayParameter3(bbox.center, ray);
+        const projectedCenterDistance = projection.success ? projection.value : null;
         const distance = Math.max(projectedCenterDistance ?? diameter * 0.01, diameter * 0.01);
 
         return ray.pointAt(distance);

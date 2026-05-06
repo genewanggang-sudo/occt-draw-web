@@ -91,7 +91,7 @@ export class BBox3 {
         return new BBox3(bounds.min, bounds.max);
     }
 
-    public static fromPoints(points: readonly Vector3[], fallback?: BBox3): BBox3 | undefined {
+    public static fromPoints(points: readonly Vector3[]): BBox3 | undefined {
         let bounds: BBox3 | null = null;
 
         for (const point of points) {
@@ -102,6 +102,6 @@ export class BBox3 {
             bounds = bounds ? bounds.expandByPoint(point) : new BBox3(point, point);
         }
 
-        return bounds ?? fallback;
+        return bounds ?? undefined;
     }
 }

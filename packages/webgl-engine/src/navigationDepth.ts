@@ -6,7 +6,7 @@ import type {
     NavigationDepthSampleInput,
     ScreenPoint2,
 } from './types';
-import type { Vector3 } from '@occt-draw/math';
+import { DEFAULT_TOLERANCE, type Vector3 } from '@occt-draw/math';
 import { createViewProjectionMatrix } from './matrix';
 
 interface NavigationDepthTarget {
@@ -786,8 +786,10 @@ function dedupeNavigationDepthSamples(
         if (
             deduped.some(
                 (candidate) =>
-                    Math.abs(candidate.canvasPoint.x - sample.canvasPoint.x) <= 1e-6 &&
-                    Math.abs(candidate.canvasPoint.y - sample.canvasPoint.y) <= 1e-6,
+                    Math.abs(candidate.canvasPoint.x - sample.canvasPoint.x) <=
+                        DEFAULT_TOLERANCE.distance &&
+                    Math.abs(candidate.canvasPoint.y - sample.canvasPoint.y) <=
+                        DEFAULT_TOLERANCE.distance,
             )
         ) {
             continue;

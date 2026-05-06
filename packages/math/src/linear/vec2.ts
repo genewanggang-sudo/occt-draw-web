@@ -1,5 +1,4 @@
 import { MATH_EPSILON, areNumbersEqual } from '../value/tolerance';
-import { GeometryResult } from '../value/result';
 
 export interface Vector2 {
     readonly x: number;
@@ -62,21 +61,9 @@ export class Vec2 implements Vector2 {
     public normalize(): Vec2 {
         const length = this.length();
 
-        return length <= MATH_EPSILON ? Vec2.zero() : this.scale(1 / length);
-    }
-
-    public normalizeOr(fallback: Vector2): Vec2 {
-        const normalized = this.tryNormalize();
-
-        return normalized.value ?? Vec2.from(fallback);
-    }
-
-    public tryNormalize(): GeometryResult<Vec2> {
-        const length = this.length();
-
-        return length <= MATH_EPSILON
-            ? GeometryResult.degenerate()
-            : GeometryResult.success(this.scale(1 / length));
+        return !Number.isFinite(length) || length <= MATH_EPSILON
+            ? Vec2.zero()
+            : this.scale(1 / length);
     }
 
     public perpendicularLeft(): Vec2 {

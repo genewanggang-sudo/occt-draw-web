@@ -17,10 +17,6 @@ export class GeometryResult<TValue> {
         return !this.success;
     }
 
-    public valueOr(fallback: TValue): TValue {
-        return this.value ?? fallback;
-    }
-
     public static success<TValue>(value: TValue): GeometryResult<TValue> {
         return new GeometryResult('success', value);
     }

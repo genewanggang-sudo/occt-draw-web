@@ -1,5 +1,4 @@
 import { MATH_EPSILON, areNumbersEqual } from '../value/tolerance';
-import { GeometryResult } from '../value/result';
 
 export interface Vector3 {
     readonly x: number;
@@ -73,27 +72,15 @@ export class Vec3 implements Vector3 {
     public normalize(): Vec3 {
         const length = this.length();
 
-        return length <= MATH_EPSILON ? Vec3.zero() : this.scale(1 / length);
-    }
-
-    public normalizeOr(fallback: Vector3): Vec3 {
-        const normalized = this.tryNormalize();
-
-        return normalized.value ?? Vec3.from(fallback);
-    }
-
-    public tryNormalize(): GeometryResult<Vec3> {
-        const length = this.length();
-
-        return length <= MATH_EPSILON
-            ? GeometryResult.degenerate()
-            : GeometryResult.success(this.scale(1 / length));
+        return !Number.isFinite(length) || length <= MATH_EPSILON
+            ? Vec3.zero()
+            : this.scale(1 / length);
     }
 
     public rotateAroundAxis(axis: Vector3, radians: number): Vec3 {
-        const unitAxis = Vec3.from(axis).tryNormalize().value;
+        const unitAxis = Vec3.normalize(axis);
 
-        if (!unitAxis) {
+        if (unitAxis.isNearZero()) {
             return this;
         }
 

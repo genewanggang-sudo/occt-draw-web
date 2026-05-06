@@ -7,7 +7,7 @@ export class Ray3 {
 
     constructor(origin: Vector3, direction: Vector3) {
         this.origin = Vec3.from(origin);
-        this.direction = Vec3.from(direction).normalize();
+        this.direction = Vec3.normalize(direction);
     }
 
     public pointAt(distance: number): Vec3 {

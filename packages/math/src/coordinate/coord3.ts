@@ -50,13 +50,12 @@ function normalizeOrFallback(value: Vector3, fallback: Vec3): Vec3 {
 }
 
 function normalizeAxisInPlane(axis: Vector3, normal: Vec3): Vec3 {
+    const fallback = Math.abs(normal.x) < 0.9 ? Vec3.of(1, 0, 0) : Vec3.of(0, 1, 0);
     const vector = Vec3.from(axis).subtract(normal.scale(Vec3.dot(axis, normal)));
 
     if (vector.isFinite() && vector.length() > MATH_EPSILON) {
         return vector.normalize();
     }
-
-    const fallback = Math.abs(normal.x) < 0.9 ? Vec3.of(1, 0, 0) : Vec3.of(0, 1, 0);
 
     return fallback.subtract(normal.scale(fallback.dot(normal))).normalize();
 }

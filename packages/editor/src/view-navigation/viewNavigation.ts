@@ -69,7 +69,7 @@ export function createFramedStandardCamera(
     camera: CameraState,
     bounds: BoundingSphere,
 ): CameraState {
-    const direction = Vec3.normalize(Vec3.subtract(camera.position, camera.target));
+    const direction = Vec3.subtract(camera.position, camera.target).normalize();
     const distance = Math.max(bounds.radius * 3.5, 1);
 
     return {
@@ -92,27 +92,23 @@ export function interpolateCameraState(
         Scalar.lerp(startTarget.y, endTarget.y, t),
         Scalar.lerp(startTarget.z, endTarget.z, t),
     );
-    const startView = Vec3.normalize(Vec3.subtract(startCamera.position, startCamera.target));
-    const endView = Vec3.normalize(Vec3.subtract(endCamera.position, endCamera.target));
-    const view = Vec3.normalize(
-        Vec3.of(
-            Scalar.lerp(startView.x, endView.x, t),
-            Scalar.lerp(startView.y, endView.y, t),
-            Scalar.lerp(startView.z, endView.z, t),
-        ),
-    );
+    const startView = Vec3.subtract(startCamera.position, startCamera.target).normalize();
+    const endView = Vec3.subtract(endCamera.position, endCamera.target).normalize();
+    const view = Vec3.of(
+        Scalar.lerp(startView.x, endView.x, t),
+        Scalar.lerp(startView.y, endView.y, t),
+        Scalar.lerp(startView.z, endView.z, t),
+    ).normalize();
     const startDistance = Measurement.distance3(startCamera.position, startCamera.target).value;
     const endDistance = Measurement.distance3(endCamera.position, endCamera.target).value;
     const distance = Scalar.lerp(startDistance, endDistance, t);
-    const rawUp = Vec3.normalize(
-        Vec3.of(
-            Scalar.lerp(startCamera.up.x, endCamera.up.x, t),
-            Scalar.lerp(startCamera.up.y, endCamera.up.y, t),
-            Scalar.lerp(startCamera.up.z, endCamera.up.z, t),
-        ),
-    );
-    const right = Vec3.normalize(Vec3.cross(rawUp, view));
-    const up = Vec3.normalize(Vec3.cross(view, right));
+    const rawUp = Vec3.of(
+        Scalar.lerp(startCamera.up.x, endCamera.up.x, t),
+        Scalar.lerp(startCamera.up.y, endCamera.up.y, t),
+        Scalar.lerp(startCamera.up.z, endCamera.up.z, t),
+    ).normalize();
+    const right = Vec3.cross(rawUp, view).normalize();
+    const up = Vec3.cross(view, right).normalize();
 
     return {
         ...endCamera,
@@ -390,9 +386,9 @@ function rotateCameraByScreenAxes(
     const rotatedPositionOffset = Vec3.rotateAroundAxis(pitchedPositionOffset, basis.up, yawAngle);
     const rotatedTargetOffset = Vec3.rotateAroundAxis(pitchedTargetOffset, basis.up, yawAngle);
     const rotatedRawUp = Vec3.rotateAroundAxis(pitchedUp, basis.up, yawAngle);
-    const forward = Vec3.normalize(Vec3.subtract(rotatedTargetOffset, rotatedPositionOffset));
-    const right = Vec3.normalize(Vec3.cross(forward, rotatedRawUp));
-    const up = Vec3.normalize(Vec3.cross(right, forward));
+    const forward = Vec3.subtract(rotatedTargetOffset, rotatedPositionOffset).normalize();
+    const right = Vec3.cross(forward, rotatedRawUp).normalize();
+    const up = Vec3.cross(right, forward).normalize();
 
     return {
         ...camera,
@@ -413,9 +409,9 @@ function rotateCameraAroundAxis(
     const rotatedPositionOffset = Vec3.rotateAroundAxis(positionOffset, axis, angle);
     const rotatedTargetOffset = Vec3.rotateAroundAxis(targetOffset, axis, angle);
     const rotatedRawUp = Vec3.rotateAroundAxis(camera.up, axis, angle);
-    const forward = Vec3.normalize(Vec3.subtract(rotatedTargetOffset, rotatedPositionOffset));
-    const right = Vec3.normalize(Vec3.cross(forward, rotatedRawUp));
-    const up = Vec3.normalize(Vec3.cross(right, forward));
+    const forward = Vec3.subtract(rotatedTargetOffset, rotatedPositionOffset).normalize();
+    const right = Vec3.cross(forward, rotatedRawUp).normalize();
+    const up = Vec3.cross(right, forward).normalize();
 
     return {
         ...camera,

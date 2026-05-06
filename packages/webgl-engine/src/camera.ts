@@ -125,7 +125,6 @@ const STANDARD_VIEW_DIRECTIONS: Readonly<Record<StandardCameraView, Vector3>> = 
 
 const ISOMETRIC_UP = Vec3.of(-Math.sqrt(1 / 6), Math.sqrt(1 / 6), 2 * Math.sqrt(1 / 6));
 const WORLD_UP = Vec3.of(0, 0, 1);
-const TOP_BOTTOM_UP = Vec3.of(0, 1, 0);
 
 export const DEFAULT_CAMERA_STATE: CameraState = {
     projection: 'orthographic',
@@ -399,11 +398,11 @@ function createStandardCameraFrame(
 ): StandardCameraFrame {
     const view = Vec3.normalize(viewDirection);
     const projectedUp = Vec3.subtract(preferredUp, Vec3.scale(view, Vec3.dot(preferredUp, view)));
-    const up = Vec3.length(projectedUp) > 1e-6 ? Vec3.normalize(projectedUp) : TOP_BOTTOM_UP;
-    const right = Vec3.normalize(Vec3.cross(up, view));
+    const up = Vec3.normalize(projectedUp);
+    const right = Vec3.cross(up, view).normalize();
 
     return {
-        up: Vec3.normalize(Vec3.cross(view, right)),
+        up: Vec3.cross(view, right).normalize(),
         viewDirection: view,
     };
 }

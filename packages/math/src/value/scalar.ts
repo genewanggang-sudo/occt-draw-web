@@ -10,10 +10,6 @@ export const Scalar = {
     lerp(start: number, end: number, progress: number): number {
         return start + (end - start) * progress;
     },
-
-    safeDivide(numerator: number, denominator: number, fallback = 0): number {
-        return denominator === 0 ? fallback : numerator / denominator;
-    },
 } as const;
 
 export function clampNumber(value: number, min: number, max: number): number {

@@ -7,6 +7,7 @@ import type {
     SurfaceBatchRenderNode,
 } from './types';
 import {
+    DEFAULT_TOLERANCE,
     Distance,
     Intersection,
     LineSegment2,
@@ -45,7 +46,7 @@ export interface PickRenderNodeResult {
     readonly worldPoint: Vector3;
 }
 
-const DEPTH_EPSILON = 1e-6;
+const DEPTH_EPSILON = DEFAULT_TOLERANCE.distance;
 
 export function pickRenderNode(input: PickRenderNodeInput): PickRenderNodeResult | null {
     return pickDisplayHit(input, () => true);
@@ -119,6 +120,10 @@ function pickLineBatch(
             Vec2.from(input.point),
             new LineSegment2(Vec2.from(start), Vec2.from(end)),
         );
+
+        if (!closest.success) {
+            continue;
+        }
 
         if (closest.distance <= nearestDistance) {
             const worldPoint = segment.pointAt(closest.parameter);
@@ -231,12 +236,13 @@ function pickSurfaceBatch(
             continue;
         }
 
-        const worldPoint = Intersection.rayTriangle3(ray, triangle).value;
+        const intersection = Intersection.rayTriangle3(ray, triangle);
 
-        if (!worldPoint) {
+        if (!intersection.success || !intersection.value) {
             continue;
         }
 
+        const worldPoint = intersection.value;
         const depth = calculateViewDepth(input.camera, basis, worldPoint);
 
         if (depth >= 0 && depth < nearestDepth) {

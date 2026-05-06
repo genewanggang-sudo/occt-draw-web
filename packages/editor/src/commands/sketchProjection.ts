@@ -24,7 +24,7 @@ export function projectScreenPointToSketch2(input: {
     const plane = referencePlaneToPlane(planeObject);
     const intersection = plane.intersectRayResult(ray);
 
-    if (!intersection.value) {
+    if (!intersection.success || !intersection.value) {
         return null;
     }
 

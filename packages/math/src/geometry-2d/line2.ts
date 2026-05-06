@@ -13,7 +13,7 @@ export class Line2 implements Curve2 {
 
     constructor(origin: Vector2, direction: Vector2) {
         this.origin = Vec2.from(origin);
-        this.direction = Vec2.from(direction).normalize();
+        this.direction = Vec2.normalize(direction);
     }
 
     public pointAt(parameter: number): Vec2 {

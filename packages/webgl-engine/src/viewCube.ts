@@ -19,6 +19,7 @@ import {
     Containment,
     Coord3,
     CurveSampler,
+    DEFAULT_TOLERANCE,
     Measurement,
     Vec2,
     Vec3,
@@ -422,8 +423,8 @@ function createViewCubeLayout(camera: CameraState): ViewCubeLayout {
     for (const corner of createCornerDefinitions(bodyHalfSize)) {
         const normal = Vec3.normalize(corner.position);
         const reference = Math.abs(normal.z) < 0.9 ? Vec3.of(0, 0, 1) : Vec3.of(0, 1, 0);
-        const u = Vec3.normalize(Vec3.cross(reference, normal));
-        const v = Vec3.normalize(Vec3.cross(normal, u));
+        const u = Vec3.cross(reference, normal).normalize();
+        const v = Vec3.cross(normal, u).normalize();
         const circleFrame = new Coord3({
             origin: corner.position,
             xAxis: u,
@@ -1382,7 +1383,7 @@ function calculateAxisLabelAlpha(facing: number): number {
         return 0;
     }
 
-    return 1 - (facing - start) / Math.max(end - start, 1e-6);
+    return 1 - (facing - start) / Math.max(end - start, DEFAULT_TOLERANCE.distance);
 }
 
 function getPolygonCenter(points: readonly Vector3[]): Vector3 {
@@ -1441,10 +1442,6 @@ function subtractPoint(left: ScreenPoint, right: ScreenPoint): ScreenPoint {
 
 function normalize2(point: ScreenPoint): ScreenPoint {
     const vector = Vec2.from(point);
-
-    if (vector.length() <= 1e-6) {
-        return { x: 0, y: 1 };
-    }
 
     return vector.normalize();
 }

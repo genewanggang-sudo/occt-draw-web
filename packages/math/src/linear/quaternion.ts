@@ -48,9 +48,9 @@ export class Quaternion {
     }
 
     public static fromAxisAngle(axis: Vector3, radians: number): Quaternion {
-        const unitAxis = Vec3.from(axis).tryNormalize().value;
+        const unitAxis = Vec3.normalize(axis);
 
-        if (!unitAxis) {
+        if (unitAxis.isNearZero()) {
             return Quaternion.identity();
         }
 
