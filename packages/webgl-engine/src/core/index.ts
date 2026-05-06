@@ -7,5 +7,10 @@ export {
     type RenderLayerOptions,
     type RenderLayerSortPolicy,
 } from './renderLayer';
-export { RenderObject, type GeometryBounds, type RenderObjectOptions } from './renderObject';
+export {
+    RenderObject,
+    type GeometryBounds,
+    type RenderObjectOptions,
+    type RenderObjectPickGranularity,
+} from './renderObject';
 export { RenderGroup } from './renderGroup';

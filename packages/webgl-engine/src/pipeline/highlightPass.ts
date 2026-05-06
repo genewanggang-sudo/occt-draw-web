@@ -68,7 +68,7 @@ function resolveHighlightTarget(
     entry: RenderGraphObjectEntry,
     highlight: RenderHighlightState,
 ): HighlightTarget | null {
-    const objectId = entry.object.id;
+    const objectId = entry.object.interactionId;
 
     if (highlight.preselectedObjectId === objectId) {
         return {
@@ -122,6 +122,11 @@ function appendFaceSetHighlight(
     object: FaceSet,
     target: HighlightTarget,
 ): void {
+    if (target.primitiveId === null) {
+        appendFaceSetBoundaryHighlight(vertices, object, target.color);
+        return;
+    }
+
     for (let index = 0; index < object.geometry.triangles.length; index += 1) {
         const triangle = object.geometry.triangles[index];
 
@@ -133,6 +138,62 @@ function appendFaceSetHighlight(
         appendLine(vertices, triangle.b, triangle.c, target.color);
         appendLine(vertices, triangle.c, triangle.a, target.color);
     }
+}
+
+function appendFaceSetBoundaryHighlight(
+    vertices: RenderVertex[],
+    object: FaceSet,
+    color: Vector3,
+): void {
+    const edges = new Map<
+        string,
+        {
+            readonly start: RenderVertex['position'];
+            readonly end: RenderVertex['position'];
+            count: number;
+        }
+    >();
+
+    for (const triangle of object.geometry.triangles) {
+        addBoundaryEdge(edges, triangle.a, triangle.b);
+        addBoundaryEdge(edges, triangle.b, triangle.c);
+        addBoundaryEdge(edges, triangle.c, triangle.a);
+    }
+
+    for (const edge of edges.values()) {
+        if (edge.count === 1) {
+            appendLine(vertices, edge.start, edge.end, color);
+        }
+    }
+}
+
+function addBoundaryEdge(
+    edges: Map<
+        string,
+        {
+            readonly start: RenderVertex['position'];
+            readonly end: RenderVertex['position'];
+            count: number;
+        }
+    >,
+    start: RenderVertex['position'],
+    end: RenderVertex['position'],
+): void {
+    const startKey = toPointKey(start);
+    const endKey = toPointKey(end);
+    const key = startKey < endKey ? `${startKey}|${endKey}` : `${endKey}|${startKey}`;
+    const existing = edges.get(key);
+
+    if (existing) {
+        existing.count += 1;
+        return;
+    }
+
+    edges.set(key, { start, end, count: 1 });
+}
+
+function toPointKey(point: RenderVertex['position']): string {
+    return `${point.x.toPrecision(12)},${point.y.toPrecision(12)},${point.z.toPrecision(12)}`;
 }
 
 function appendEdgeSetHighlight(

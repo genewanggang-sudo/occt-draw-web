@@ -306,7 +306,9 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Ren
             {
                 depthRole: 'secondary',
                 id: `${object.id}:surface`,
+                interactionId: object.id,
                 name: `${object.name} surface`,
+                pickGranularity: 'object',
                 visible: object.visible,
             },
         ),
@@ -320,8 +322,10 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Ren
             new EdgeStyle({ color: Vec3.of(0.22, 0.5, 0.9) }),
             {
                 depthRole: 'secondary',
-                id: object.id,
+                id: `${object.id}:outline`,
+                interactionId: object.id,
                 name: object.name,
+                pickGranularity: 'object',
                 visible: object.visible,
             },
         ),

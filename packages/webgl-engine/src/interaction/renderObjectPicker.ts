@@ -8,7 +8,7 @@ import {
     type Ray3,
     type Vector3,
 } from '@occt-draw/math';
-import type { RenderGraph } from '../core';
+import type { RenderGraph, RenderObject } from '../core';
 import { collectPickableGraphObjects } from '../graphTraversal';
 import { createRenderPrimitiveId } from '../primitiveId';
 import { EdgeSet, FaceSet, MarkerSet, PointSet } from '../scene';
@@ -105,6 +105,7 @@ function pickDisplayHit(input: PickRenderObjectInput): PickRenderObjectHit | nul
             continue;
         }
 
+        const displayResult = toInteractionHit(result, object);
         const betterScreenHit = result.distancePixels < nearestScreenDistance - DEPTH_EPSILON;
         const equalScreenCloserDepth =
             Math.abs(result.distancePixels - nearestScreenDistance) <= DEPTH_EPSILON &&
@@ -112,11 +113,20 @@ function pickDisplayHit(input: PickRenderObjectInput): PickRenderObjectHit | nul
 
         if (betterScreenHit || equalScreenCloserDepth) {
             nearestScreenDistance = result.distancePixels;
-            nearestResult = result;
+            nearestResult = displayResult;
         }
     }
 
     return nearestResult;
+}
+
+function toInteractionHit(hit: PickRenderObjectHit, object: RenderObject): PickRenderObjectHit {
+    return {
+        ...hit,
+        objectId: object.interactionId,
+        primitiveId: object.pickGranularity === 'object' ? null : hit.primitiveId,
+        targetKind: object.pickGranularity === 'object' ? 'object' : hit.targetKind,
+    };
 }
 
 function pickEdgeSet(
