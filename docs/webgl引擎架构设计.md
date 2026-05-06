@@ -278,6 +278,7 @@ class RenderEngine {
     readonly pipeline: RenderPipeline;
 
     setGraph(graph: RenderGraph): void;
+    setHighlight(highlight: RenderHighlightState): void;
     render(camera: Camera): void;
     resize(size: ViewportSize): void;
     dispose(): void;
@@ -365,6 +366,23 @@ interface RenderPass {
     execute(context: RenderPassContext): void;
 }
 ```
+
+## 当前实现状态
+
+- `RenderGraph` 已经是主渲染链路输入，`webglRenderer.render(camera)` 不再转回 `RenderScene`。
+- `RenderObject` 当前落地为 `FaceSet / EdgeSet / PointSet / MarkerSet / TextLabelSet / ViewCube`，CAD 业务类型不进入 `webgl-engine`。
+- `RenderPass` 是管线阶段，不承载 CAD 业务语义。当前顺序为 `ColorPass -> HighlightPass -> OverlayPass`。
+- `ColorPass` 绘制主场景：face、edge、point、marker 和 label。
+- `HighlightPass` 绘制 hover、preselect、select 高亮，直接遍历 `RenderGraph`，跳过 overlay、不可见和不可 pick 对象。
+- `OverlayPass` 绘制 ViewCube 等 overlay object，ViewCube 命中由 `ViewCube.hitTest(...)` 提供。
+- `webglStateGuard` 统一保存和恢复 WebGL 全局状态，`NavigationDepthSampler` 和 `OverlayPass` 使用该基础设施。
+- `legacy/` 只保留迁移期兼容代码，业务代码和包主入口不再使用旧 `RenderScene / RenderNode / RenderFrameInput`。
+
+下一阶段不在本轮实现：
+
+- `dirtyFlags` 驱动的 GPU buffer cache 和增量上传。
+- `sortPolicy` 驱动的渲染排序。
+- indexed geometry、instancing、hidden-line、xray 等高级显示。
 
 ### Addon 使用方式
 

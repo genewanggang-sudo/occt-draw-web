@@ -3,6 +3,7 @@ import type {
     RenderEngine,
     NavigationDepthSample,
     NavigationDepthSampleInput,
+    RenderHighlightState,
     ViewportSize,
 } from './types';
 import type { RenderGraph } from './core';
@@ -13,9 +14,18 @@ import {
     type NavigationDepthResources,
 } from './navigationDepth';
 import { NavigationDepthSampler } from './interaction';
-import { renderPipeline, type RenderPipelineResources } from './renderPipeline';
+import { createRenderPipeline, type RenderPipelineResources } from './renderPipeline';
 import { createProgram } from './shaderProgram';
+import type { RenderPipeline } from './pipeline';
 import { createLabelVertexArray, createRenderVertexArray, LabelAtlasManager } from './webgl';
+
+const EMPTY_RENDER_HIGHLIGHT_STATE: RenderHighlightState = {
+    hoveredObjectId: null,
+    preselectedObjectId: null,
+    preselectedPrimitiveId: null,
+    selectedObjectIds: [],
+    selectedPrimitiveId: null,
+};
 
 export function createWebglRenderer(canvas: HTMLCanvasElement): RenderEngine {
     const context = canvas.getContext('webgl2', {
@@ -36,11 +46,13 @@ class WebglRenderEngine implements RenderEngine {
     private readonly canvas: HTMLCanvasElement;
     private readonly context: WebGL2RenderingContext;
     private graph: RenderGraph | null = null;
+    private highlight: RenderHighlightState = EMPTY_RENDER_HIGHLIGHT_STATE;
     private readonly labelAtlasManager: LabelAtlasManager;
     private readonly labelBuffer: WebGLBuffer;
     private readonly labelProgram: WebGLProgram;
     private readonly labelVertexArray: WebGLVertexArrayObject;
     private readonly navigationDepthResources: NavigationDepthResources;
+    private readonly pipeline: RenderPipeline;
     private readonly program: WebGLProgram;
     private renderPipelineResources: RenderPipelineResources;
     private readonly vertexArray: WebGLVertexArrayObject;
@@ -95,6 +107,7 @@ class WebglRenderEngine implements RenderEngine {
         this.labelBuffer = labelBuffer;
         this.labelVertexArray = labelVertexArray;
         this.labelAtlasManager = labelAtlasManager;
+        this.pipeline = createRenderPipeline();
         this.vertexArray = vertexArray;
         this.renderPipelineResources = {
             alphaLocation,
@@ -152,6 +165,13 @@ class WebglRenderEngine implements RenderEngine {
         this.graph = graph;
     }
 
+    public setHighlight(highlight: RenderHighlightState): void {
+        this.highlight = {
+            ...highlight,
+            selectedObjectIds: [...highlight.selectedObjectIds],
+        };
+    }
+
     public render(camera: CameraState): void {
         if (!this.graph) {
             throw new Error('RenderEngine.render(camera) requires setGraph(graph) first.');
@@ -166,17 +186,15 @@ class WebglRenderEngine implements RenderEngine {
         };
         this.resize(this.viewportSize);
         this.context.bindFramebuffer(this.context.FRAMEBUFFER, null);
-        renderPipeline(this.context, this.renderPipelineResources, {
-            camera,
-            graph: this.graph,
-            highlight: {
-                hoveredObjectId: null,
-                preselectedObjectId: null,
-                preselectedPrimitiveId: null,
-                selectedObjectIds: [],
-                selectedPrimitiveId: null,
+        this.pipeline.execute({
+            context: this.context,
+            resources: this.renderPipelineResources,
+            input: {
+                camera,
+                graph: this.graph,
+                highlight: this.highlight,
+                viewportSize: this.viewportSize,
             },
-            viewportSize: this.viewportSize,
         });
     }
 

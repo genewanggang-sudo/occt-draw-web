@@ -5,7 +5,7 @@ import type { CameraState, RenderHighlightState, ViewportSize } from '../types';
 export interface RenderFrameContext {
     readonly camera: CameraState;
     readonly graph: RenderGraph;
-    readonly highlight?: RenderHighlightState;
+    readonly highlight: RenderHighlightState;
     readonly viewportSize: ViewportSize;
 }
 

@@ -24,6 +24,7 @@ import {
     RenderLayer,
     type RenderEngine,
     type RenderGraph,
+    type RenderHighlightState,
     type StandardCameraView,
     ViewCube,
     type ViewCubeArrowCommand,
@@ -125,6 +126,21 @@ export function App() {
     const displaySphere = useMemo(() => calculateBoundingSphere(displayBounds), [displayBounds]);
     const selectedObjectIds = editorState.selection.selection.objectIds;
     const selectedTarget = editorState.selection.selection.primaryTarget;
+    const renderHighlight = useMemo(
+        (): RenderHighlightState => ({
+            hoveredObjectId: editorState.selection.hoveredObjectId,
+            preselectedObjectId: editorState.selection.preselectedTarget?.objectId ?? null,
+            preselectedPrimitiveId: editorState.selection.preselectedTarget?.primitiveId ?? null,
+            selectedObjectIds,
+            selectedPrimitiveId: selectedTarget?.primitiveId ?? null,
+        }),
+        [
+            editorState.selection.hoveredObjectId,
+            editorState.selection.preselectedTarget,
+            selectedObjectIds,
+            selectedTarget,
+        ],
+    );
     const selectedObjects = useMemo(
         () => activePartStudio.objects.filter((object) => selectedObjectIds.includes(object.id)),
         [activePartStudio.objects, selectedObjectIds],
@@ -527,8 +543,14 @@ export function App() {
     useEffect(() => {
         rendererRef.current?.resize(editorState.navigation.viewportSize);
         rendererRef.current?.setGraph(renderGraph);
+        rendererRef.current?.setHighlight(renderHighlight);
         rendererRef.current?.render(editorState.navigation.camera);
-    }, [renderGraph, editorState.navigation.camera, editorState.navigation.viewportSize]);
+    }, [
+        renderGraph,
+        renderHighlight,
+        editorState.navigation.camera,
+        editorState.navigation.viewportSize,
+    ]);
 
     return (
         <main className="cad-workbench">

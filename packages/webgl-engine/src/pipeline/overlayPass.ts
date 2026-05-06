@@ -1,6 +1,7 @@
 import { renderViewCubeOverlay } from '../viewCube';
 import { ViewCube } from '../addon';
 import type { RenderGraph } from '../core';
+import { withWebglStateRestored } from '../webgl';
 import type { RenderPass, RenderPassContext } from './renderPass';
 
 export class OverlayPass implements RenderPass {
@@ -13,10 +14,12 @@ export class OverlayPass implements RenderPass {
             return;
         }
 
-        renderViewCubeOverlay(context, resources, {
-            camera: input.camera,
-            hoveredTargetId: viewCube.hoveredTargetId,
-            viewportSize: input.viewportSize,
+        withWebglStateRestored(context, () => {
+            renderViewCubeOverlay(context, resources, {
+                camera: input.camera,
+                hoveredTargetId: viewCube.hoveredTargetId,
+                viewportSize: input.viewportSize,
+            });
         });
     }
 }

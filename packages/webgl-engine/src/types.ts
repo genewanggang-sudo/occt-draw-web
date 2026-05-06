@@ -147,6 +147,7 @@ export interface RenderEngine {
     resize(viewportSize: ViewportSize): void;
     sampleNavigationDepths(input: NavigationDepthSampleInput): readonly NavigationDepthSample[];
     setGraph(graph: RenderGraph): void;
+    setHighlight(highlight: RenderHighlightState): void;
 }
 
 export type ViewCubeArrowCommand =

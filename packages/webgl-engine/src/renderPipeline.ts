@@ -1,6 +1,5 @@
 import type { LabelAtlas } from './labelAtlas';
-import { ColorPass, OverlayPass, RenderPipeline } from './pipeline';
-import type { RenderFrameContext } from './pipeline';
+import { ColorPass, HighlightPass, OverlayPass, RenderPipeline } from './pipeline';
 
 export interface RenderPipelineResources {
     readonly alphaLocation: number;
@@ -25,14 +24,6 @@ export interface RenderPipelineResources {
     readonly labelUvLocation: number;
 }
 
-export function renderPipeline(
-    context: WebGL2RenderingContext,
-    resources: RenderPipelineResources,
-    input: RenderFrameContext,
-): void {
-    new RenderPipeline([new ColorPass(), new OverlayPass()]).execute({
-        context,
-        input,
-        resources,
-    });
+export function createRenderPipeline(): RenderPipeline {
+    return new RenderPipeline([new ColorPass(), new HighlightPass(), new OverlayPass()]);
 }

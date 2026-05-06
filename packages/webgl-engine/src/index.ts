@@ -29,6 +29,7 @@ export { EdgeSet, FaceSet, MarkerSet, PointSet, TextLabelSet } from './scene';
 export { EdgeStyle, FaceStyle, MarkerStyle, PointStyle, TextStyle } from './style';
 export {
     ColorPass,
+    HighlightPass,
     OverlayPass,
     RenderPipeline,
     type RenderFrameContext,

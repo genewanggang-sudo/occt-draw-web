@@ -26,6 +26,12 @@ export class ColorPass implements RenderPass {
             viewportSize: input.viewportSize,
         });
 
+        context.disable(context.CULL_FACE);
+        context.enable(context.DEPTH_TEST);
+        context.depthFunc(context.LESS);
+        context.depthMask(true);
+        context.disable(context.BLEND);
+        context.clearColor(0.035, 0.043, 0.055, 1);
         context.clear(context.COLOR_BUFFER_BIT | context.DEPTH_BUFFER_BIT);
         context.useProgram(resources.program);
         context.uniformMatrix4fv(resources.matrixLocation, false, matrix);
