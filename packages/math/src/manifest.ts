@@ -9,7 +9,8 @@ export interface MathModuleManifest {
 export const MATH_MODULE_MANIFEST: MathModuleManifest = {
     name: '@occt-draw/math',
     status: 'ready',
-    summary: 'CAD 前端几何基础包，提供点、向量、平面、射线、矩阵、变换和数值容差。',
+    summary:
+        'CAD frontend geometry foundation for vectors, planes, rays, matrices, transforms, and numeric tolerance.',
 };
 
 export function getMathModuleManifest(): MathModuleManifest {

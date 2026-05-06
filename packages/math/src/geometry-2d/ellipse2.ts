@@ -1,5 +1,5 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
-import { MATH_EPSILON } from '../value/tolerance';
+import { DEFAULT_TOLERANCE, MATH_EPSILON } from '../value/tolerance';
 import type { BoundedCurve2 } from './curve';
 import { ParameterDomain } from './parameter';
 
@@ -11,8 +11,8 @@ export class Ellipse2 implements BoundedCurve2 {
 
     constructor(center: Vector2, radiusX: number, radiusY: number) {
         this.center = Vec2.from(center);
-        this.radiusX = Math.max(radiusX, 0);
-        this.radiusY = Math.max(radiusY, 0);
+        this.radiusX = radiusX;
+        this.radiusY = radiusY;
     }
 
     public pointAt(angleRadians: number): Vec2 {
@@ -29,7 +29,13 @@ export class Ellipse2 implements BoundedCurve2 {
     }
 
     public isValid(): boolean {
-        return this.center.isFinite() && this.radiusX > MATH_EPSILON && this.radiusY > MATH_EPSILON;
+        return (
+            this.center.isFinite() &&
+            Number.isFinite(this.radiusX) &&
+            Number.isFinite(this.radiusY) &&
+            this.radiusX > MATH_EPSILON &&
+            this.radiusY > MATH_EPSILON
+        );
     }
 }
 
@@ -54,7 +60,12 @@ export class EllipticalArc2 implements BoundedCurve2 {
     }
 
     public isValid(): boolean {
-        return this.ellipse.isValid();
+        return (
+            this.ellipse.isValid() &&
+            Number.isFinite(this.startAngleRadians) &&
+            Number.isFinite(this.endAngleRadians) &&
+            !DEFAULT_TOLERANCE.isNearZeroAngle(this.endAngleRadians - this.startAngleRadians)
+        );
     }
 
     private angleAt(parameter: number): number {

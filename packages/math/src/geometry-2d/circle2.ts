@@ -10,7 +10,7 @@ export class Circle2 implements BoundedCurve2 {
 
     constructor(center: Vector2, radius: number) {
         this.center = Vec2.from(center);
-        this.radius = Math.max(radius, 0);
+        this.radius = radius;
     }
 
     public pointAt(angleRadians: number): Vec2 {
@@ -24,6 +24,6 @@ export class Circle2 implements BoundedCurve2 {
     }
 
     public isValid(): boolean {
-        return this.center.isFinite() && this.radius > MATH_EPSILON;
+        return this.center.isFinite() && Number.isFinite(this.radius) && this.radius > MATH_EPSILON;
     }
 }

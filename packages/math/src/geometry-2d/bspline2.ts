@@ -1,4 +1,5 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
+import { DEFAULT_TOLERANCE } from '../value/tolerance';
 import type { BoundedCurve2 } from './curve';
 import { ParameterDomain } from './parameter';
 
@@ -92,7 +93,9 @@ export class Nurbs2 extends BSpline2 {
             numerator = numerator.translated(point.scale(weightedBasis));
         }
 
-        return Math.abs(denominator) <= 1e-12 ? Vec2.zero() : numerator.scale(1 / denominator);
+        return DEFAULT_TOLERANCE.isNearZeroParameter(denominator)
+            ? Vec2.zero()
+            : numerator.scale(1 / denominator);
     }
 
     public override isValid(): boolean {
@@ -144,23 +147,24 @@ function basisValue(
 
     const leftDenominator = (knots[index + degree] ?? 0) - knot;
     const rightDenominator = (knots[index + degree + 1] ?? 0) - nextKnot;
-    const left =
-        Math.abs(leftDenominator) <= 1e-12
-            ? 0
-            : ((parameter - knot) / leftDenominator) *
-              basisValue(index, degree - 1, parameter, knots, domainMax);
-    const right =
-        Math.abs(rightDenominator) <= 1e-12
-            ? 0
-            : (((knots[index + degree + 1] ?? 0) - parameter) / rightDenominator) *
-              basisValue(index + 1, degree - 1, parameter, knots, domainMax);
+    const left = DEFAULT_TOLERANCE.isNearZeroParameter(leftDenominator)
+        ? 0
+        : ((parameter - knot) / leftDenominator) *
+          basisValue(index, degree - 1, parameter, knots, domainMax);
+    const right = DEFAULT_TOLERANCE.isNearZeroParameter(rightDenominator)
+        ? 0
+        : (((knots[index + degree + 1] ?? 0) - parameter) / rightDenominator) *
+          basisValue(index + 1, degree - 1, parameter, knots, domainMax);
 
     return left + right;
 }
 
 function finiteDifferenceTangent(curve: BoundedCurve2, parameter: number): Vec2 {
     const span = Math.max(curve.domain.length, 1);
-    const delta = span * 1e-5;
+    const delta = Math.max(
+        span * Math.sqrt(DEFAULT_TOLERANCE.parameter),
+        DEFAULT_TOLERANCE.parameter,
+    );
     const before = curve.domain.clamp(parameter - delta);
     const after = curve.domain.clamp(parameter + delta);
 

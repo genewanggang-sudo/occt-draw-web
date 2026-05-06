@@ -1,6 +1,7 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
 import { ParameterDomain } from './parameter';
 import type { Curve2 } from './curve';
+import { MATH_EPSILON } from '../value/tolerance';
 
 export class Line2 implements Curve2 {
     public readonly domain = new ParameterDomain(
@@ -24,6 +25,10 @@ export class Line2 implements Curve2 {
     }
 
     public isValid(): boolean {
-        return this.direction.isFinite() && this.direction.length() > 0;
+        return (
+            this.origin.isFinite() &&
+            this.direction.isFinite() &&
+            this.direction.length() > MATH_EPSILON
+        );
     }
 }

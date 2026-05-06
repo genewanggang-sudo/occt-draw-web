@@ -1,4 +1,6 @@
 import { Vec2, type Vector2 } from './vec2';
+import { GeometryResult } from '../value/result';
+import { MATH_EPSILON } from '../value/tolerance';
 
 export class Matrix3 {
     public readonly elements: Float32Array;
@@ -25,21 +27,47 @@ export class Matrix3 {
     }
 
     public transformPoint(point: Vector2): Vec2 {
+        const result = this.transformPointResult(point);
+
+        if (!result.value) {
+            throw new Error('Matrix3 transformPoint failed: degenerate homogeneous coordinate');
+        }
+
+        return result.value;
+    }
+
+    public transformPointResult(point: Vector2): GeometryResult<Vec2> {
+        if (!Vec2.from(point).isFinite()) {
+            return GeometryResult.degenerate();
+        }
+
         const x = point.x;
         const y = point.y;
-        const w = Matrix3.get(this.elements, 0, 2) * x + Matrix3.get(this.elements, 1, 2) * y + 1;
-        const safeW = Math.abs(w) > 1e-8 ? w : 1;
+        const w =
+            Matrix3.get(this.elements, 0, 2) * x +
+            Matrix3.get(this.elements, 1, 2) * y +
+            Matrix3.get(this.elements, 2, 2);
 
-        return Vec2.of(
-            (Matrix3.get(this.elements, 0, 0) * x +
-                Matrix3.get(this.elements, 1, 0) * y +
-                Matrix3.get(this.elements, 2, 0)) /
-                safeW,
-            (Matrix3.get(this.elements, 0, 1) * x +
-                Matrix3.get(this.elements, 1, 1) * y +
-                Matrix3.get(this.elements, 2, 1)) /
-                safeW,
+        if (Math.abs(w) <= MATH_EPSILON) {
+            return GeometryResult.degenerate();
+        }
+
+        return GeometryResult.success(
+            Vec2.of(
+                (Matrix3.get(this.elements, 0, 0) * x +
+                    Matrix3.get(this.elements, 1, 0) * y +
+                    Matrix3.get(this.elements, 2, 0)) /
+                    w,
+                (Matrix3.get(this.elements, 0, 1) * x +
+                    Matrix3.get(this.elements, 1, 1) * y +
+                    Matrix3.get(this.elements, 2, 1)) /
+                    w,
+            ),
         );
+    }
+
+    public toFloat32Array(): Float32Array {
+        return new Float32Array(this.elements);
     }
 
     public transformVector(vector: Vector2): Vec2 {
@@ -78,7 +106,7 @@ export class Matrix3 {
         const value = elements[column * 3 + row];
 
         if (value === undefined) {
-            throw new Error(`二维矩阵索引越界：${String(column)},${String(row)}`);
+            throw new Error(`Matrix3 index out of range: ${String(column)},${String(row)}`);
         }
 
         return value;

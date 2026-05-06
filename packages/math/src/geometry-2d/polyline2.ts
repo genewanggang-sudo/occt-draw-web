@@ -66,4 +66,8 @@ export class Polygon2 extends Polyline2 {
     constructor(points: readonly Vector2[]) {
         super(points, true);
     }
+
+    public override isValid(): boolean {
+        return this.points.length >= 3 && this.points.every((point) => point.isFinite());
+    }
 }

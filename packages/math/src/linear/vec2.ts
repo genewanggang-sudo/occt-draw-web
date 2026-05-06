@@ -1,4 +1,5 @@
 import { MATH_EPSILON, areNumbersEqual } from '../value/tolerance';
+import { GeometryResult } from '../value/result';
 
 export interface Vector2 {
     readonly x: number;
@@ -38,8 +39,16 @@ export class Vec2 implements Vector2 {
         return Math.hypot(this.x, this.y);
     }
 
+    public lengthSquared(): number {
+        return this.dot(this);
+    }
+
     public distanceTo(value: Vector2): number {
         return this.subtract(value).length();
+    }
+
+    public distanceSquaredTo(value: Vector2): number {
+        return this.subtract(value).lengthSquared();
     }
 
     public translated(vector: Vector2): Vec2 {
@@ -54,6 +63,20 @@ export class Vec2 implements Vector2 {
         const length = this.length();
 
         return length <= MATH_EPSILON ? Vec2.zero() : this.scale(1 / length);
+    }
+
+    public normalizeOr(fallback: Vector2): Vec2 {
+        const normalized = this.tryNormalize();
+
+        return normalized.value ?? Vec2.from(fallback);
+    }
+
+    public tryNormalize(): GeometryResult<Vec2> {
+        const length = this.length();
+
+        return length <= MATH_EPSILON
+            ? GeometryResult.degenerate()
+            : GeometryResult.success(this.scale(1 / length));
     }
 
     public perpendicularLeft(): Vec2 {
@@ -71,6 +94,10 @@ export class Vec2 implements Vector2 {
         return Number.isFinite(this.x) && Number.isFinite(this.y);
     }
 
+    public isNearZero(tolerance = MATH_EPSILON): boolean {
+        return this.lengthSquared() <= tolerance * tolerance;
+    }
+
     public static from(value: Vector2): Vec2 {
         return new Vec2(value.x, value.y);
     }
@@ -85,6 +112,14 @@ export class Vec2 implements Vector2 {
 
     public static distance(left: Vector2, right: Vector2): number {
         return Vec2.from(left).distanceTo(right);
+    }
+
+    public static length(vector: Vector2): number {
+        return Vec2.from(vector).length();
+    }
+
+    public static normalize(vector: Vector2): Vec2 {
+        return Vec2.from(vector).normalize();
     }
 
     public static lerp(start: Vector2, end: Vector2, progress: number): Vec2 {

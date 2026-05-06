@@ -13,12 +13,10 @@ export class Coord3 {
         readonly yAxis?: Vector3;
         readonly zAxis?: Vector3;
     }) {
-        this.origin = Vec3.from(input.origin);
+        this.origin = normalizeOrigin(input.origin);
         this.zAxis = normalizeOrFallback(input.zAxis ?? { x: 0, y: 0, z: 1 }, Vec3.of(0, 0, 1));
         this.xAxis = normalizeAxisInPlane(input.xAxis ?? { x: 1, y: 0, z: 0 }, this.zAxis);
-        this.yAxis = input.yAxis
-            ? normalizeAxisInPlane(input.yAxis, this.zAxis)
-            : this.zAxis.cross(this.xAxis).normalize();
+        this.yAxis = normalizeYAxis(this.xAxis, this.zAxis, input.yAxis);
     }
 
     public localToWorld(point: Vector3): Vec3 {
@@ -39,6 +37,12 @@ export class Coord3 {
     }
 }
 
+function normalizeOrigin(origin: Vector3): Vec3 {
+    const value = Vec3.from(origin);
+
+    return value.isFinite() ? value : Vec3.zero();
+}
+
 function normalizeOrFallback(value: Vector3, fallback: Vec3): Vec3 {
     const vector = Vec3.from(value);
 
@@ -55,4 +59,20 @@ function normalizeAxisInPlane(axis: Vector3, normal: Vec3): Vec3 {
     const fallback = Math.abs(normal.x) < 0.9 ? Vec3.of(1, 0, 0) : Vec3.of(0, 1, 0);
 
     return fallback.subtract(normal.scale(fallback.dot(normal))).normalize();
+}
+
+function normalizeYAxis(xAxis: Vec3, zAxis: Vec3, yAxis: Vector3 | undefined): Vec3 {
+    if (yAxis) {
+        const vector = Vec3.from(yAxis)
+            .subtract(zAxis.scale(Vec3.dot(yAxis, zAxis)))
+            .subtract(xAxis.scale(Vec3.dot(yAxis, xAxis)));
+
+        if (vector.isFinite() && vector.length() > MATH_EPSILON) {
+            const normalized = vector.normalize();
+
+            return xAxis.cross(normalized).dot(zAxis) < 0 ? normalized.negate() : normalized;
+        }
+    }
+
+    return zAxis.cross(xAxis).normalize();
 }

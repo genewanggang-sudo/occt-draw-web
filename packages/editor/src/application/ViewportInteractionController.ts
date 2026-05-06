@@ -300,10 +300,8 @@ export class ViewportInteractionController {
             state.navigation.viewportSize,
         );
         const diameter = Math.max(Measurement.boundsDiameter3(bbox).value, 1);
-        const distance = Math.max(
-            Projection.pointToRayParameter3(bbox.center, ray).value,
-            diameter * 0.01,
-        );
+        const projectedCenterDistance = Projection.pointToRayParameter3(bbox.center, ray).value;
+        const distance = Math.max(projectedCenterDistance ?? diameter * 0.01, diameter * 0.01);
 
         return ray.pointAt(distance);
     }

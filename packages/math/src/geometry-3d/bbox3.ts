@@ -29,6 +29,7 @@ export class BBox3 {
 
     public contains(point: Vector3): boolean {
         return (
+            this.isFinite() &&
             point.x >= this.min.x &&
             point.x <= this.max.x &&
             point.y >= this.min.y &&
@@ -52,6 +53,10 @@ export class BBox3 {
     }
 
     public expandByPoint(point: Vector3): BBox3 {
+        if (!this.isFinite()) {
+            return new BBox3(point, point);
+        }
+
         return new BBox3(
             Vec3.of(
                 Math.min(this.min.x, point.x),
@@ -86,13 +91,17 @@ export class BBox3 {
         return new BBox3(bounds.min, bounds.max);
     }
 
-    public static fromPoints(points: readonly Vector3[], fallback?: BBox3): BBox3 {
+    public static fromPoints(points: readonly Vector3[], fallback?: BBox3): BBox3 | undefined {
         let bounds: BBox3 | null = null;
 
         for (const point of points) {
+            if (!Vec3.from(point).isFinite()) {
+                continue;
+            }
+
             bounds = bounds ? bounds.expandByPoint(point) : new BBox3(point, point);
         }
 
-        return bounds ?? fallback ?? new BBox3(Vec3.of(-1, -1, -1), Vec3.of(1, 1, 1));
+        return bounds ?? fallback;
     }
 }

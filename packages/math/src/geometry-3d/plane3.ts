@@ -1,7 +1,7 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
 import { Vec3, type Vector3 } from '../linear/vec3';
 import { GeometryResult } from '../value/result';
-import { MATH_EPSILON } from '../value/tolerance';
+import { DEFAULT_TOLERANCE, MATH_EPSILON } from '../value/tolerance';
 import type { Ray3 } from './ray3';
 
 export class Plane3 {
@@ -11,7 +11,7 @@ export class Plane3 {
     public readonly yAxis: Vec3;
 
     constructor(origin: Vector3, normal: Vector3, xAxis?: Vector3) {
-        this.origin = Vec3.from(origin);
+        this.origin = normalizeOrigin(origin);
         this.normal = normalizeNormal(normal);
         this.xAxis = normalizeXAxis(this.normal, xAxis);
         this.yAxis = this.normal.cross(this.xAxis).normalize();
@@ -26,10 +26,14 @@ export class Plane3 {
     }
 
     public intersectRayResult(ray: Ray3): GeometryResult<Vec3> {
+        if (!ray.isValid()) {
+            return GeometryResult.degenerate();
+        }
+
         const denominator = ray.direction.dot(this.normal);
 
-        if (Math.abs(denominator) <= MATH_EPSILON) {
-            return Math.abs(this.signedDistanceToPoint(ray.origin)) <= MATH_EPSILON
+        if (DEFAULT_TOLERANCE.isNearZero(denominator)) {
+            return DEFAULT_TOLERANCE.isNearZero(this.signedDistanceToPoint(ray.origin))
                 ? GeometryResult.coincident()
                 : GeometryResult.parallel();
         }
@@ -39,10 +43,6 @@ export class Plane3 {
         return distance < 0
             ? GeometryResult.empty()
             : GeometryResult.success(ray.pointAt(distance));
-    }
-
-    public intersectRay(ray: Ray3): Vec3 | null {
-        return this.intersectRayResult(ray).value;
     }
 
     public localToWorld(point: Vector2): Vec3 {
@@ -63,6 +63,12 @@ export class Plane3 {
 }
 
 export type Plane = Plane3;
+
+function normalizeOrigin(origin: Vector3): Vec3 {
+    const value = Vec3.from(origin);
+
+    return value.isFinite() ? value : Vec3.zero();
+}
 
 function normalizeNormal(normal: Vector3): Vec3 {
     const value = Vec3.from(normal);

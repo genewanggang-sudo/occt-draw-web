@@ -1,4 +1,5 @@
 import { MATH_EPSILON, areNumbersEqual } from '../value/tolerance';
+import { GeometryResult } from '../value/result';
 
 export interface Vector3 {
     readonly x: number;
@@ -49,8 +50,16 @@ export class Vec3 implements Vector3 {
         return Math.hypot(this.x, this.y, this.z);
     }
 
+    public lengthSquared(): number {
+        return this.dot(this);
+    }
+
     public distanceTo(value: Vector3): number {
         return this.subtract(value).length();
+    }
+
+    public distanceSquaredTo(value: Vector3): number {
+        return this.subtract(value).lengthSquared();
     }
 
     public translated(vector: Vector3): Vec3 {
@@ -67,10 +76,24 @@ export class Vec3 implements Vector3 {
         return length <= MATH_EPSILON ? Vec3.zero() : this.scale(1 / length);
     }
 
-    public rotateAroundAxis(axis: Vector3, radians: number): Vec3 {
-        const unitAxis = Vec3.from(axis).normalize();
+    public normalizeOr(fallback: Vector3): Vec3 {
+        const normalized = this.tryNormalize();
 
-        if (unitAxis.length() <= MATH_EPSILON) {
+        return normalized.value ?? Vec3.from(fallback);
+    }
+
+    public tryNormalize(): GeometryResult<Vec3> {
+        const length = this.length();
+
+        return length <= MATH_EPSILON
+            ? GeometryResult.degenerate()
+            : GeometryResult.success(this.scale(1 / length));
+    }
+
+    public rotateAroundAxis(axis: Vector3, radians: number): Vec3 {
+        const unitAxis = Vec3.from(axis).tryNormalize().value;
+
+        if (!unitAxis) {
             return this;
         }
 
@@ -93,6 +116,10 @@ export class Vec3 implements Vector3 {
 
     public isFinite(): boolean {
         return Number.isFinite(this.x) && Number.isFinite(this.y) && Number.isFinite(this.z);
+    }
+
+    public isNearZero(tolerance = MATH_EPSILON): boolean {
+        return this.lengthSquared() <= tolerance * tolerance;
     }
 
     public static from(value: Vector3): Vec3 {

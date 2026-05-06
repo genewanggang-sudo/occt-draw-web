@@ -48,7 +48,12 @@ export class Quaternion {
     }
 
     public static fromAxisAngle(axis: Vector3, radians: number): Quaternion {
-        const unitAxis = Vec3.from(axis).normalize();
+        const unitAxis = Vec3.from(axis).tryNormalize().value;
+
+        if (!unitAxis) {
+            return Quaternion.identity();
+        }
+
         const half = radians / 2;
         const sin = Math.sin(half);
 

@@ -1,4 +1,5 @@
 import { Vec3, type Vector3 } from '../linear/vec3';
+import { MATH_EPSILON } from '../value/tolerance';
 
 export class Line3 {
     public readonly direction: Vec3;
@@ -11,5 +12,13 @@ export class Line3 {
 
     public pointAt(parameter: number): Vec3 {
         return this.origin.translated(this.direction.scale(parameter));
+    }
+
+    public isValid(): boolean {
+        return (
+            this.origin.isFinite() &&
+            this.direction.isFinite() &&
+            this.direction.length() > MATH_EPSILON
+        );
     }
 }

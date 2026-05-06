@@ -18,7 +18,9 @@ export class LineSegment2 implements BoundedCurve2 {
     }
 
     public pointAt(parameter: number): Vec2 {
-        return this.start.translated(this.start.vectorTo(this.end).scale(parameter));
+        return this.start.translated(
+            this.start.vectorTo(this.end).scale(this.domain.clamp(parameter)),
+        );
     }
 
     public tangentAt(): Vec2 {
