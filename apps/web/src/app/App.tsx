@@ -1,4 +1,7 @@
-import { projectPartStudioToRenderScene } from '@occt-draw/cad-rendering';
+import {
+    projectPartStudioToRenderGraph,
+    projectPartStudioToRenderScene,
+} from '@occt-draw/cad-rendering';
 import { createDefaultCadDocument, getActivePartStudio } from '@occt-draw/core';
 import {
     createInitialEditorState,
@@ -19,16 +22,16 @@ import {
     type ViewCubeRotationStep,
 } from '@occt-draw/editor';
 import {
-    calculateRenderSceneNavigationBoundingBox,
-    calculateRenderSceneNavigationBoundingSphere,
+    calculateBoundingSphere,
     createStandardCameraState,
+    RenderLayer,
     type RenderEngine,
-    type RenderHighlightState,
     type StandardCameraView,
+    ViewCube,
     type ViewCubeArrowCommand,
     type ViewCubeTargetId,
 } from '@occt-draw/webgl-engine';
-import { createWebglRenderer, hitTestViewCube } from '@occt-draw/webgl-engine';
+import { createWebglRenderer } from '@occt-draw/webgl-engine';
 import { Measurement } from '@occt-draw/math';
 import { APP_NAME } from '@occt-draw/shared';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -75,9 +78,9 @@ export function App() {
     const [editorState, setEditorState] = useState<EditorState>(() => {
         const document = createDefaultCadDocument();
         const activePartStudio = getActivePartStudio(document);
-        const renderScene = projectPartStudioToRenderScene(activePartStudio);
-        const displayBounds = calculateRenderSceneNavigationBoundingBox(renderScene);
-        const displaySphere = calculateRenderSceneNavigationBoundingSphere(renderScene);
+        const graph = projectPartStudioToRenderGraph(activePartStudio);
+        const displayBounds = graph.navigationBounds;
+        const displaySphere = calculateBoundingSphere(displayBounds);
         const camera = createStandardCameraState(displayBounds, 'trimetric', INITIAL_VIEWPORT_SIZE);
         const navigation = createViewNavigationState(camera, displaySphere, INITIAL_VIEWPORT_SIZE);
 
@@ -107,34 +110,33 @@ export function App() {
             }),
         [activePartStudio, editorState.draft, editorState.sketches.sketchesById],
     );
-    const displayBounds = useMemo(
-        () => calculateRenderSceneNavigationBoundingBox(renderScene),
-        [renderScene],
-    );
-    const displaySphere = useMemo(
-        () => calculateRenderSceneNavigationBoundingSphere(renderScene),
-        [renderScene],
-    );
+    const renderGraph = useMemo(() => {
+        const graph = projectPartStudioToRenderGraph(activePartStudio, editorState.draft, {
+            sketchesById: editorState.sketches.sketchesById,
+        });
+        const overlayLayer = new RenderLayer('overlay', {
+            depthPolicy: 'overlay',
+            navigationRole: 'excluded',
+            pickable: false,
+        });
+
+        overlayLayer.add(new ViewCube({ hoveredTargetId: hoveredViewCubeTargetId }));
+        graph.addLayer(overlayLayer);
+
+        return graph;
+    }, [
+        activePartStudio,
+        editorState.draft,
+        editorState.sketches.sketchesById,
+        hoveredViewCubeTargetId,
+    ]);
+    const displayBounds = useMemo(() => renderGraph.navigationBounds, [renderGraph]);
+    const displaySphere = useMemo(() => calculateBoundingSphere(displayBounds), [displayBounds]);
     const selectedObjectIds = editorState.selection.selection.objectIds;
     const selectedTarget = editorState.selection.selection.primaryTarget;
     const selectedObjects = useMemo(
         () => activePartStudio.objects.filter((object) => selectedObjectIds.includes(object.id)),
         [activePartStudio.objects, selectedObjectIds],
-    );
-    const renderHighlight = useMemo<RenderHighlightState>(
-        () => ({
-            hoveredObjectId: editorState.selection.hoveredObjectId,
-            preselectedObjectId: editorState.selection.preselectedTarget?.objectId ?? null,
-            preselectedPrimitiveId: editorState.selection.preselectedTarget?.primitiveId ?? null,
-            selectedObjectIds,
-            selectedPrimitiveId: selectedTarget?.primitiveId ?? null,
-        }),
-        [
-            editorState.selection.hoveredObjectId,
-            editorState.selection.preselectedTarget,
-            selectedObjectIds,
-            selectedTarget,
-        ],
     );
     const activeCommandId = editorState.commandSession.id;
     const activeCommandLabel = getCommandLabel(activeCommandId);
@@ -263,7 +265,7 @@ export function App() {
     }
 
     function hitTestCurrentViewCube(point: ScreenPoint): ViewCubeTargetId | null {
-        return hitTestViewCube({
+        return new ViewCube().hitTest({
             camera: editorStateRef.current.navigation.camera,
             point,
             viewportSize: editorStateRef.current.navigation.viewportSize,
@@ -532,22 +534,10 @@ export function App() {
     }, []);
 
     useEffect(() => {
-        rendererRef.current?.render({
-            camera: editorState.navigation.camera,
-            scene: renderScene,
-            highlight: renderHighlight,
-            viewportSize: editorState.navigation.viewportSize,
-            viewCube: {
-                hoveredTargetId: hoveredViewCubeTargetId,
-            },
-        });
-    }, [
-        renderScene,
-        editorState.navigation.camera,
-        editorState.navigation.viewportSize,
-        renderHighlight,
-        hoveredViewCubeTargetId,
-    ]);
+        rendererRef.current?.resize(editorState.navigation.viewportSize);
+        rendererRef.current?.setGraph(renderGraph);
+        rendererRef.current?.render(editorState.navigation.camera);
+    }, [renderGraph, editorState.navigation.camera, editorState.navigation.viewportSize]);
 
     return (
         <main className="cad-workbench">

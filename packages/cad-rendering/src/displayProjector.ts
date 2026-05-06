@@ -17,8 +17,9 @@ import {
     type Sketch,
     type SketchId,
 } from '@occt-draw/sketch';
-import { createRenderScene } from '@occt-draw/webgl-engine';
+import { createRenderScene, LegacyRenderSceneGraphAdapter } from '@occt-draw/webgl-engine';
 import type {
+    RenderGraph,
     RenderScene,
     RenderNode,
     LabelBatchRenderNode,
@@ -36,6 +37,7 @@ export interface DisplayProjectionContext {
 const EMPTY_DISPLAY_PROJECTION_CONTEXT: DisplayProjectionContext = {
     sketchesById: {},
 };
+const LEGACY_RENDER_SCENE_GRAPH_ADAPTER = new LegacyRenderSceneGraphAdapter();
 
 export class DisplayProjector {
     public projectDocument(
@@ -44,6 +46,16 @@ export class DisplayProjector {
         context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
     ): RenderScene {
         return this.projectPartStudio(document.getActivePartStudio(), draft, context);
+    }
+
+    public projectDocumentToGraph(
+        document: CadDocument,
+        draft: EditDraft | null = null,
+        context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
+    ): RenderGraph {
+        return LEGACY_RENDER_SCENE_GRAPH_ADAPTER.toGraph(
+            this.projectDocument(document, draft, context),
+        );
     }
 
     public projectPartStudio(
@@ -56,6 +68,16 @@ export class DisplayProjector {
             ...this.projectSketchFeatures(partStudio, context),
             ...this.projectDraftObjects(draft),
         ]);
+    }
+
+    public projectPartStudioToGraph(
+        partStudio: PartStudio,
+        draft: EditDraft | null = null,
+        context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
+    ): RenderGraph {
+        return LEGACY_RENDER_SCENE_GRAPH_ADAPTER.toGraph(
+            this.projectPartStudio(partStudio, draft, context),
+        );
     }
 
     public toRenderNode(object: CadObject): RenderNode {
@@ -192,12 +214,28 @@ export function projectDocumentToRenderScene(
     return new DisplayProjector().projectDocument(document, draft, context);
 }
 
+export function projectDocumentToRenderGraph(
+    document: CadDocument,
+    draft: EditDraft | null = null,
+    context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
+): RenderGraph {
+    return new DisplayProjector().projectDocumentToGraph(document, draft, context);
+}
+
 export function projectPartStudioToRenderScene(
     partStudio: PartStudio,
     draft: EditDraft | null = null,
     context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
 ): RenderScene {
     return new DisplayProjector().projectPartStudio(partStudio, draft, context);
+}
+
+export function projectPartStudioToRenderGraph(
+    partStudio: PartStudio,
+    draft: EditDraft | null = null,
+    context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
+): RenderGraph {
+    return new DisplayProjector().projectPartStudioToGraph(partStudio, draft, context);
 }
 
 function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerBatchRenderNode {

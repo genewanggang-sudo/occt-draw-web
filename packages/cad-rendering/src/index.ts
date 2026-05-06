@@ -1,7 +1,9 @@
 export { createRenderScene } from '@occt-draw/webgl-engine';
 export {
     DisplayProjector,
+    projectDocumentToRenderGraph,
     projectDocumentToRenderScene,
+    projectPartStudioToRenderGraph,
     projectPartStudioToRenderScene,
     type DisplayProjectionContext,
 } from './displayProjector';
@@ -18,6 +20,7 @@ export type {
     RenderNodeId,
     RenderNodeKind,
     RenderDepthRole,
+    RenderGraph,
     LabelBatchRenderNode,
     LabelDisplayItem,
     LabelFontWeight,

@@ -113,7 +113,7 @@ CAD 视口样式。这里不以通用 PBR material 为核心，而是表达工�
 渲染管线和 pass 系统。pass 是 picking、depth sampling、highlight、overlay 等能力的主要扩展点。
 
 - `RenderPipeline`
-- `RenderPass`
+- `RenderPass`：渲染管线中的一个执行阶段，例如颜色绘制、overlay、picking 或 depth sampling；不承载 CAD 业务语义。
 - `PassRegistry`
 - `RenderQueue`
 - `DrawCommand`
@@ -131,7 +131,7 @@ CAD 视口样式。这里不以通用 PBR material 为核心，而是表达工�
 
 - `PickKey`
 - `PickResult`
-- `HitTester`
+- `RenderObjectPicker`
 - `PickBuffer`
 - `PickBufferReader`
 - `NavigationDepthSampler`
@@ -191,6 +191,8 @@ WebGL2 后端。该层负责 shader、buffer、texture、framebuffer 和 GPU 资
 - `RenderObject` 负责维护自身 geometry、style、bounds 和 dirty 状态。
 - `WebGLRenderer` 只管理 GPU 资源，不持有业务状态。
 - 旧 `RenderScene` 输入通过兼容适配器迁移到 `RenderGraph`，避免当前功能一次性重写。
+- `webglRenderer.ts` 只保留引擎生命周期和渲染协调；VAO、label atlas、legacy 兼容入口等细节放到独立模块。
+- `legacy/` 目录只服务迁移期，不作为长期核心架构。
 
 ## 实现优先级
 
@@ -357,10 +359,10 @@ class PointSet extends RenderObject {
 ### RenderPass
 
 ```ts
-abstract class RenderPass {
+interface RenderPass {
     readonly name: string;
 
-    abstract execute(context: RenderPassContext): void;
+    execute(context: RenderPassContext): void;
 }
 ```
 
@@ -398,6 +400,30 @@ if (hit) {
 - 公共 API 只做加法，旧 API 到最后清理阶段再移除。
 - 每个阶段完成后至少运行 `pnpm typecheck` 和 `pnpm build`。
 
+### 重构验收基线
+
+重构前必须确认以下能力可用，并在每个关键阶段重复验收：
+
+- 基准面面片、边框、英文 label 正常显示。
+- 原点 marker 正常显示。
+- 草图线、草图点、draft 临时线和临时点正常显示。
+- hover、preselect、select 高亮不回退。
+- ViewCube 显示、hover、6 面、8 角和 6 个箭头点击不回退。
+- pan、zoom、rotate、fit、standard view 可用。
+- navigation depth sampling 和 orbit pivot 行为不回退。
+
+兼容期 legacy API：
+
+- `RenderScene`
+- `RenderNode`
+- `RenderFrameInput`
+- `createRenderScene`
+- `pickRenderNode`
+- `hitTestViewCube`
+- `createWebglRenderer().render(input)`
+
+legacy 兼容代码必须集中放在 `webgl-engine/src/legacy`，不得混入 `core / scene / pipeline / webgl` 的长期实现。
+
 ### 阶段 0：基线确认
 
 目标：冻结当前渲染行为，避免重构过程中无法判断是否回退。
@@ -411,7 +437,7 @@ if (hit) {
     - picking。
     - navigation depth sampling。
 - 补充最小 smoke 验证说明或测试用例。
-- 确认当前 `pnpm typecheck` 和 `pnpm build` 可通过。
+- 确认当前 `pnpm typecheck`、`pnpm build` 和 `pnpm depcruise` 可通过。
 
 验收标准：
 
@@ -433,15 +459,19 @@ if (hit) {
     - `FaceSet`
     - `PointSet`
     - `MarkerSet`
+    - `TextLabelSet`
 - 新增 `geometry`：
     - `EdgeGeometry`
     - `FaceGeometry`
     - `PointGeometry`
+    - `MarkerGeometry`
+    - `TextGeometry`
 - 新增 `style`：
     - `EdgeStyle`
     - `FaceStyle`
     - `PointStyle`
     - `MarkerStyle`
+    - `TextStyle`
 - 包入口只导出上述公共类。
 - 不改 `apps/web` 当前调用链。
 
@@ -450,36 +480,43 @@ if (hit) {
 - 新类可被包入口导入。
 - 没有 deep import 需求。
 - 旧渲染路径不变。
+- `pnpm typecheck` 和 `pnpm build` 通过。
 
 ### 阶段 2：兼容适配层
 
 目标：让旧 `RenderScene` 可以映射到新 `RenderGraph`。
 
-- 新增 `RenderSceneCompatAdapter`。
+- 新增 `LegacyRenderSceneGraphAdapter`，放在 `legacy/` 目录。
+- 适配器内部拆分：
+    - `LegacyRenderNodeToObjectMapper`
+    - `RenderObjectToLegacyNodeMapper`
 - 映射关系：
     - `line-batch` -> `EdgeSet`
     - `surface-batch` -> `FaceSet`
     - `point-batch` -> `PointSet`
     - `marker-batch` -> `MarkerSet`
-    - `label-batch` 暂时保留旧 label 渲染路径，后续迁移到 `TextLabelSet`
+    - `label-batch` -> `TextLabelSet`
 - 保留 `createWebglRenderer` 作为兼容 facade。
 - `createWebglRenderer().render(input)` 内部先构建 `RenderGraph`，再交给新引擎骨架。
+- 兼容适配层必须支持 `RenderGraph -> RenderScene`，直到旧 GPU 绘制路径完全删除。
 
 验收标准：
 
 - `apps/web` 不改调用方式也能通过新骨架渲染。
 - 基准面、原点、草图线、草图点、临时线和临时点显示不回退。
+- 新旧 graph 映射可静态检查。
 
 ### 阶段 3：管线类迁移
 
 目标：把当前集中式 `renderPipeline` 拆到 pass 类中。
 
 - 新增 `RenderPipeline`。
-- 新增 `RenderPass` 基类。
+- 新增 `RenderPass` 接口。
 - 新增 `ColorPass`，承接当前 surface、line、point、marker 绘制。
 - 新增 `OverlayPass`，承接 overlay 绘制入口。
 - `WebGLRenderer` 只负责后端资源和 draw command 执行。
 - 原 `renderPipeline` 降为内部兼容实现，随后删除公共导出。
+- ViewCube overlay 可先通过 `OverlayPass` 兼容渲染，行为不变。
 
 验收标准：
 
@@ -492,16 +529,18 @@ if (hit) {
 目标：把 picking、navigation depth、highlight 收口到 interaction 和 pass 类。
 
 - 新增 `PickKey / PickResult`。
-- 新增 `PickIdPass` 或 `HitTester`，替代公开 `pickRenderNode`。
+- 新增 `PickIdPass` 或 `RenderObjectPicker`，替代公开 `pickRenderNode`。
 - 新增 `NavigationDepthPass / NavigationDepthSampler`，替代公开 depth sampling 流程函数。
 - 新增 `HighlightPass` 和 `SelectionHighlight / HoverHighlight / PreselectionHighlight`。
 - 当前应用先通过兼容 facade 调用这些类。
+- `PickResult` 固定返回 `key / canvasPoint / distancePixels? / depth01? / worldPoint?`。
 
 验收标准：
 
 - 选择、hover、草图交互依赖的命中结果不回退。
 - navigation orbit pivot 相关 depth sampling 不回退。
 - 高亮状态进入渲染管线，但不要求一次完成所有视觉样式。
+- `pnpm depcruise` 通过。
 
 ### 阶段 5：addon 类迁移
 
@@ -521,23 +560,25 @@ if (hit) {
 - ViewCube 仍显示在右上角。
 - hover 和点击切视图不回退。
 - ViewCube 不再作为 renderer 内部硬编码 overlay。
+- ViewCube 不进入主 CAD picking 链路。
 
 ### 阶段 6：应用层切换
 
 目标：让当前产品直接使用新公共 API。
 
-- `cad-rendering` 改为输出 `RenderGraph`。
+- `cad-rendering` 新增 `projectPartStudioToRenderGraph`，旧 `projectPartStudioToRenderScene` 仅作为 legacy facade 保留。
 - `apps/web` 持有 `RenderEngine` 实例。
 - `apps/web` 调用：
     - `engine.setGraph(graph)`
     - `engine.render(camera)`
     - `engine.resize(viewportSize)`
-- 旧 `RenderScene` 只保留在兼容适配层中。
+- editor 侧 picking 和 navigation depth 逐步改为 interaction facade，不直接依赖旧流程函数。
 
 验收标准：
 
-- 当前产品不再直接依赖旧 `RenderScene` DTO。
+- `apps/web` 主渲染链路不再直接依赖旧 `RenderScene` DTO。
 - 当前视口显示、交互、ViewCube 行为无已知回退。
+- `pnpm depcruise` 通过。
 
 ### 阶段 7：清理旧协议
 
@@ -553,4 +594,16 @@ if (hit) {
 
 - 上层只能通过包入口使用 `webgl-engine`。
 - 没有上层 deep import。
-- `pnpm typecheck`、`pnpm build`、`pnpm depcruise` 通过。
+- `rg "RenderScene|RenderNode|pickRenderNode|hitTestViewCube" apps packages` 不再出现业务调用。
+- `pnpm check` 通过。
+
+### 旧协议清理标准
+
+旧协议只能在兼容阶段存在，清理前必须满足：
+
+- `cad-rendering` 的正式输出是 `RenderGraph`。
+- `apps/web` 渲染调用使用 `setGraph(graph)` 和 `render(camera)`。
+- picking 通过 `RenderObjectPicker` 或后续 `PickIdPass`。
+- navigation depth 通过 `NavigationDepthSampler`。
+- ViewCube 通过 `ViewCube` addon 加入 overlay layer。
+- 删除旧导出后 `pnpm check` 通过。

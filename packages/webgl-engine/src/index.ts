@@ -5,6 +5,52 @@ export {
     type RendererWebglModuleStatus,
 } from './manifest';
 export {
+    RenderDirtyFlags,
+    RenderGraph,
+    RenderGroup,
+    RenderLayer,
+    RenderObject,
+    type GeometryBounds,
+    type RenderDirtyFlagInput,
+    type RenderLayerDepthPolicy,
+    type RenderLayerNavigationRole,
+    type RenderLayerOptions,
+    type RenderLayerSortPolicy,
+    type RenderObjectOptions,
+} from './core';
+export {
+    EdgeGeometry,
+    FaceGeometry,
+    MarkerGeometry,
+    PointGeometry,
+    TextGeometry,
+} from './geometry';
+export { EdgeSet, FaceSet, MarkerSet, PointSet, TextLabelSet } from './scene';
+export { EdgeStyle, FaceStyle, MarkerStyle, PointStyle, TextStyle } from './style';
+export {
+    ColorPass,
+    OverlayPass,
+    RenderPipeline,
+    type RenderPass,
+    type RenderPassContext,
+} from './pipeline';
+export {
+    HoverHighlight,
+    NavigationDepthSampler,
+    PreselectionHighlight,
+    RenderObjectPicker,
+    SelectionHighlight,
+    type PickKey,
+    type PickResult,
+} from './interaction';
+export { ViewCube, ViewportWidget } from './addon';
+export {
+    LegacyRenderSceneGraphAdapter,
+    LegacyRenderNodeToObjectMapper,
+    LegacyWebglRendererFacade,
+    RenderObjectToLegacyNodeMapper,
+} from './legacy';
+export {
     DEFAULT_CAMERA_STATE,
     cameraDepth01ToViewDepth,
     canvasDepthToWorld,
@@ -43,7 +89,7 @@ export {
     type PickTargetKind,
 } from './picking';
 export { createRenderPrimitiveId, type RenderPrimitiveKind } from './primitiveId';
-export { createWebglRenderer } from './webglRenderer';
+export { createLegacyWebglRenderer, createWebglRenderer } from './webglRenderer';
 export { getViewCubeViewportRect, hitTestViewCube } from './viewCube';
 export type {
     BaseRenderNode,

@@ -1,26 +1,22 @@
-import type { RenderScene, LabelFontWeight } from './types';
 import type {
+    CameraState,
     RenderEngine,
     NavigationDepthSample,
     NavigationDepthSampleInput,
-    RenderFrameInput,
     ViewportSize,
 } from './types';
-import {
-    createLabelAtlas,
-    createLabelAtlasFontWeightSignature,
-    DEFAULT_LABEL_FONT_WEIGHT,
-    type LabelAtlas,
-} from './labelAtlas';
+import type { RenderGraph } from './core';
+import { LegacyRenderSceneGraphAdapter, LegacyWebglRendererFacade } from './legacy';
 import { createLabelProgram } from './labelShaderProgram';
 import {
     createNavigationDepthResources,
     disposeNavigationDepthResources,
-    sampleNavigationDepths,
     type NavigationDepthResources,
 } from './navigationDepth';
+import { NavigationDepthSampler } from './interaction';
 import { renderPipeline, type RenderPipelineResources } from './renderPipeline';
 import { createProgram } from './shaderProgram';
+import { createLabelVertexArray, createRenderVertexArray, LabelAtlasManager } from './webgl';
 
 export function createWebglRenderer(canvas: HTMLCanvasElement): RenderEngine {
     const context = canvas.getContext('webgl2', {
@@ -36,19 +32,25 @@ export function createWebglRenderer(canvas: HTMLCanvasElement): RenderEngine {
     return new WebglRenderEngine(canvas, context);
 }
 
+export function createLegacyWebglRenderer(canvas: HTMLCanvasElement): LegacyWebglRendererFacade {
+    return new LegacyWebglRendererFacade(createWebglRenderer(canvas));
+}
+
 class WebglRenderEngine implements RenderEngine {
+    private readonly legacyAdapter = new LegacyRenderSceneGraphAdapter();
     private readonly buffer: WebGLBuffer;
     private readonly canvas: HTMLCanvasElement;
     private readonly context: WebGL2RenderingContext;
+    private graph: RenderGraph | null = null;
+    private readonly labelAtlasManager: LabelAtlasManager;
     private readonly labelBuffer: WebGLBuffer;
     private readonly labelProgram: WebGLProgram;
     private readonly labelVertexArray: WebGLVertexArrayObject;
-    private labelAtlas: LabelAtlas;
-    private labelAtlasFontWeightSignature: string;
     private readonly navigationDepthResources: NavigationDepthResources;
     private readonly program: WebGLProgram;
     private renderPipelineResources: RenderPipelineResources;
     private readonly vertexArray: WebGLVertexArrayObject;
+    private viewportSize: ViewportSize = { width: 1, height: 1 };
 
     constructor(canvas: HTMLCanvasElement, context: WebGL2RenderingContext) {
         this.canvas = canvas;
@@ -80,7 +82,7 @@ class WebglRenderEngine implements RenderEngine {
 
         const buffer = context.createBuffer();
         const labelBuffer = context.createBuffer();
-        const labelAtlas = createLabelAtlas(context);
+        const labelAtlasManager = new LabelAtlasManager(context);
         const vertexArray = createRenderVertexArray(context, {
             alphaLocation,
             buffer,
@@ -98,8 +100,7 @@ class WebglRenderEngine implements RenderEngine {
         this.buffer = buffer;
         this.labelBuffer = labelBuffer;
         this.labelVertexArray = labelVertexArray;
-        this.labelAtlas = labelAtlas;
-        this.labelAtlasFontWeightSignature = labelAtlas.fontWeightSignature;
+        this.labelAtlasManager = labelAtlasManager;
         this.vertexArray = vertexArray;
         this.renderPipelineResources = {
             alphaLocation,
@@ -112,8 +113,8 @@ class WebglRenderEngine implements RenderEngine {
             positionLocation,
             program: this.program,
             labelAlphaLocation,
-            labelAtlasGlyphs: labelAtlas.glyphs,
-            labelAtlasTexture: labelAtlas.texture,
+            labelAtlasGlyphs: labelAtlasManager.atlas.glyphs,
+            labelAtlasTexture: labelAtlasManager.atlas.texture,
             labelBuffer,
             labelColorLocation,
             labelVertexArray,
@@ -135,11 +136,12 @@ class WebglRenderEngine implements RenderEngine {
         this.context.deleteBuffer(this.labelBuffer);
         this.context.deleteProgram(this.program);
         this.context.deleteProgram(this.labelProgram);
-        this.context.deleteTexture(this.labelAtlas.texture);
+        this.labelAtlasManager.dispose();
         disposeNavigationDepthResources(this.context, this.navigationDepthResources);
     }
 
     public resize(viewportSize: ViewportSize): void {
+        this.viewportSize = viewportSize;
         const pixelRatio = window.devicePixelRatio || 1;
         const nextWidth = Math.max(1, Math.floor(viewportSize.width * pixelRatio));
         const nextHeight = Math.max(1, Math.floor(viewportSize.height * pixelRatio));
@@ -152,11 +154,45 @@ class WebglRenderEngine implements RenderEngine {
         this.context.viewport(0, 0, nextWidth, nextHeight);
     }
 
-    public render(input: RenderFrameInput): void {
-        this.resize(input.viewportSize);
-        this.ensureLabelAtlas(input.scene);
+    public setGraph(graph: RenderGraph): void {
+        this.graph = graph;
+    }
+
+    public render(camera: CameraState): void {
+        if (!this.graph) {
+            throw new Error('RenderEngine.render(camera) requires setGraph(graph) first.');
+        }
+
+        const scene = this.legacyAdapter.toRenderScene(this.graph, {
+            id: 'render-graph',
+            name: 'Render Graph',
+        });
+        const labelAtlas = this.labelAtlasManager.ensureForScene(scene);
+
+        this.renderPipelineResources = {
+            ...this.renderPipelineResources,
+            labelAtlasGlyphs: labelAtlas.glyphs,
+            labelAtlasTexture: labelAtlas.texture,
+        };
+        this.resize(this.viewportSize);
         this.context.bindFramebuffer(this.context.FRAMEBUFFER, null);
-        renderPipeline(this.context, this.renderPipelineResources, input);
+        renderPipeline(
+            this.context,
+            this.renderPipelineResources,
+            {
+                camera,
+                scene,
+                highlight: {
+                    hoveredObjectId: null,
+                    preselectedObjectId: null,
+                    preselectedPrimitiveId: null,
+                    selectedObjectIds: [],
+                    selectedPrimitiveId: null,
+                },
+                viewportSize: this.viewportSize,
+            },
+            this.graph,
+        );
     }
 
     public sampleNavigationDepths(
@@ -164,141 +200,10 @@ class WebglRenderEngine implements RenderEngine {
     ): readonly NavigationDepthSample[] {
         this.resize(input.viewportSize);
 
-        return sampleNavigationDepths(
+        return new NavigationDepthSampler(
             this.context,
             this.canvas,
             this.navigationDepthResources,
-            input,
-        );
+        ).sample(input);
     }
-
-    private ensureLabelAtlas(scene: RenderScene): void {
-        const fontWeights = collectLabelFontWeights(scene);
-        const signature = createLabelAtlasFontWeightSignature(fontWeights);
-
-        if (signature === this.labelAtlasFontWeightSignature) {
-            return;
-        }
-
-        this.context.deleteTexture(this.labelAtlas.texture);
-        this.labelAtlas = createLabelAtlas(this.context, fontWeights);
-        this.labelAtlasFontWeightSignature = this.labelAtlas.fontWeightSignature;
-        this.renderPipelineResources = {
-            ...this.renderPipelineResources,
-            labelAtlasGlyphs: this.labelAtlas.glyphs,
-            labelAtlasTexture: this.labelAtlas.texture,
-        };
-    }
-}
-
-function createRenderVertexArray(
-    context: WebGL2RenderingContext,
-    input: {
-        readonly alphaLocation: number;
-        readonly buffer: WebGLBuffer;
-        readonly colorLocation: number;
-        readonly positionLocation: number;
-    },
-): WebGLVertexArrayObject {
-    const vertexArray = context.createVertexArray();
-    const stride = 7 * Float32Array.BYTES_PER_ELEMENT;
-
-    context.bindVertexArray(vertexArray);
-    context.bindBuffer(context.ARRAY_BUFFER, input.buffer);
-    context.enableVertexAttribArray(input.positionLocation);
-    context.vertexAttribPointer(input.positionLocation, 3, context.FLOAT, false, stride, 0);
-    context.enableVertexAttribArray(input.colorLocation);
-    context.vertexAttribPointer(
-        input.colorLocation,
-        3,
-        context.FLOAT,
-        false,
-        stride,
-        3 * Float32Array.BYTES_PER_ELEMENT,
-    );
-    context.enableVertexAttribArray(input.alphaLocation);
-    context.vertexAttribPointer(
-        input.alphaLocation,
-        1,
-        context.FLOAT,
-        false,
-        stride,
-        6 * Float32Array.BYTES_PER_ELEMENT,
-    );
-    context.bindVertexArray(null);
-    context.bindBuffer(context.ARRAY_BUFFER, null);
-
-    return vertexArray;
-}
-
-function createLabelVertexArray(
-    context: WebGL2RenderingContext,
-    input: {
-        readonly labelAlphaLocation: number;
-        readonly labelBuffer: WebGLBuffer;
-        readonly labelColorLocation: number;
-        readonly labelPositionLocation: number;
-        readonly labelUvLocation: number;
-    },
-): WebGLVertexArrayObject {
-    const vertexArray = context.createVertexArray();
-    const stride = 9 * Float32Array.BYTES_PER_ELEMENT;
-
-    context.bindVertexArray(vertexArray);
-    context.bindBuffer(context.ARRAY_BUFFER, input.labelBuffer);
-    context.enableVertexAttribArray(input.labelPositionLocation);
-    context.vertexAttribPointer(input.labelPositionLocation, 3, context.FLOAT, false, stride, 0);
-    context.enableVertexAttribArray(input.labelUvLocation);
-    context.vertexAttribPointer(
-        input.labelUvLocation,
-        2,
-        context.FLOAT,
-        false,
-        stride,
-        3 * Float32Array.BYTES_PER_ELEMENT,
-    );
-    context.enableVertexAttribArray(input.labelColorLocation);
-    context.vertexAttribPointer(
-        input.labelColorLocation,
-        3,
-        context.FLOAT,
-        false,
-        stride,
-        5 * Float32Array.BYTES_PER_ELEMENT,
-    );
-    context.enableVertexAttribArray(input.labelAlphaLocation);
-    context.vertexAttribPointer(
-        input.labelAlphaLocation,
-        1,
-        context.FLOAT,
-        false,
-        stride,
-        8 * Float32Array.BYTES_PER_ELEMENT,
-    );
-    context.bindVertexArray(null);
-    context.bindBuffer(context.ARRAY_BUFFER, null);
-
-    return vertexArray;
-}
-
-function collectLabelFontWeights(scene: RenderScene): readonly LabelFontWeight[] {
-    const seen = new Set<LabelFontWeight>();
-    const fontWeights: LabelFontWeight[] = [];
-
-    for (const object of scene.nodes) {
-        if (!object.visible || object.kind !== 'label-batch') {
-            continue;
-        }
-
-        for (const label of object.labels) {
-            const fontWeight = label.fontWeight ?? DEFAULT_LABEL_FONT_WEIGHT;
-
-            if (!seen.has(fontWeight)) {
-                seen.add(fontWeight);
-                fontWeights.push(fontWeight);
-            }
-        }
-    }
-
-    return fontWeights;
 }

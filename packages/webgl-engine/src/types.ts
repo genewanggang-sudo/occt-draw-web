@@ -1,4 +1,5 @@
 import type { LineSegment3, Vector3 } from '@occt-draw/math';
+import type { RenderGraph } from './core';
 
 export type CameraProjection = 'orthographic' | 'perspective';
 
@@ -203,9 +204,10 @@ export interface NavigationDepthSample {
 
 export interface RenderEngine {
     dispose(): void;
-    render(input: RenderFrameInput): void;
+    render(camera: CameraState): void;
     resize(viewportSize: ViewportSize): void;
     sampleNavigationDepths(input: NavigationDepthSampleInput): readonly NavigationDepthSample[];
+    setGraph(graph: RenderGraph): void;
 }
 
 export type ViewCubeArrowCommand =
