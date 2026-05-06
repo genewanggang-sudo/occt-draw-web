@@ -54,11 +54,15 @@ export class Vec3 implements Vector3 {
     }
 
     public distanceTo(value: Vector3): number {
-        return this.subtract(value).length();
+        return Vec3.distance(this, value);
     }
 
     public distanceSquaredTo(value: Vector3): number {
-        return this.subtract(value).lengthSquared();
+        const dx = this.x - value.x;
+        const dy = this.y - value.y;
+        const dz = this.z - value.z;
+
+        return dx * dx + dy * dy + dz * dz;
     }
 
     public translated(vector: Vector3): Vec3 {
@@ -66,7 +70,7 @@ export class Vec3 implements Vector3 {
     }
 
     public vectorTo(point: Vector3): Vec3 {
-        return Vec3.from(point).subtract(this);
+        return Vec3.subtract(point, this);
     }
 
     public normalize(): Vec3 {
@@ -122,39 +126,59 @@ export class Vec3 implements Vector3 {
     }
 
     public static add(left: Vector3, right: Vector3): Vec3 {
-        return Vec3.from(left).add(right);
+        return new Vec3(left.x + right.x, left.y + right.y, left.z + right.z);
     }
 
     public static subtract(left: Vector3, right: Vector3): Vec3 {
-        return Vec3.from(left).subtract(right);
+        return new Vec3(left.x - right.x, left.y - right.y, left.z - right.z);
     }
 
     public static scale(vector: Vector3, scale: number): Vec3 {
-        return Vec3.from(vector).scale(scale);
+        return new Vec3(vector.x * scale, vector.y * scale, vector.z * scale);
     }
 
     public static dot(left: Vector3, right: Vector3): number {
-        return Vec3.from(left).dot(right);
+        return left.x * right.x + left.y * right.y + left.z * right.z;
     }
 
     public static cross(left: Vector3, right: Vector3): Vec3 {
-        return Vec3.from(left).cross(right);
+        return new Vec3(
+            left.y * right.z - left.z * right.y,
+            left.z * right.x - left.x * right.z,
+            left.x * right.y - left.y * right.x,
+        );
     }
 
     public static distance(left: Vector3, right: Vector3): number {
-        return Vec3.from(left).distanceTo(right);
+        return Math.hypot(left.x - right.x, left.y - right.y, left.z - right.z);
     }
 
     public static length(vector: Vector3): number {
-        return Vec3.from(vector).length();
+        return Math.hypot(vector.x, vector.y, vector.z);
     }
 
     public static normalize(vector: Vector3): Vec3 {
-        return Vec3.from(vector).normalize();
+        const length = Vec3.length(vector);
+
+        return !Number.isFinite(length) || length <= MATH_EPSILON
+            ? Vec3.zero()
+            : new Vec3(vector.x / length, vector.y / length, vector.z / length);
     }
 
     public static rotateAroundAxis(vector: Vector3, axis: Vector3, radians: number): Vec3 {
-        return Vec3.from(vector).rotateAroundAxis(axis, radians);
+        const unitAxis = Vec3.normalize(axis);
+
+        if (unitAxis.isNearZero()) {
+            return Vec3.from(vector);
+        }
+
+        const cos = Math.cos(radians);
+        const sin = Math.sin(radians);
+        const parallel = Vec3.scale(unitAxis, Vec3.dot(unitAxis, vector) * (1 - cos));
+        const perpendicular = Vec3.scale(vector, cos);
+        const tangent = Vec3.scale(Vec3.cross(unitAxis, vector), sin);
+
+        return Vec3.add(Vec3.add(perpendicular, tangent), parallel);
     }
 
     public static lerp(start: Vector3, end: Vector3, progress: number): Vec3 {

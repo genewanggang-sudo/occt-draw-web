@@ -22,7 +22,7 @@ export class BSpline2 implements BoundedCurve2 {
 
     public pointAt(parameter: number): Vec2 {
         if (!this.isValid()) {
-            return this.controlPoints[0] ?? Vec2.zero();
+            return Vec2.zero();
         }
 
         return this.basisValues(parameter).reduce(
@@ -73,7 +73,7 @@ export class Nurbs2 extends BSpline2 {
 
     public override pointAt(parameter: number): Vec2 {
         if (!this.isValid()) {
-            return this.controlPoints[0] ?? Vec2.zero();
+            return Vec2.zero();
         }
 
         const basisValues = this.basisValues(parameter);

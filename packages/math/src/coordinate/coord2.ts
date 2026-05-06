@@ -12,7 +12,7 @@ export class Coord2 {
         readonly yAxis?: Vector2;
     }) {
         this.origin = normalizeOrigin(input.origin);
-        this.xAxis = normalizeOrFallback(input.xAxis ?? { x: 1, y: 0 }, Vec2.of(1, 0));
+        this.xAxis = normalizeAxis(input.xAxis ?? { x: 1, y: 0 }, Vec2.of(1, 0));
         this.yAxis = normalizeYAxis(this.xAxis, input.yAxis);
     }
 
@@ -39,7 +39,7 @@ function normalizeOrigin(origin: Vector2): Vec2 {
     return value.isFinite() ? value : Vec2.zero();
 }
 
-function normalizeOrFallback(value: Vector2, fallback: Vec2): Vec2 {
+function normalizeAxis(value: Vector2, fallback: Vec2): Vec2 {
     const vector = Vec2.from(value);
 
     return vector.isFinite() && !vector.isNearZero() ? vector.normalize() : fallback;
@@ -47,7 +47,7 @@ function normalizeOrFallback(value: Vector2, fallback: Vec2): Vec2 {
 
 function normalizeYAxis(xAxis: Vec2, yAxis: Vector2 | undefined): Vec2 {
     if (yAxis) {
-        const projected = Vec2.from(yAxis).subtract(xAxis.scale(Vec2.from(yAxis).dot(xAxis)));
+        const projected = Vec2.subtract(yAxis, Vec2.scale(xAxis, Vec2.dot(yAxis, xAxis)));
 
         if (projected.isFinite() && projected.length() > MATH_EPSILON) {
             return projected.normalize();

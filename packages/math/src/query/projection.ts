@@ -17,12 +17,12 @@ export const Projection = {
     },
 
     pointToLineParameter2(point: Vector2, start: Vector2, end: Vector2): ProjectionResult<number> {
-        const vector = Vec2.from(start).vectorTo(end);
+        const vector = Vec2.subtract(end, start);
         const lengthSquared = vector.dot(vector);
 
         return DEFAULT_TOLERANCE.isNearZeroSquared(lengthSquared)
             ? GeometryResult.degenerate()
-            : GeometryResult.success(Vec2.from(start).vectorTo(point).dot(vector) / lengthSquared);
+            : GeometryResult.success(Vec2.dot(Vec2.subtract(point, start), vector) / lengthSquared);
     },
 
     pointToRayParameter3(point: Vector3, ray: Ray3): ProjectionResult<number> {

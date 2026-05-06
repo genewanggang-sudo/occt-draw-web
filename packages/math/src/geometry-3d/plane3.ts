@@ -78,7 +78,7 @@ function normalizeNormal(normal: Vector3): Vec3 {
 
 function normalizeXAxis(normal: Vec3, xAxis: Vector3 | undefined): Vec3 {
     const projectedXAxis = xAxis
-        ? Vec3.from(xAxis).subtract(normal.scale(Vec3.dot(xAxis, normal)))
+        ? Vec3.subtract(xAxis, Vec3.scale(normal, Vec3.dot(xAxis, normal)))
         : Vec3.zero();
 
     if (projectedXAxis.isFinite() && projectedXAxis.length() > MATH_EPSILON) {

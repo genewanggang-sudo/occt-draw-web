@@ -43,11 +43,14 @@ export class Vec2 implements Vector2 {
     }
 
     public distanceTo(value: Vector2): number {
-        return this.subtract(value).length();
+        return Vec2.distance(this, value);
     }
 
     public distanceSquaredTo(value: Vector2): number {
-        return this.subtract(value).lengthSquared();
+        const dx = this.x - value.x;
+        const dy = this.y - value.y;
+
+        return dx * dx + dy * dy;
     }
 
     public translated(vector: Vector2): Vec2 {
@@ -55,7 +58,7 @@ export class Vec2 implements Vector2 {
     }
 
     public vectorTo(point: Vector2): Vec2 {
-        return Vec2.from(point).subtract(this);
+        return Vec2.subtract(point, this);
     }
 
     public normalize(): Vec2 {
@@ -97,16 +100,40 @@ export class Vec2 implements Vector2 {
         return new Vec2(0, 0);
     }
 
+    public static add(left: Vector2, right: Vector2): Vec2 {
+        return new Vec2(left.x + right.x, left.y + right.y);
+    }
+
+    public static subtract(left: Vector2, right: Vector2): Vec2 {
+        return new Vec2(left.x - right.x, left.y - right.y);
+    }
+
+    public static scale(vector: Vector2, scale: number): Vec2 {
+        return new Vec2(vector.x * scale, vector.y * scale);
+    }
+
+    public static dot(left: Vector2, right: Vector2): number {
+        return left.x * right.x + left.y * right.y;
+    }
+
+    public static cross(left: Vector2, right: Vector2): number {
+        return left.x * right.y - left.y * right.x;
+    }
+
     public static distance(left: Vector2, right: Vector2): number {
-        return Vec2.from(left).distanceTo(right);
+        return Math.hypot(left.x - right.x, left.y - right.y);
     }
 
     public static length(vector: Vector2): number {
-        return Vec2.from(vector).length();
+        return Math.hypot(vector.x, vector.y);
     }
 
     public static normalize(vector: Vector2): Vec2 {
-        return Vec2.from(vector).normalize();
+        const length = Vec2.length(vector);
+
+        return !Number.isFinite(length) || length <= MATH_EPSILON
+            ? Vec2.zero()
+            : new Vec2(vector.x / length, vector.y / length);
     }
 
     public static lerp(start: Vector2, end: Vector2, progress: number): Vec2 {

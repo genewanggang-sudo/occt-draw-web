@@ -14,7 +14,7 @@ export class Coord3 {
         readonly zAxis?: Vector3;
     }) {
         this.origin = normalizeOrigin(input.origin);
-        this.zAxis = normalizeOrFallback(input.zAxis ?? { x: 0, y: 0, z: 1 }, Vec3.of(0, 0, 1));
+        this.zAxis = normalizeAxis(input.zAxis ?? { x: 0, y: 0, z: 1 }, Vec3.of(0, 0, 1));
         this.xAxis = normalizeAxisInPlane(input.xAxis ?? { x: 1, y: 0, z: 0 }, this.zAxis);
         this.yAxis = normalizeYAxis(this.xAxis, this.zAxis, input.yAxis);
     }
@@ -43,7 +43,7 @@ function normalizeOrigin(origin: Vector3): Vec3 {
     return value.isFinite() ? value : Vec3.zero();
 }
 
-function normalizeOrFallback(value: Vector3, fallback: Vec3): Vec3 {
+function normalizeAxis(value: Vector3, fallback: Vec3): Vec3 {
     const vector = Vec3.from(value);
 
     return vector.isFinite() && vector.length() > MATH_EPSILON ? vector.normalize() : fallback;
@@ -51,7 +51,7 @@ function normalizeOrFallback(value: Vector3, fallback: Vec3): Vec3 {
 
 function normalizeAxisInPlane(axis: Vector3, normal: Vec3): Vec3 {
     const fallback = Math.abs(normal.x) < 0.9 ? Vec3.of(1, 0, 0) : Vec3.of(0, 1, 0);
-    const vector = Vec3.from(axis).subtract(normal.scale(Vec3.dot(axis, normal)));
+    const vector = Vec3.subtract(axis, Vec3.scale(normal, Vec3.dot(axis, normal)));
 
     if (vector.isFinite() && vector.length() > MATH_EPSILON) {
         return vector.normalize();
@@ -62,9 +62,10 @@ function normalizeAxisInPlane(axis: Vector3, normal: Vec3): Vec3 {
 
 function normalizeYAxis(xAxis: Vec3, zAxis: Vec3, yAxis: Vector3 | undefined): Vec3 {
     if (yAxis) {
-        const vector = Vec3.from(yAxis)
-            .subtract(zAxis.scale(Vec3.dot(yAxis, zAxis)))
-            .subtract(xAxis.scale(Vec3.dot(yAxis, xAxis)));
+        const vector = Vec3.subtract(
+            Vec3.subtract(yAxis, Vec3.scale(zAxis, Vec3.dot(yAxis, zAxis))),
+            Vec3.scale(xAxis, Vec3.dot(yAxis, xAxis)),
+        );
 
         if (vector.isFinite() && vector.length() > MATH_EPSILON) {
             const normalized = vector.normalize();

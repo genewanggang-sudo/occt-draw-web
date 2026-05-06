@@ -10,7 +10,7 @@ export interface CameraBasis {
 
 export function calculateCameraBasis(camera: CameraState): CameraBasis {
     const view = Vec3.subtract(camera.position, camera.target).normalize();
-    const projectedUp = Vec3.from(camera.up).subtract(view.scale(Vec3.dot(camera.up, view)));
+    const projectedUp = Vec3.subtract(camera.up, Vec3.scale(view, Vec3.dot(camera.up, view)));
     const upSeed = projectedUp.normalize();
     const right = upSeed.cross(view).normalize();
     const up = view.cross(right).normalize();
