@@ -51,6 +51,27 @@ export class Tolerance {
         return this.equals(left, right, this.parameter);
     }
 
+    public arePointsNear2(
+        left: { readonly x: number; readonly y: number },
+        right: { readonly x: number; readonly y: number },
+    ): boolean {
+        const dx = left.x - right.x;
+        const dy = left.y - right.y;
+
+        return this.isNearZeroSquared(dx * dx + dy * dy);
+    }
+
+    public arePointsNear3(
+        left: { readonly x: number; readonly y: number; readonly z: number },
+        right: { readonly x: number; readonly y: number; readonly z: number },
+    ): boolean {
+        const dx = left.x - right.x;
+        const dy = left.y - right.y;
+        const dz = left.z - right.z;
+
+        return this.isNearZeroSquared(dx * dx + dy * dy + dz * dz);
+    }
+
     public static default(): Tolerance {
         return DEFAULT_TOLERANCE;
     }

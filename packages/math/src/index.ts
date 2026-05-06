@@ -69,6 +69,9 @@ export {
     type IntersectionResult,
     type MeasurementResult,
     type ProjectionResult,
+    type SegmentSegment2Intersection,
+    type SegmentSegment2OverlapIntersection,
+    type SegmentSegment2PointIntersection,
 } from './query';
 export { BoundsApproximation, CurveSampler, PolylineApproximation } from './approximation';
 export {

@@ -1,4 +1,4 @@
-import type { LineSegment2 } from '../geometry-2d/lineSegment2';
+import { LineSegment2 } from '../geometry-2d/lineSegment2';
 import type { Ray3 } from '../geometry-3d/ray3';
 import type { Triangle3 } from '../geometry-3d/triangle3';
 import type { Vec2 } from '../linear/vec2';
@@ -7,6 +7,24 @@ import { GeometryResult } from '../value/result';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
 
 export type IntersectionResult<TValue> = GeometryResult<TValue>;
+
+export interface SegmentSegment2PointIntersection {
+    readonly kind: 'point';
+    readonly leftParameters: readonly [number, number];
+    readonly point: Vec2;
+    readonly rightParameters: readonly [number, number];
+}
+
+export interface SegmentSegment2OverlapIntersection {
+    readonly kind: 'overlap';
+    readonly leftParameters: readonly [number, number];
+    readonly overlap: LineSegment2;
+    readonly rightParameters: readonly [number, number];
+}
+
+export type SegmentSegment2Intersection =
+    | SegmentSegment2OverlapIntersection
+    | SegmentSegment2PointIntersection;
 
 export const Intersection = {
     segments2(left: LineSegment2, right: LineSegment2): IntersectionResult<Vec2> {
@@ -39,6 +57,45 @@ export const Intersection = {
         }
 
         return GeometryResult.success(left.pointAt(clampUnitParameter(t)));
+    },
+
+    segmentSegment2Detailed(
+        left: LineSegment2,
+        right: LineSegment2,
+    ): IntersectionResult<SegmentSegment2Intersection> {
+        if (!left.isValid() || !right.isValid()) {
+            return GeometryResult.degenerate();
+        }
+
+        const leftVector = left.start.vectorTo(left.end);
+        const rightVector = right.start.vectorTo(right.end);
+        const denominator = leftVector.cross(rightVector);
+        const startDelta = left.start.vectorTo(right.start);
+
+        if (DEFAULT_TOLERANCE.isNearZero(denominator)) {
+            if (!DEFAULT_TOLERANCE.isNearZero(startDelta.cross(leftVector))) {
+                return GeometryResult.parallel();
+            }
+
+            return collinearSegmentsIntersection(left, right, leftVector, rightVector);
+        }
+
+        const leftParameter = startDelta.cross(rightVector) / denominator;
+        const rightParameter = startDelta.cross(leftVector) / denominator;
+
+        if (!isUnitParameter(leftParameter) || !isUnitParameter(rightParameter)) {
+            return GeometryResult.empty();
+        }
+
+        const clampedLeftParameter = clampUnitParameter(leftParameter);
+        const clampedRightParameter = clampUnitParameter(rightParameter);
+
+        return GeometryResult.success({
+            kind: 'point',
+            leftParameters: [clampedLeftParameter, clampedLeftParameter],
+            point: left.pointAt(clampedLeftParameter),
+            rightParameters: [clampedRightParameter, clampedRightParameter],
+        });
     },
 
     rayTriangle3(ray: Ray3, triangle: Triangle3): IntersectionResult<Vec3> {
@@ -98,6 +155,51 @@ function clampUnitParameter(value: number): number {
     }
 
     return value;
+}
+
+function collinearSegmentsIntersection(
+    left: LineSegment2,
+    right: LineSegment2,
+    leftVector: Vec2,
+    rightVector: Vec2,
+): IntersectionResult<SegmentSegment2Intersection> {
+    const leftLengthSquared = leftVector.lengthSquared();
+    const rightLengthSquared = rightVector.lengthSquared();
+    const rightStartOnLeft = left.start.vectorTo(right.start).dot(leftVector) / leftLengthSquared;
+    const rightEndOnLeft = left.start.vectorTo(right.end).dot(leftVector) / leftLengthSquared;
+    const overlapStartOnLeft = Math.max(Math.min(rightStartOnLeft, rightEndOnLeft), 0);
+    const overlapEndOnLeft = Math.min(Math.max(rightStartOnLeft, rightEndOnLeft), 1);
+
+    if (overlapStartOnLeft > overlapEndOnLeft + DEFAULT_TOLERANCE.parameter) {
+        return GeometryResult.empty();
+    }
+
+    const clampedStartOnLeft = clampUnitParameter(overlapStartOnLeft);
+    const clampedEndOnLeft = clampUnitParameter(overlapEndOnLeft);
+    const overlapStart = left.pointAt(clampedStartOnLeft);
+    const overlapEnd = left.pointAt(clampedEndOnLeft);
+    const startOnRight = clampUnitParameter(
+        right.start.vectorTo(overlapStart).dot(rightVector) / rightLengthSquared,
+    );
+    const endOnRight = clampUnitParameter(
+        right.start.vectorTo(overlapEnd).dot(rightVector) / rightLengthSquared,
+    );
+
+    if (DEFAULT_TOLERANCE.arePointsNear2(overlapStart, overlapEnd)) {
+        return GeometryResult.success({
+            kind: 'point',
+            leftParameters: [clampedStartOnLeft, clampedStartOnLeft],
+            point: overlapStart,
+            rightParameters: [startOnRight, startOnRight],
+        });
+    }
+
+    return GeometryResult.success({
+        kind: 'overlap',
+        leftParameters: [clampedStartOnLeft, clampedEndOnLeft],
+        overlap: new LineSegment2(overlapStart, overlapEnd),
+        rightParameters: [startOnRight, endOnRight],
+    });
 }
 
 function collinearSegmentsOverlap(qMinusP: Vec2, r: Vec2, s: Vec2): boolean {
