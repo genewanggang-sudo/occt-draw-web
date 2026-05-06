@@ -41,6 +41,7 @@ export {
     RenderObjectPicker,
     SelectionHighlight,
     type PickKey,
+    type PickRenderObjectInput,
     type PickResult,
 } from './interaction';
 export { ViewCube, ViewportWidget } from './addon';
@@ -111,10 +112,13 @@ export type {
     MarkerBatchRenderNode,
     MarkerDisplayItem,
     MarkerShape,
+    NavigationDepthGraphSampleInput,
     NavigationDepthRole,
     NavigationDepthSample,
+    NavigationDepthSampleInputBase,
     NavigationDepthSampleInput,
     NavigationDepthSamplingArea,
+    NavigationDepthSceneSampleInput,
     PointBatchRenderNode,
     RenderFrameInput,
     RenderHighlightState,

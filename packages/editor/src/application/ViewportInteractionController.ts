@@ -1,11 +1,14 @@
-import type { RenderScene } from '@occt-draw/cad-rendering';
 import {
+    LegacyRenderSceneGraphAdapter,
     projectBoundsToScreenRect,
     screenPointToWorldRay,
     type BoundingBox3,
     type BoundingSphere,
+    type NavigationDepthGraphSampleInput,
     type NavigationDepthSample,
     type NavigationDepthSampleInput,
+    type RenderGraph,
+    type RenderScene,
     type StandardCameraView,
 } from '@occt-draw/webgl-engine';
 import {
@@ -31,7 +34,7 @@ import { ViewNavigationController } from './ViewNavigationController';
 export interface ViewportInteractionContext {
     readonly getActiveCommandId: () => CommandId;
     readonly getDisplayBounds: () => BoundingBox3;
-    readonly getRenderScene: () => RenderScene;
+    readonly getRenderGraph: () => RenderGraph;
     readonly getDisplaySphere: () => BoundingSphere;
     readonly getState: () => EditorState;
     readonly pickService: PickService;
@@ -65,6 +68,7 @@ const BOUNDS_FIT_ROTATE_FACTOR = 2;
 export class ViewportInteractionController {
     private readonly commandManager: CommandManager;
     private readonly context: ViewportInteractionContext;
+    private readonly legacyAdapter = new LegacyRenderSceneGraphAdapter();
 
     constructor(context: ViewportInteractionContext) {
         this.context = context;
@@ -205,9 +209,9 @@ export class ViewportInteractionController {
                 stepPixels: 1,
             },
             camera: state.navigation.camera,
-            scene: this.context.getRenderScene(),
+            graph: this.context.getRenderGraph(),
             viewportSize: state.navigation.viewportSize,
-        } satisfies Omit<NavigationDepthSampleInput, 'includeSecondary'>;
+        } satisfies Omit<NavigationDepthGraphSampleInput, 'includeSecondary'>;
         const modelSamples = this.context.sampleNavigationDepths({
             ...sampleInput,
             includeSecondary: false,
@@ -244,7 +248,7 @@ export class ViewportInteractionController {
                 targetSampleCount: ORBIT_WINDOW_TARGET_SAMPLE_COUNT,
             },
             camera: state.navigation.camera,
-            scene: this.context.getRenderScene(),
+            graph: this.context.getRenderGraph(),
             includeSecondary,
             viewportSize: state.navigation.viewportSize,
         });
@@ -398,7 +402,7 @@ export class ViewportInteractionController {
 
     private createCommandContext(stateOverride?: EditorState): CommandContext {
         return {
-            getRenderScene: () => this.context.getRenderScene(),
+            getLegacyRenderScene: () => this.getLegacyRenderScene(),
             getDraft: () => (stateOverride ?? this.context.getState()).draft,
             getState: () => stateOverride ?? this.context.getState(),
             pick: (point: ScreenPoint) => {
@@ -406,13 +410,20 @@ export class ViewportInteractionController {
 
                 return this.context.pickService.pickSelectionTarget({
                     camera: state.navigation.camera,
-                    scene: this.context.getRenderScene(),
+                    graph: this.context.getRenderGraph(),
                     point,
                     thresholdPixels: PICK_THRESHOLD_PIXELS,
                     viewportSize: state.navigation.viewportSize,
                 });
             },
         };
+    }
+
+    private getLegacyRenderScene(): RenderScene {
+        return this.legacyAdapter.toRenderScene(this.context.getRenderGraph(), {
+            id: 'editor-command-graph',
+            name: 'Editor Command Graph',
+        });
     }
 }
 

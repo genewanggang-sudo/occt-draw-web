@@ -1,5 +1,15 @@
 import { pickRenderNode, type PickRenderNodeInput, type PickTargetKind } from '../picking';
-import type { ScreenPoint2 } from '../types';
+import type { RenderGraph } from '../core';
+import { LegacyRenderSceneGraphAdapter } from '../legacy';
+import type { CameraState, ScreenPoint2, ViewportSize } from '../types';
+
+export interface PickRenderObjectInput {
+    readonly camera: CameraState;
+    readonly graph: RenderGraph;
+    readonly point: ScreenPoint2;
+    readonly thresholdPixels: number;
+    readonly viewportSize: ViewportSize;
+}
 
 export interface PickKey {
     readonly kind: PickTargetKind;
@@ -16,7 +26,22 @@ export interface PickResult {
 }
 
 export class RenderObjectPicker {
-    public pick(input: PickRenderNodeInput): PickResult | null {
+    private readonly legacyAdapter = new LegacyRenderSceneGraphAdapter();
+
+    public pick(input: PickRenderObjectInput): PickResult | null {
+        return this.pickLegacyScene({
+            camera: input.camera,
+            point: input.point,
+            scene: this.legacyAdapter.toRenderScene(input.graph, {
+                id: 'pick-graph',
+                name: 'Pick Graph',
+            }),
+            thresholdPixels: input.thresholdPixels,
+            viewportSize: input.viewportSize,
+        });
+    }
+
+    public pickLegacyScene(input: PickRenderNodeInput): PickResult | null {
         const result = pickRenderNode(input);
 
         if (!result) {

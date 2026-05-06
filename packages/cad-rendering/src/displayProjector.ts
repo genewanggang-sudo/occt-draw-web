@@ -17,17 +17,29 @@ import {
     type Sketch,
     type SketchId,
 } from '@occt-draw/sketch';
-import { createRenderScene, LegacyRenderSceneGraphAdapter } from '@occt-draw/webgl-engine';
-import type {
+import {
+    EdgeGeometry,
+    EdgeSet,
+    EdgeStyle,
+    FaceGeometry,
+    FaceSet,
+    FaceStyle,
+    LegacyRenderSceneGraphAdapter,
+    MarkerGeometry,
+    MarkerSet,
+    MarkerStyle,
+    PointGeometry,
+    PointSet,
+    PointStyle,
     RenderGraph,
-    RenderScene,
-    RenderNode,
-    LabelBatchRenderNode,
-    LabelText,
-    LineBatchRenderNode,
-    MarkerBatchRenderNode,
-    PointBatchRenderNode,
-    SurfaceBatchRenderNode,
+    RenderLayer,
+    TextGeometry,
+    TextLabelSet,
+    TextStyle,
+    type LabelText,
+    type RenderNode,
+    type RenderObject,
+    type RenderScene,
 } from '@occt-draw/webgl-engine';
 
 export interface DisplayProjectionContext {
@@ -38,6 +50,9 @@ const EMPTY_DISPLAY_PROJECTION_CONTEXT: DisplayProjectionContext = {
     sketchesById: {},
 };
 const LEGACY_RENDER_SCENE_GRAPH_ADAPTER = new LegacyRenderSceneGraphAdapter();
+const MODEL_LAYER_NAME = 'model';
+const SKETCH_DRAFT_LAYER_NAME = 'sketch-draft';
+const LABEL_HELPER_LAYER_NAME = 'label-helper';
 
 export class DisplayProjector {
     public projectDocument(
@@ -45,7 +60,7 @@ export class DisplayProjector {
         draft: EditDraft | null = null,
         context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
     ): RenderScene {
-        return this.projectPartStudio(document.getActivePartStudio(), draft, context);
+        return this.projectDocumentToRenderScene(document, draft, context);
     }
 
     public projectDocumentToGraph(
@@ -53,9 +68,17 @@ export class DisplayProjector {
         draft: EditDraft | null = null,
         context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
     ): RenderGraph {
-        return LEGACY_RENDER_SCENE_GRAPH_ADAPTER.toGraph(
-            this.projectDocument(document, draft, context),
-        );
+        return this.projectPartStudioToGraph(document.getActivePartStudio(), draft, context);
+    }
+
+    public projectDocumentToRenderScene(
+        document: CadDocument,
+        draft: EditDraft | null = null,
+        context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
+    ): RenderScene {
+        const partStudio = document.getActivePartStudio();
+
+        return this.projectPartStudioToRenderScene(partStudio, draft, context);
     }
 
     public projectPartStudio(
@@ -63,11 +86,7 @@ export class DisplayProjector {
         draft: EditDraft | null = null,
         context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
     ): RenderScene {
-        return createRenderScene(partStudio.id, partStudio.name, [
-            ...partStudio.objects.flatMap((object) => this.toRenderNodes(object)),
-            ...this.projectSketchFeatures(partStudio, context),
-            ...this.projectDraftObjects(draft),
-        ]);
+        return this.projectPartStudioToRenderScene(partStudio, draft, context);
     }
 
     public projectPartStudioToGraph(
@@ -75,22 +94,55 @@ export class DisplayProjector {
         draft: EditDraft | null = null,
         context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
     ): RenderGraph {
-        return LEGACY_RENDER_SCENE_GRAPH_ADAPTER.toGraph(
-            this.projectPartStudio(partStudio, draft, context),
+        const graph = new RenderGraph();
+        const modelLayer = new RenderLayer(MODEL_LAYER_NAME);
+        const sketchDraftLayer = new RenderLayer(SKETCH_DRAFT_LAYER_NAME);
+        const labelHelperLayer = new RenderLayer(LABEL_HELPER_LAYER_NAME, {
+            navigationRole: 'excluded',
+            pickable: false,
+        });
+
+        for (const object of partStudio.objects) {
+            addObjectsToLayers(this.toRenderObjects(object), modelLayer, labelHelperLayer);
+        }
+
+        for (const object of this.projectSketchFeatures(partStudio, context)) {
+            sketchDraftLayer.add(object);
+        }
+
+        for (const object of this.projectDraftObjects(draft)) {
+            sketchDraftLayer.add(object);
+        }
+
+        graph.addLayer(modelLayer);
+        graph.addLayer(sketchDraftLayer);
+        graph.addLayer(labelHelperLayer);
+
+        return graph;
+    }
+
+    public projectPartStudioToRenderScene(
+        partStudio: PartStudio,
+        draft: EditDraft | null = null,
+        context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
+    ): RenderScene {
+        return LEGACY_RENDER_SCENE_GRAPH_ADAPTER.toRenderScene(
+            this.projectPartStudioToGraph(partStudio, draft, context),
+            { id: partStudio.id, name: partStudio.name },
         );
     }
 
-    public toRenderNode(object: CadObject): RenderNode {
-        const [renderNode] = this.toRenderNodes(object);
+    public toRenderObject(object: CadObject): RenderObject {
+        const [renderObject] = this.toRenderObjects(object);
 
-        if (!renderNode) {
-            throw new Error(`对象投影失败：${object.id}`);
+        if (!renderObject) {
+            throw new Error(`Object projection failed: ${object.id}`);
         }
 
-        return renderNode;
+        return renderObject;
     }
 
-    public toRenderNodes(object: CadObject): readonly RenderNode[] {
+    public toRenderObjects(object: CadObject): readonly RenderObject[] {
         if (object.kind === 'reference-origin') {
             return [projectReferenceOriginObject(object)];
         }
@@ -98,10 +150,27 @@ export class DisplayProjector {
         return projectReferencePlaneObject(object);
     }
 
+    public toRenderNode(object: CadObject): RenderNode {
+        const [renderNode] = this.toRenderNodes(object);
+
+        if (!renderNode) {
+            throw new Error(`Legacy object projection failed: ${object.id}`);
+        }
+
+        return renderNode;
+    }
+
+    public toRenderNodes(object: CadObject): readonly RenderNode[] {
+        return LEGACY_RENDER_SCENE_GRAPH_ADAPTER.toRenderScene(
+            createRenderGraphFromObjects(this.toRenderObjects(object)),
+            { id: object.id, name: object.name },
+        ).nodes;
+    }
+
     private projectSketchFeatures(
         partStudio: PartStudio,
         context: DisplayProjectionContext,
-    ): readonly RenderNode[] {
+    ): readonly RenderObject[] {
         return partStudio.features.flatMap((feature) => {
             if (feature.type !== 'sketch' || !feature.payloadRef) {
                 return [];
@@ -120,7 +189,7 @@ export class DisplayProjector {
             }
 
             const plane = referencePlaneToPlane(sketchPlane);
-            const objects: RenderNode[] = [];
+            const objects: RenderObject[] = [];
             const segments = listSketchLines(sketch).flatMap((line) => {
                 const startPoint = findSketchPointById(sketch, line.startPointId);
                 const endPoint = findSketchPointById(sketch, line.endPointId);
@@ -141,35 +210,43 @@ export class DisplayProjector {
             );
 
             if (segments.length > 0) {
-                objects.push({
-                    id: feature.id,
-                    kind: 'line-batch',
-                    name: feature.name,
-                    depthRole: 'primary',
-                    visible: !feature.suppressed,
-                    color: Vec3.of(0.05, 0.38, 0.85),
-                    segments,
-                } satisfies LineBatchRenderNode);
+                objects.push(
+                    new EdgeSet(
+                        new EdgeGeometry(segments),
+                        new EdgeStyle({ color: Vec3.of(0.05, 0.38, 0.85) }),
+                        {
+                            depthRole: 'primary',
+                            id: feature.id,
+                            name: feature.name,
+                            visible: !feature.suppressed,
+                        },
+                    ),
+                );
             }
 
             if (points.length > 0) {
-                objects.push({
-                    id: `${feature.id}:points`,
-                    kind: 'point-batch',
-                    name: `${feature.name} 端点`,
-                    depthRole: 'primary',
-                    visible: !feature.suppressed,
-                    color: Vec3.of(0.05, 0.38, 0.85),
-                    points,
-                    sizePixels: 7,
-                } satisfies PointBatchRenderNode);
+                objects.push(
+                    new PointSet(
+                        new PointGeometry(points),
+                        new PointStyle({
+                            color: Vec3.of(0.05, 0.38, 0.85),
+                            sizePixels: 7,
+                        }),
+                        {
+                            depthRole: 'primary',
+                            id: `${feature.id}:points`,
+                            name: `${feature.name} points`,
+                            visible: !feature.suppressed,
+                        },
+                    ),
+                );
             }
 
             return objects;
         });
     }
 
-    private projectDraftObjects(draft: EditDraft | null): readonly RenderNode[] {
+    private projectDraftObjects(draft: EditDraft | null): readonly RenderObject[] {
         if (!draft) {
             return [];
         }
@@ -183,25 +260,29 @@ export class DisplayProjector {
         const segments = temporaryLineSegments.map((object) => object.segment);
 
         return [
-            {
-                id: `${draft.id}:temporary-lines`,
-                kind: 'line-batch',
-                name: '临时线段',
-                depthRole: 'primary',
-                visible: true,
-                color: Vec3.of(0.35, 0.72, 1),
-                segments,
-            } satisfies LineBatchRenderNode,
-            {
-                id: `${draft.id}:temporary-points`,
-                kind: 'point-batch',
-                name: '临时端点',
-                depthRole: 'primary',
-                visible: true,
-                color: Vec3.of(0.35, 0.72, 1),
-                points: segments.flatMap((segment) => [segment.start, segment.end]),
-                sizePixels: 7,
-            } satisfies PointBatchRenderNode,
+            new EdgeSet(
+                new EdgeGeometry(segments),
+                new EdgeStyle({ color: Vec3.of(0.35, 0.72, 1) }),
+                {
+                    depthRole: 'primary',
+                    id: `${draft.id}:temporary-lines`,
+                    name: 'temporary lines',
+                    visible: true,
+                },
+            ),
+            new PointSet(
+                new PointGeometry(segments.flatMap((segment) => [segment.start, segment.end])),
+                new PointStyle({
+                    color: Vec3.of(0.35, 0.72, 1),
+                    sizePixels: 7,
+                }),
+                {
+                    depthRole: 'primary',
+                    id: `${draft.id}:temporary-points`,
+                    name: 'temporary points',
+                    visible: true,
+                },
+            ),
         ];
     }
 }
@@ -211,7 +292,7 @@ export function projectDocumentToRenderScene(
     draft: EditDraft | null = null,
     context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
 ): RenderScene {
-    return new DisplayProjector().projectDocument(document, draft, context);
+    return new DisplayProjector().projectDocumentToRenderScene(document, draft, context);
 }
 
 export function projectDocumentToRenderGraph(
@@ -227,7 +308,7 @@ export function projectPartStudioToRenderScene(
     draft: EditDraft | null = null,
     context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
 ): RenderScene {
-    return new DisplayProjector().projectPartStudio(partStudio, draft, context);
+    return new DisplayProjector().projectPartStudioToRenderScene(partStudio, draft, context);
 }
 
 export function projectPartStudioToRenderGraph(
@@ -238,25 +319,27 @@ export function projectPartStudioToRenderGraph(
     return new DisplayProjector().projectPartStudioToGraph(partStudio, draft, context);
 }
 
-function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerBatchRenderNode {
-    return {
-        id: object.id,
-        kind: 'marker-batch',
-        name: object.name,
-        depthRole: 'primary',
-        visible: object.visible,
-        markers: [
+function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerSet {
+    return new MarkerSet(
+        new MarkerGeometry([
             {
                 color: Vec3.of(0.78, 0.8, 0.82),
                 position: object.position,
                 shape: 'origin',
                 sizePixels: 13,
             },
-        ],
-    };
+        ]),
+        new MarkerStyle(),
+        {
+            depthRole: 'primary',
+            id: object.id,
+            name: object.name,
+            visible: object.visible,
+        },
+    );
 }
 
-function projectReferencePlaneObject(object: ReferencePlaneObject): readonly RenderNode[] {
+function projectReferencePlaneObject(object: ReferencePlaneObject): readonly RenderObject[] {
     const plane = referencePlaneToPlane(object);
     const halfSize = object.size / 2;
     const labelYAxis = Vec3.scale(plane.yAxis, -1);
@@ -269,40 +352,39 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Ren
     const labelFrameOrigin = plane.localToWorld(Vec2.of(-halfSize, halfSize));
 
     return [
-        {
-            id: `${object.id}:surface`,
-            kind: 'surface-batch',
-            name: `${object.name} 面`,
-            depthRole: 'secondary',
-            visible: object.visible,
-            color: Vec3.of(0.12, 0.42, 0.8),
-            opacity: 0.18,
-            triangles: [
+        new FaceSet(
+            new FaceGeometry([
                 { a: corners[0], b: corners[1], c: corners[2] },
                 { a: corners[0], b: corners[2], c: corners[3] },
-            ],
-        } satisfies SurfaceBatchRenderNode,
-        {
-            id: object.id,
-            kind: 'line-batch',
-            name: object.name,
-            depthRole: 'secondary',
-            visible: object.visible,
-            color: Vec3.of(0.22, 0.5, 0.9),
-            segments: [
+            ]),
+            new FaceStyle({
+                color: Vec3.of(0.12, 0.42, 0.8),
+                opacity: 0.18,
+            }),
+            {
+                depthRole: 'secondary',
+                id: `${object.id}:surface`,
+                name: `${object.name} surface`,
+                visible: object.visible,
+            },
+        ),
+        new EdgeSet(
+            new EdgeGeometry([
                 new LineSegment3(corners[0], corners[1]),
                 new LineSegment3(corners[1], corners[2]),
                 new LineSegment3(corners[2], corners[3]),
                 new LineSegment3(corners[3], corners[0]),
-            ],
-        } satisfies LineBatchRenderNode,
-        {
-            id: `${object.id}:label`,
-            kind: 'label-batch',
-            name: `${object.name} 标注`,
-            depthRole: 'excluded',
-            visible: object.visible,
-            labels: [
+            ]),
+            new EdgeStyle({ color: Vec3.of(0.22, 0.5, 0.9) }),
+            {
+                depthRole: 'secondary',
+                id: object.id,
+                name: object.name,
+                visible: object.visible,
+            },
+        ),
+        new TextLabelSet(
+            new TextGeometry([
                 {
                     color: Vec3.of(0.86, 0.86, 0.86),
                     fontWeight: 400,
@@ -327,9 +409,46 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Ren
                     },
                     text: getReferencePlaneLabel(object.planeKind),
                 },
-            ],
-        } satisfies LabelBatchRenderNode,
+            ]),
+            new TextStyle(),
+            {
+                depthRole: 'excluded',
+                id: `${object.id}:label`,
+                name: `${object.name} label`,
+                pickable: false,
+                visible: object.visible,
+            },
+        ),
     ];
+}
+
+function addObjectsToLayers(
+    objects: readonly RenderObject[],
+    modelLayer: RenderLayer,
+    labelHelperLayer: RenderLayer,
+): void {
+    for (const object of objects) {
+        if (object instanceof TextLabelSet) {
+            labelHelperLayer.add(object);
+        } else {
+            modelLayer.add(object);
+        }
+    }
+}
+
+function createRenderGraphFromObjects(objects: readonly RenderObject[]): RenderGraph {
+    const graph = new RenderGraph();
+    const modelLayer = new RenderLayer(MODEL_LAYER_NAME);
+    const labelHelperLayer = new RenderLayer(LABEL_HELPER_LAYER_NAME, {
+        navigationRole: 'excluded',
+        pickable: false,
+    });
+
+    addObjectsToLayers(objects, modelLayer, labelHelperLayer);
+    graph.addLayer(modelLayer);
+    graph.addLayer(labelHelperLayer);
+
+    return graph;
 }
 
 function getReferencePlaneLabel(planeKind: ReferencePlaneObject['planeKind']): LabelText {

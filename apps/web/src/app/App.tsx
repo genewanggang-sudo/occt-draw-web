@@ -1,7 +1,4 @@
-import {
-    projectPartStudioToRenderGraph,
-    projectPartStudioToRenderScene,
-} from '@occt-draw/cad-rendering';
+import { projectPartStudioToRenderGraph } from '@occt-draw/cad-rendering';
 import { createDefaultCadDocument, getActivePartStudio } from '@occt-draw/core';
 import {
     createInitialEditorState,
@@ -26,6 +23,7 @@ import {
     createStandardCameraState,
     RenderLayer,
     type RenderEngine,
+    type RenderGraph,
     type StandardCameraView,
     ViewCube,
     type ViewCubeArrowCommand,
@@ -103,13 +101,6 @@ export function App() {
         () => getActivePartStudio(editorState.document),
         [editorState.document],
     );
-    const renderScene = useMemo(
-        () =>
-            projectPartStudioToRenderScene(activePartStudio, editorState.draft, {
-                sketchesById: editorState.sketches.sketchesById,
-            }),
-        [activePartStudio, editorState.draft, editorState.sketches.sketchesById],
-    );
     const renderGraph = useMemo(() => {
         const graph = projectPartStudioToRenderGraph(activePartStudio, editorState.draft, {
             sketchesById: editorState.sketches.sketchesById,
@@ -157,18 +148,18 @@ export function App() {
 
     const navigationAnimationRef = useRef<number | null>(null);
     const editorStateRef = useRef(editorState);
-    const renderSceneRef = useRef(renderScene);
+    const renderGraphRef = useRef(renderGraph);
     const displayBoundsRef = useRef(displayBounds);
     const displaySphereRef = useRef(displaySphere);
     const activeCommandIdRef = useRef(activeCommandId);
 
     useEffect(() => {
         editorStateRef.current = editorState;
-        renderSceneRef.current = renderScene;
+        renderGraphRef.current = renderGraph;
         displayBoundsRef.current = displayBounds;
         displaySphereRef.current = displaySphere;
         activeCommandIdRef.current = activeCommandId;
-    }, [activeCommandId, displayBounds, renderScene, displaySphere, editorState]);
+    }, [activeCommandId, displayBounds, renderGraph, displaySphere, editorState]);
 
     useEffect(
         () => () => {
@@ -343,7 +334,7 @@ export function App() {
     interactionControllerRef.current ??= new ViewportInteractionController({
         getActiveCommandId: () => activeCommandIdRef.current,
         getDisplayBounds: () => displayBoundsRef.current,
-        getRenderScene: () => renderSceneRef.current,
+        getRenderGraph: () => renderGraphRef.current,
         getDisplaySphere: () => displaySphereRef.current,
         getState: () => editorStateRef.current,
         pickService: pickServiceRef.current,
@@ -596,7 +587,7 @@ export function App() {
                     <CadViewport
                         activeCommandLabel={activeCommandLabel}
                         canvasRef={canvasRef}
-                        displayObjectCount={renderScene.nodes.length}
+                        displayObjectCount={countSceneRenderObjects(renderGraph)}
                         documentName={editorState.document.name}
                         rendererStatus={rendererStatus}
                     />
@@ -614,6 +605,16 @@ export function App() {
             />
         </main>
     );
+}
+
+function countSceneRenderObjects(graph: RenderGraph): number {
+    return graph.layers.reduce((total, layer) => {
+        if (!layer.visible || layer.depthPolicy === 'overlay') {
+            return total;
+        }
+
+        return total + layer.objects.filter((object) => object.visible).length;
+    }, 0);
 }
 
 function getScreenPoint(canvas: HTMLCanvasElement, event: MouseEvent): ScreenPoint {

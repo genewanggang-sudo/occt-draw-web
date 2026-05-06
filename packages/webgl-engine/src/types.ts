@@ -186,13 +186,24 @@ export type NavigationDepthSamplingArea =
           readonly targetSampleCount: number;
       };
 
-export interface NavigationDepthSampleInput {
+export interface NavigationDepthSampleInputBase {
     readonly area: NavigationDepthSamplingArea;
     readonly camera: CameraState;
-    readonly scene: RenderScene;
     readonly includeSecondary: boolean;
     readonly viewportSize: ViewportSize;
 }
+
+export interface NavigationDepthSceneSampleInput extends NavigationDepthSampleInputBase {
+    readonly scene: RenderScene;
+}
+
+export interface NavigationDepthGraphSampleInput extends NavigationDepthSampleInputBase {
+    readonly graph: RenderGraph;
+}
+
+export type NavigationDepthSampleInput =
+    | NavigationDepthGraphSampleInput
+    | NavigationDepthSceneSampleInput;
 
 export interface NavigationDepthSample {
     readonly canvasPoint: ScreenPoint2;

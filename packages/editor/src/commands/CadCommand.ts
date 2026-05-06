@@ -1,10 +1,10 @@
-import type { RenderScene } from '@occt-draw/cad-rendering';
 import type {
     DocumentTransaction,
     EditDraft,
     SelectionTarget,
     TransactionGroup,
 } from '@occt-draw/core';
+import type { RenderScene } from '@occt-draw/webgl-engine';
 import type { EditorState, SketchDocumentStore, SketchEditSession } from '../state/editorState';
 import type { SelectionState } from '../selection/selectionState';
 import type { ViewNavigationState } from '../view-navigation/viewNavigation';
@@ -24,7 +24,7 @@ export interface CommandKeyEvent {
 }
 
 export interface CommandContext {
-    getRenderScene(): RenderScene;
+    getLegacyRenderScene(): RenderScene;
     getDraft(): EditDraft | null;
     getState(): EditorState;
     pick(point: ScreenPoint): SelectionTarget | null;

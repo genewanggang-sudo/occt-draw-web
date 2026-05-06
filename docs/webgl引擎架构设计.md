@@ -574,6 +574,15 @@ legacy 兼容代码必须集中放在 `webgl-engine/src/legacy`，不得混入 `
     - `engine.resize(viewportSize)`
 - editor 侧 picking 和 navigation depth 逐步改为 interaction facade，不直接依赖旧流程函数。
 
+当前收口状态：
+
+- `cad-rendering` 的正式投影路径直接创建 `RenderGraph / RenderLayer / RenderObject`，不再先创建 `RenderScene`。
+- `cad-rendering` 内部 layer 先按 `model / sketch-draft / label-helper` 拆分；`label-helper` 不参与 navigation bounds。
+- `projectPartStudioToRenderScene` 和 `projectDocumentToRenderScene` 仅作为 legacy facade：内部先生成 `RenderGraph`，再通过 `LegacyRenderSceneGraphAdapter.toRenderScene` 输出旧 DTO。
+- `apps/web` 主渲染路径只保留 `RenderGraph`：bounds、object count、`setGraph(graph)` 和 `render(camera)` 都从 graph 驱动。
+- `editor` 交互上下文使用 `getRenderGraph()`；picking 通过 `RenderObjectPicker`，navigation depth 通过 `NavigationDepthSampler` 的 graph 输入。
+- `CadCommand.getLegacyRenderScene()` 暂时保留为命令层 legacy bridge，由 `ViewportInteractionController` 内部集中从 graph 转 scene，不能再扩散到应用层。
+
 验收标准：
 
 - `apps/web` 主渲染链路不再直接依赖旧 `RenderScene` DTO。
@@ -607,3 +616,10 @@ legacy 兼容代码必须集中放在 `webgl-engine/src/legacy`，不得混入 `
 - navigation depth 通过 `NavigationDepthSampler`。
 - ViewCube 通过 `ViewCube` addon 加入 overlay layer。
 - 删除旧导出后 `pnpm check` 通过。
+
+旧 API 清理顺序：
+
+- 先停止 `cad-rendering` 对 `createRenderScene` 的二次导出。
+- 再清理 `apps/web / editor` 的业务调用，禁止新增 `RenderScene / RenderNode / pickRenderNode / hitTestViewCube` 引用。
+- 保留 `webgl-engine/src/legacy` 和少量 facade，直到旧 GPU 绘制、旧 picking、旧 depth sampling 全部替换。
+- 最后从 `webgl-engine` 包入口删除旧 DTO、旧流程函数和 ViewCube 旧 hit-test 函数。

@@ -1,4 +1,3 @@
-export { createRenderScene } from '@occt-draw/webgl-engine';
 export {
     DisplayProjector,
     projectDocumentToRenderGraph,

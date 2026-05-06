@@ -1,11 +1,15 @@
-import type { RenderScene } from '@occt-draw/cad-rendering';
 import type { SelectionTarget } from '@occt-draw/core';
-import { RenderObjectPicker, type CameraState, type ViewportSize } from '@occt-draw/webgl-engine';
+import {
+    RenderObjectPicker,
+    type CameraState,
+    type RenderGraph,
+    type ViewportSize,
+} from '@occt-draw/webgl-engine';
 import type { ScreenPoint } from '../view-navigation/viewNavigation';
 
 export interface PickSelectionTargetInput {
     readonly camera: CameraState;
-    readonly scene: RenderScene;
+    readonly graph: RenderGraph;
     readonly point: ScreenPoint;
     readonly thresholdPixels: number;
     readonly viewportSize: ViewportSize;

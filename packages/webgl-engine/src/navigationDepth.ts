@@ -3,7 +3,7 @@ import { cameraDepth01ToViewDepth, canvasDepthToWorld } from './camera';
 import type {
     NavigationDepthRole,
     NavigationDepthSample,
-    NavigationDepthSampleInput,
+    NavigationDepthSceneSampleInput,
     ScreenPoint2,
 } from './types';
 import { DEFAULT_TOLERANCE, type Vector3 } from '@occt-draw/math';
@@ -18,8 +18,8 @@ interface NavigationDepthTarget {
 }
 
 interface NavigationDepthCache {
-    readonly areaKind: NavigationDepthSampleInput['area']['kind'];
-    readonly camera: NavigationDepthSampleInput['camera'];
+    readonly areaKind: NavigationDepthSceneSampleInput['area']['kind'];
+    readonly camera: NavigationDepthSceneSampleInput['camera'];
     readonly scene: RenderScene;
     readonly height: number;
     readonly includeSecondary: boolean;
@@ -169,7 +169,7 @@ export function sampleNavigationDepths(
     context: WebGL2RenderingContext,
     canvas: HTMLCanvasElement,
     resources: NavigationDepthResources,
-    input: NavigationDepthSampleInput,
+    input: NavigationDepthSceneSampleInput,
 ): readonly NavigationDepthSample[] {
     if (!hasNavigationDepthObjects(input.scene, input.includeSecondary)) {
         return [];
@@ -215,7 +215,7 @@ export function sampleNavigationDepths(
 
 function getNavigationDepthTargetSize(
     canvas: HTMLCanvasElement,
-    input: NavigationDepthSampleInput,
+    input: NavigationDepthSceneSampleInput,
 ): Pick<NavigationDepthTarget, 'height' | 'width'> {
     if (input.area.kind !== 'viewport-grid') {
         return {
@@ -246,7 +246,7 @@ function renderNavigationDepth(
     context: WebGL2RenderingContext,
     resources: NavigationDepthResources,
     target: NavigationDepthTarget,
-    input: NavigationDepthSampleInput,
+    input: NavigationDepthSceneSampleInput,
 ): void {
     const matrix = createViewProjectionMatrix(input.camera, input.viewportSize);
     const batches = createNavigationDepthBatches(context, input.scene, input.includeSecondary);
@@ -307,7 +307,7 @@ function createNavigationDepthVertexArray(
 function readNavigationDepthSamples(
     context: WebGL2RenderingContext,
     target: NavigationDepthTarget,
-    input: NavigationDepthSampleInput,
+    input: NavigationDepthSceneSampleInput,
 ): readonly NavigationDepthSample[] {
     if (input.area.kind === 'points') {
         return readPointSamples(context, target, input);
@@ -323,7 +323,7 @@ function readNavigationDepthSamples(
 function readPointSamples(
     context: WebGL2RenderingContext,
     target: NavigationDepthTarget,
-    input: NavigationDepthSampleInput,
+    input: NavigationDepthSceneSampleInput,
 ): readonly NavigationDepthSample[] {
     if (input.area.kind !== 'points') {
         return [];
@@ -354,7 +354,7 @@ function readPointSamples(
 function readRectSamples(
     context: WebGL2RenderingContext,
     target: NavigationDepthTarget,
-    input: NavigationDepthSampleInput,
+    input: NavigationDepthSceneSampleInput,
 ): readonly NavigationDepthSample[] {
     if (input.area.kind !== 'rect') {
         return [];
@@ -427,7 +427,7 @@ function readRectSamples(
 function readViewportGridSamples(
     context: WebGL2RenderingContext,
     target: NavigationDepthTarget,
-    input: NavigationDepthSampleInput,
+    input: NavigationDepthSceneSampleInput,
 ): readonly NavigationDepthSample[] {
     if (input.area.kind !== 'viewport-grid') {
         return [];
@@ -472,7 +472,7 @@ function decodeNavigationDepthPixel(
     pixels: Uint8Array,
     index: number,
     canvasPoint: ScreenPoint2,
-    input: NavigationDepthSampleInput,
+    input: NavigationDepthSceneSampleInput,
 ): NavigationDepthSample | null {
     const roleCode = pixels[index + 3] ?? 0;
 
@@ -586,7 +586,7 @@ function toNavigationDepthRole(role: RenderDepthRole): NavigationDepthRole | nul
 function shouldRenderNavigationDepth(
     cache: NavigationDepthCache | null,
     target: NavigationDepthTarget,
-    input: NavigationDepthSampleInput,
+    input: NavigationDepthSceneSampleInput,
 ): boolean {
     if (!cache) {
         return true;
