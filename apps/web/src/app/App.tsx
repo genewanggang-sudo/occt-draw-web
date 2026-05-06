@@ -29,6 +29,7 @@ import {
     type ViewCubeTargetId,
 } from '@occt-draw/webgl-engine';
 import { createWebglRenderer, hitTestViewCube } from '@occt-draw/webgl-engine';
+import { Measurement } from '@occt-draw/math';
 import { APP_NAME } from '@occt-draw/shared';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ViewportInputAdapter } from '../editor/application/ViewportInputAdapter';
@@ -318,7 +319,7 @@ export function App() {
         viewCubePointerRef.current = null;
         const targetId = down.targetId;
 
-        if (distanceBetweenScreenPoints(point, down.point) <= VIEW_CUBE_CLICK_DISTANCE) {
+        if (Measurement.distance2(point, down.point).value <= VIEW_CUBE_CLICK_DISTANCE) {
             if (isViewCubeArrowTarget(targetId)) {
                 animateViewCubeArrow(targetId, getViewCubeRotationStep(event));
             } else {
@@ -712,8 +713,4 @@ function getViewCubeRotationStep(event: PointerEvent): ViewCubeRotationStep {
     }
 
     return 'default';
-}
-
-function distanceBetweenScreenPoints(left: ScreenPoint, right: ScreenPoint): number {
-    return Math.hypot(left.x - right.x, left.y - right.y);
 }

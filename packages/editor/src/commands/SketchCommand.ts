@@ -5,7 +5,7 @@ import {
     type ReferencePlaneObject,
     referencePlaneToPlane,
 } from '@occt-draw/core';
-import { addVector3, scaleVector3 } from '@occt-draw/math';
+import { Vec3 } from '@occt-draw/math';
 import { createSketchOnReferencePlane } from '@occt-draw/sketch';
 import type { CameraState } from '@occt-draw/webgl-engine';
 import {
@@ -136,7 +136,7 @@ function createSketchPlaneCamera(
 
     return {
         ...currentCamera,
-        position: addVector3(workPlane.origin, scaleVector3(workPlane.normal, distance)),
+        position: Vec3.add(workPlane.origin, Vec3.scale(workPlane.normal, distance)),
         target: workPlane.origin,
         up: workPlane.yAxis,
         orthographicHeight: Math.max(plane.size * 1.15, 1),

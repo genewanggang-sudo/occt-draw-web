@@ -1,14 +1,9 @@
 import { referencePlaneToPlane, type PartStudio } from '@occt-draw/core';
 import {
-    addVector3,
-    createRay3,
-    crossVector3,
-    normalizeVector3,
-    scaleVector3,
-    subtractVector3,
-    type Vector3,
-} from '@occt-draw/math';
-import type { CameraState, ViewportSize } from '@occt-draw/webgl-engine';
+    screenPointToWorldRay,
+    type CameraState,
+    type ViewportSize,
+} from '@occt-draw/webgl-engine';
 import { worldPointToSketchPointOnPlane } from '@occt-draw/sketch';
 import type { ScreenPoint } from '../view-navigation/viewNavigation';
 
@@ -25,44 +20,13 @@ export function projectScreenPointToSketch2(input: {
         return null;
     }
 
-    const ray = createOrthographicScreenRay(input.camera, input.point, input.viewportSize);
+    const ray = screenPointToWorldRay(input.point, input.camera, input.viewportSize);
     const plane = referencePlaneToPlane(planeObject);
-    const worldPoint = plane.intersectRay(ray);
+    const intersection = plane.intersectRayResult(ray);
 
-    if (!worldPoint) {
+    if (!intersection.value) {
         return null;
     }
 
-    return worldPointToSketchPointOnPlane(plane, worldPoint);
-}
-
-function createOrthographicScreenRay(
-    camera: CameraState,
-    point: ScreenPoint,
-    viewportSize: ViewportSize,
-) {
-    const basis = calculateCameraBasis(camera);
-    const aspect = Math.max(viewportSize.width / viewportSize.height, 0.001);
-    const halfHeight = camera.orthographicHeight / 2;
-    const halfWidth = halfHeight * aspect;
-    const offsetX = ((point.x / viewportSize.width) * 2 - 1) * halfWidth;
-    const offsetY = (1 - (point.y / viewportSize.height) * 2) * halfHeight;
-    const origin = addVector3(
-        addVector3(camera.position, scaleVector3(basis.right, offsetX)),
-        scaleVector3(basis.up, offsetY),
-    );
-
-    return createRay3(origin, scaleVector3(basis.view, -1));
-}
-
-function calculateCameraBasis(camera: CameraState): {
-    readonly right: Vector3;
-    readonly up: Vector3;
-    readonly view: Vector3;
-} {
-    const view = normalizeVector3(subtractVector3(camera.position, camera.target));
-    const right = normalizeVector3(crossVector3(camera.up, view));
-    const up = normalizeVector3(crossVector3(view, right));
-
-    return { right, up, view };
+    return worldPointToSketchPointOnPlane(plane, intersection.value);
 }

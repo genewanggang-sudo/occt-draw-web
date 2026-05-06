@@ -1,5 +1,5 @@
 import { createEditDraft, referencePlaneToPlane } from '@occt-draw/core';
-import { createLineSegment3, createVector3, type Plane } from '@occt-draw/math';
+import { LineSegment3, Vec3, type Plane3 } from '@occt-draw/math';
 import {
     addSketchEntity,
     createSketchLine,
@@ -174,8 +174,8 @@ export class SketchLineCommand extends CadCommand {
                     id: 'draft:sketch-line:segment',
                     kind: 'line-segment',
                     visible: true,
-                    color: createVector3(0.1, 0.55, 1),
-                    segment: createLineSegment3(
+                    color: Vec3.of(0.1, 0.55, 1),
+                    segment: new LineSegment3(
                         sketchPointToWorldOnPlane(plane, startPoint),
                         sketchPointToWorldOnPlane(plane, temporaryEnd),
                     ),
@@ -272,7 +272,7 @@ function replaceSketch(state: EditorState, sketch: Sketch): SketchDocumentStore 
     };
 }
 
-function findSketchPlane(state: EditorState, sketch: Sketch): Plane | null {
+function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
     const object = state.document.getActivePartStudio().findObjectById(sketch.planeRef);
 
     return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;

@@ -1,3 +1,4 @@
+import { Measurement } from '@occt-draw/math';
 import type { ScreenPoint } from '../view-navigation/viewNavigation';
 import {
     CadCommand,
@@ -92,7 +93,7 @@ export class SelectCommand extends CadCommand {
         this.pendingSelectionPointer = null;
 
         if (
-            distance2d(event.point, pendingSelectionPointer.point) >
+            Measurement.distance2(event.point, pendingSelectionPointer.point).value >
             CLICK_SELECTION_TOLERANCE_PIXELS
         ) {
             return createHandledCommandResult();
@@ -110,8 +111,4 @@ export class SelectCommand extends CadCommand {
             selection,
         });
     }
-}
-
-function distance2d(left: ScreenPoint, right: ScreenPoint): number {
-    return Math.hypot(left.x - right.x, left.y - right.y);
 }

@@ -1,4 +1,4 @@
-import type { LineSegment3, Point3, Vector3 } from '@occt-draw/math';
+import type { LineSegment3, Vector3 } from '@occt-draw/math';
 import type { CadDocument } from './document';
 
 export type DraftId = string;
@@ -21,7 +21,7 @@ export interface DraftLineSegmentObject extends BaseDraftObject {
 export interface DraftPointObject extends BaseDraftObject {
     readonly color?: Vector3;
     readonly kind: 'point';
-    readonly point: Point3;
+    readonly point: Vector3;
 }
 
 export type DraftObject = DraftLineSegmentObject | DraftPointObject;

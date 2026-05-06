@@ -1,16 +1,12 @@
+import { clampNumber, Measurement, Scalar, Vec3, type Vector3 } from '@occt-draw/math';
 import {
-    addVector3,
-    clampNumber,
-    createVector3,
-    crossVector3,
-    normalizeVector3,
-    rotateVectorAroundAxis,
-    scaleVector3,
-    subtractVector3,
-    type Vector3,
-} from '@occt-draw/math';
-import type { BoundingSphere, CameraState, ViewportSize } from '@occt-draw/webgl-engine';
-import type { ViewCubeArrowCommand } from '@occt-draw/webgl-engine';
+    calculateCameraBasis,
+    screenPointToWorldOnViewPlane,
+    type BoundingSphere,
+    type CameraState,
+    type ViewCubeArrowCommand,
+    type ViewportSize,
+} from '@occt-draw/webgl-engine';
 
 export interface ScreenPoint {
     readonly x: number;
@@ -41,12 +37,6 @@ export interface ViewNavigationState {
 }
 
 export type ViewCubeRotationStep = 'coarse' | 'default' | 'fine';
-
-interface CameraBasis {
-    readonly forward: Vector3;
-    readonly right: Vector3;
-    readonly up: Vector3;
-}
 
 interface ViewNavigationDragState {
     readonly anchorWorldPoint: null | Vector3;
@@ -79,12 +69,12 @@ export function createFramedStandardCamera(
     camera: CameraState,
     bounds: BoundingSphere,
 ): CameraState {
-    const direction = normalizeVector3(subtractVector3(camera.position, camera.target));
+    const direction = Vec3.normalize(Vec3.subtract(camera.position, camera.target));
     const distance = Math.max(bounds.radius * 3.5, 1);
 
     return {
         ...camera,
-        position: addVector3(bounds.center, scaleVector3(direction, distance)),
+        position: Vec3.add(bounds.center, Vec3.scale(direction, distance)),
         target: bounds.center,
     };
 }
@@ -97,40 +87,44 @@ export function interpolateCameraState(
     const t = clampNumber(progress, 0, 1);
     const startTarget = startCamera.target;
     const endTarget = endCamera.target;
-    const target = createVector3(
-        lerp(startTarget.x, endTarget.x, t),
-        lerp(startTarget.y, endTarget.y, t),
-        lerp(startTarget.z, endTarget.z, t),
+    const target = Vec3.of(
+        Scalar.lerp(startTarget.x, endTarget.x, t),
+        Scalar.lerp(startTarget.y, endTarget.y, t),
+        Scalar.lerp(startTarget.z, endTarget.z, t),
     );
-    const startView = normalizeVector3(subtractVector3(startCamera.position, startCamera.target));
-    const endView = normalizeVector3(subtractVector3(endCamera.position, endCamera.target));
-    const view = normalizeVector3(
-        createVector3(
-            lerp(startView.x, endView.x, t),
-            lerp(startView.y, endView.y, t),
-            lerp(startView.z, endView.z, t),
+    const startView = Vec3.normalize(Vec3.subtract(startCamera.position, startCamera.target));
+    const endView = Vec3.normalize(Vec3.subtract(endCamera.position, endCamera.target));
+    const view = Vec3.normalize(
+        Vec3.of(
+            Scalar.lerp(startView.x, endView.x, t),
+            Scalar.lerp(startView.y, endView.y, t),
+            Scalar.lerp(startView.z, endView.z, t),
         ),
     );
-    const startDistance = distanceBetween(startCamera.position, startCamera.target);
-    const endDistance = distanceBetween(endCamera.position, endCamera.target);
-    const distance = lerp(startDistance, endDistance, t);
-    const rawUp = normalizeVector3(
-        createVector3(
-            lerp(startCamera.up.x, endCamera.up.x, t),
-            lerp(startCamera.up.y, endCamera.up.y, t),
-            lerp(startCamera.up.z, endCamera.up.z, t),
+    const startDistance = Measurement.distance3(startCamera.position, startCamera.target).value;
+    const endDistance = Measurement.distance3(endCamera.position, endCamera.target).value;
+    const distance = Scalar.lerp(startDistance, endDistance, t);
+    const rawUp = Vec3.normalize(
+        Vec3.of(
+            Scalar.lerp(startCamera.up.x, endCamera.up.x, t),
+            Scalar.lerp(startCamera.up.y, endCamera.up.y, t),
+            Scalar.lerp(startCamera.up.z, endCamera.up.z, t),
         ),
     );
-    const right = normalizeVector3(crossVector3(rawUp, view));
-    const up = normalizeVector3(crossVector3(view, right));
+    const right = Vec3.normalize(Vec3.cross(rawUp, view));
+    const up = Vec3.normalize(Vec3.cross(view, right));
 
     return {
         ...endCamera,
-        far: lerp(startCamera.far, endCamera.far, t),
-        fovYRadians: lerp(startCamera.fovYRadians, endCamera.fovYRadians, t),
-        near: lerp(startCamera.near, endCamera.near, t),
-        orthographicHeight: lerp(startCamera.orthographicHeight, endCamera.orthographicHeight, t),
-        position: addVector3(target, scaleVector3(view, distance)),
+        far: Scalar.lerp(startCamera.far, endCamera.far, t),
+        fovYRadians: Scalar.lerp(startCamera.fovYRadians, endCamera.fovYRadians, t),
+        near: Scalar.lerp(startCamera.near, endCamera.near, t),
+        orthographicHeight: Scalar.lerp(
+            startCamera.orthographicHeight,
+            endCamera.orthographicHeight,
+            t,
+        ),
+        position: Vec3.add(target, Vec3.scale(view, distance)),
         target,
         up,
     };
@@ -151,7 +145,7 @@ export function rotateCameraByViewCubeArrow(
     command: ViewCubeArrowCommand,
     step: ViewCubeRotationStep,
 ): CameraState {
-    const basis = getCameraBasis(camera);
+    const basis = calculateCameraBasis(camera);
     const amount = VIEW_CUBE_ROTATION_AMOUNTS[step];
 
     if (command === 'arrow-left') {
@@ -236,10 +230,10 @@ export function beginViewNavigation(
         drag: {
             anchorWorldPoint:
                 mode === 'pan'
-                    ? screenToWorldOnViewPlane(
+                    ? screenPointToWorldOnViewPlane(
+                          pointer.point,
                           dragCamera,
                           state.viewportSize,
-                          pointer.point,
                           orbitPivot,
                       )
                     : null,
@@ -295,13 +289,13 @@ export function updateViewNavigation(
         return state;
     }
 
-    const currentWorldPoint = screenToWorldOnViewPlane(
+    const currentWorldPoint = screenPointToWorldOnViewPlane(
+        pointer.point,
         drag.camera,
         drag.viewportSize,
-        pointer.point,
         drag.orbitPivot,
     );
-    const translation = subtractVector3(drag.anchorWorldPoint, currentWorldPoint);
+    const translation = Vec3.subtract(drag.anchorWorldPoint, currentWorldPoint);
     const nextCamera = translateCamera(drag.camera, translation);
 
     return {
@@ -310,10 +304,10 @@ export function updateViewNavigation(
         drag: {
             ...drag,
             camera: nextCamera,
-            orbitPivot: addVector3(drag.orbitPivot, translation),
+            orbitPivot: Vec3.add(drag.orbitPivot, translation),
             previousPoint: pointer.point,
         },
-        orbitPivot: addVector3(state.orbitPivot, translation),
+        orbitPivot: Vec3.add(state.orbitPivot, translation),
     };
 }
 
@@ -336,10 +330,10 @@ export function zoomViewNavigation(
     wheel: ViewNavigationWheel,
 ): ViewNavigationState {
     const zoomAnchor = wheel.zoomAnchor ?? state.orbitPivot;
-    const before = screenToWorldOnViewPlane(
+    const before = screenPointToWorldOnViewPlane(
+        wheel.point,
         state.camera,
         state.viewportSize,
-        wheel.point,
         zoomAnchor,
     );
     const minHeight = Math.max(state.sceneRadius / 1000, 0.001);
@@ -353,13 +347,13 @@ export function zoomViewNavigation(
         ...state.camera,
         orthographicHeight: nextHeight,
     };
-    const after = screenToWorldOnViewPlane(
+    const after = screenPointToWorldOnViewPlane(
+        wheel.point,
         zoomedCamera,
         state.viewportSize,
-        wheel.point,
         zoomAnchor,
     );
-    const translation = subtractVector3(before, after);
+    const translation = Vec3.subtract(before, after);
 
     return {
         ...state,
@@ -385,25 +379,25 @@ function rotateCameraByScreenAxes(
     deltaX: number,
     deltaY: number,
 ): CameraState {
-    const basis = getCameraBasis(camera);
-    const positionOffset = subtractVector3(camera.position, pivot);
-    const targetOffset = subtractVector3(camera.target, pivot);
+    const basis = calculateCameraBasis(camera);
+    const positionOffset = Vec3.subtract(camera.position, pivot);
+    const targetOffset = Vec3.subtract(camera.target, pivot);
     const pitchAngle = -deltaY * ROTATION_SENSITIVITY;
     const yawAngle = -deltaX * ROTATION_SENSITIVITY;
-    const pitchedPositionOffset = rotateVectorAroundAxis(positionOffset, basis.right, pitchAngle);
-    const pitchedTargetOffset = rotateVectorAroundAxis(targetOffset, basis.right, pitchAngle);
-    const pitchedUp = rotateVectorAroundAxis(camera.up, basis.right, pitchAngle);
-    const rotatedPositionOffset = rotateVectorAroundAxis(pitchedPositionOffset, basis.up, yawAngle);
-    const rotatedTargetOffset = rotateVectorAroundAxis(pitchedTargetOffset, basis.up, yawAngle);
-    const rotatedRawUp = rotateVectorAroundAxis(pitchedUp, basis.up, yawAngle);
-    const forward = normalizeVector3(subtractVector3(rotatedTargetOffset, rotatedPositionOffset));
-    const right = normalizeVector3(crossVector3(forward, rotatedRawUp));
-    const up = normalizeVector3(crossVector3(right, forward));
+    const pitchedPositionOffset = Vec3.rotateAroundAxis(positionOffset, basis.right, pitchAngle);
+    const pitchedTargetOffset = Vec3.rotateAroundAxis(targetOffset, basis.right, pitchAngle);
+    const pitchedUp = Vec3.rotateAroundAxis(camera.up, basis.right, pitchAngle);
+    const rotatedPositionOffset = Vec3.rotateAroundAxis(pitchedPositionOffset, basis.up, yawAngle);
+    const rotatedTargetOffset = Vec3.rotateAroundAxis(pitchedTargetOffset, basis.up, yawAngle);
+    const rotatedRawUp = Vec3.rotateAroundAxis(pitchedUp, basis.up, yawAngle);
+    const forward = Vec3.normalize(Vec3.subtract(rotatedTargetOffset, rotatedPositionOffset));
+    const right = Vec3.normalize(Vec3.cross(forward, rotatedRawUp));
+    const up = Vec3.normalize(Vec3.cross(right, forward));
 
     return {
         ...camera,
-        position: addVector3(pivot, rotatedPositionOffset),
-        target: addVector3(pivot, rotatedTargetOffset),
+        position: Vec3.add(pivot, rotatedPositionOffset),
+        target: Vec3.add(pivot, rotatedTargetOffset),
         up,
     };
 }
@@ -414,19 +408,19 @@ function rotateCameraAroundAxis(
     axis: Vector3,
     angle: number,
 ): CameraState {
-    const positionOffset = subtractVector3(camera.position, pivot);
-    const targetOffset = subtractVector3(camera.target, pivot);
-    const rotatedPositionOffset = rotateVectorAroundAxis(positionOffset, axis, angle);
-    const rotatedTargetOffset = rotateVectorAroundAxis(targetOffset, axis, angle);
-    const rotatedRawUp = rotateVectorAroundAxis(camera.up, axis, angle);
-    const forward = normalizeVector3(subtractVector3(rotatedTargetOffset, rotatedPositionOffset));
-    const right = normalizeVector3(crossVector3(forward, rotatedRawUp));
-    const up = normalizeVector3(crossVector3(right, forward));
+    const positionOffset = Vec3.subtract(camera.position, pivot);
+    const targetOffset = Vec3.subtract(camera.target, pivot);
+    const rotatedPositionOffset = Vec3.rotateAroundAxis(positionOffset, axis, angle);
+    const rotatedTargetOffset = Vec3.rotateAroundAxis(targetOffset, axis, angle);
+    const rotatedRawUp = Vec3.rotateAroundAxis(camera.up, axis, angle);
+    const forward = Vec3.normalize(Vec3.subtract(rotatedTargetOffset, rotatedPositionOffset));
+    const right = Vec3.normalize(Vec3.cross(forward, rotatedRawUp));
+    const up = Vec3.normalize(Vec3.cross(right, forward));
 
     return {
         ...camera,
-        position: addVector3(pivot, rotatedPositionOffset),
-        target: addVector3(pivot, rotatedTargetOffset),
+        position: Vec3.add(pivot, rotatedPositionOffset),
+        target: Vec3.add(pivot, rotatedTargetOffset),
         up,
     };
 }
@@ -434,61 +428,7 @@ function rotateCameraAroundAxis(
 function translateCamera(camera: CameraState, translation: Vector3): CameraState {
     return {
         ...camera,
-        position: addVector3(camera.position, translation),
-        target: addVector3(camera.target, translation),
+        position: Vec3.add(camera.position, translation),
+        target: Vec3.add(camera.target, translation),
     };
-}
-
-function screenToWorldOnViewPlane(
-    camera: CameraState,
-    viewportSize: ViewportSize,
-    point: ScreenPoint,
-    planeCenter: Vector3,
-): Vector3 {
-    const basis = getCameraBasis(camera);
-    const height =
-        camera.projection === 'orthographic'
-            ? camera.orthographicHeight
-            : getPerspectiveViewPlaneHeight(camera);
-    const width = height * (viewportSize.width / viewportSize.height);
-    const x = (point.x / viewportSize.width - 0.5) * width;
-    const y = (0.5 - point.y / viewportSize.height) * height;
-
-    return addVector3(
-        planeCenter,
-        addVector3(scaleVector3(basis.right, x), scaleVector3(basis.up, y)),
-    );
-}
-
-function getPerspectiveViewPlaneHeight(camera: CameraState): number {
-    const distance = Math.max(
-        0.001,
-        Math.hypot(
-            camera.position.x - camera.target.x,
-            camera.position.y - camera.target.y,
-            camera.position.z - camera.target.z,
-        ),
-    );
-
-    return 2 * distance * Math.tan(camera.fovYRadians / 2);
-}
-
-function getCameraBasis(camera: CameraState): CameraBasis {
-    const forward = normalizeVector3(subtractVector3(camera.target, camera.position));
-    const right = normalizeVector3(crossVector3(forward, camera.up));
-    const up = normalizeVector3(crossVector3(right, forward));
-
-    return {
-        forward,
-        right,
-        up,
-    };
-}
-
-function distanceBetween(left: Vector3, right: Vector3): number {
-    return Math.hypot(left.x - right.x, left.y - right.y, left.z - right.z);
-}
-
-function lerp(start: number, end: number, progress: number): number {
-    return start + (end - start) * progress;
 }

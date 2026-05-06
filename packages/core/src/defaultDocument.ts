@@ -1,4 +1,4 @@
-import { createVector3 } from '@occt-draw/math';
+import { Vec3 } from '@occt-draw/math';
 import { CadDocument, PartStudio } from './document';
 
 export function createDefaultCadDocument(): CadDocument {
@@ -12,16 +12,16 @@ export function createDefaultCadDocument(): CadDocument {
                 kind: 'reference-origin',
                 name: '原点',
                 visible: true,
-                position: createVector3(0, 0, 0),
+                position: Vec3.of(0, 0, 0),
             },
             {
                 id: 'plane-xy',
                 kind: 'reference-plane',
                 name: '基准面 XY',
                 visible: true,
-                origin: createVector3(0, 0, 0),
-                normal: createVector3(0, 0, 1),
-                xAxis: createVector3(1, 0, 0),
+                origin: Vec3.of(0, 0, 0),
+                normal: Vec3.of(0, 0, 1),
+                xAxis: Vec3.of(1, 0, 0),
                 planeKind: 'xy',
                 size: 6,
             },
@@ -30,9 +30,9 @@ export function createDefaultCadDocument(): CadDocument {
                 kind: 'reference-plane',
                 name: '基准面 YZ',
                 visible: true,
-                origin: createVector3(0, 0, 0),
-                normal: createVector3(1, 0, 0),
-                xAxis: createVector3(0, 1, 0),
+                origin: Vec3.of(0, 0, 0),
+                normal: Vec3.of(1, 0, 0),
+                xAxis: Vec3.of(0, 1, 0),
                 planeKind: 'yz',
                 size: 6,
             },
@@ -41,9 +41,9 @@ export function createDefaultCadDocument(): CadDocument {
                 kind: 'reference-plane',
                 name: '基准面 ZX',
                 visible: true,
-                origin: createVector3(0, 0, 0),
-                normal: createVector3(0, -1, 0),
-                xAxis: createVector3(1, 0, 0),
+                origin: Vec3.of(0, 0, 0),
+                normal: Vec3.of(0, -1, 0),
+                xAxis: Vec3.of(1, 0, 0),
                 planeKind: 'zx',
                 size: 6,
             },

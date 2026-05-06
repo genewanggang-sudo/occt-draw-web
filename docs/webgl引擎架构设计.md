@@ -1,147 +1,237 @@
 # WebGL 引擎架构设计
 
-本文定义 WebGL 渲染引擎的长期边界。目标是让渲染引擎成为可复用基础设施，而不是只服务当前 CAD 业务界面的实现细节。
+## 总架构图
 
-## 目标
+```mermaid
+flowchart TB
+    App["上层模块<br/>apps/web / editor / cad-rendering"]
 
-WebGL 引擎负责把通用渲染场景绘制到 canvas，并提供渲染相关的基础交互能力。
+    subgraph Engine["@occt-draw/webgl-engine"]
+        Core["core"]
+        Scene["scene"]
+        Geometry["geometry"]
+        Style["style"]
+        View["view"]
+        Pipeline["pipeline"]
+        Interaction["interaction"]
+        WebGL["webgl"]
+        Extension["extension"]
 
-核心能力包括：
+        Core --> Scene
+        Scene --> Geometry
+        Scene --> Style
+        Scene --> Pipeline
+        View --> Pipeline
+        Pipeline --> Interaction
+        Pipeline --> WebGL
+        Extension -.-> Core
+        Extension -.-> Scene
+        Extension -.-> Pipeline
+    end
 
-- 场景绘制
-- 相机和 viewport
-- geometry / material / transform
-- render pass
-- GPU picking
-- depth sampling
-- label / overlay rendering
-- WebGL resource lifecycle
-
-WebGL 引擎不应该理解 CAD 业务语义。
-
-## 非目标
-
-WebGL 引擎不负责：
-
-- CAD document
-- feature / sketch / constraint
-- command
-- selection store
-- model tree
-- edit draft
-- React UI
-- 业务状态变更
-
-这些能力应该在 `core`、`cad-rendering`、`editor` 或应用层处理。
-
-## 输入协议
-
-WebGL 引擎对外不应直接消费 CAD 业务显示模型。业务渲染层可以理解 body、sketch、reference plane 等 CAD 语义，但 WebGL 引擎只能消费通用 `RenderScene`。
-
-引擎应消费通用 `RenderScene`：
-
-```ts
-interface RenderScene {
-    readonly nodes: readonly RenderNode[];
-}
-
-interface RenderNode {
-    readonly id: string;
-    readonly visible?: boolean;
-    readonly transform?: Matrix4;
-    readonly geometry: RenderGeometry;
-    readonly material: RenderMaterial;
-    readonly bounds?: BoundingBox3;
-    readonly renderOrder?: number;
-    readonly passes?: RenderPassMask;
-    readonly tags?: readonly string[];
-    readonly attachments?: RenderNodeAttachments;
-}
+    App --> Core
 ```
 
-基础字段只表达图形事实。交互能力通过 `tags` 或 `attachments` 扩展，不把 CAD 业务类型写入基础协议。
+## 模块和类
 
-## Tags 和 Attachments
+### core
 
-`tags` 用于上层给节点打通用标签，引擎只做过滤，不解释业务含义。
+引擎对象和生命周期，不放 WebGL 细节，也不放 CAD 业务模型。
 
-示例：
+- `RenderEngine`：引擎入口，持有渲染图、视口、管线、扩展和后端。
+- `RenderGraph`：视口渲染图，管理 layer 和 object。
+- `RenderLayer`：渲染层，用于模型、草图、辅助对象、overlay、widget 等分层。
+- `RenderObject`：场景对象基类，包含 `id / name / visible / transform / bounds / pickable / metadata`。
+- `RenderGroup`：场景对象分组。
+- `RenderDirtyFlags`：表达 object、geometry、style、bounds 等局部更新状态。
+- `RenderCapabilities`：运行时能力。
+- `RenderStats`：帧统计信息。
 
-```text
-navigation-primary
-navigation-secondary
-pickable
-overlay
-```
+### scene
 
-`attachments` 用于描述可选渲染能力：
+CAD 视口渲染 primitive。这里不表达 `CadDocument / Sketch / Feature`，只表达引擎可渲染对象。
 
-```ts
-interface RenderNodeAttachments {
-    readonly pick?: {
-        readonly id: number;
-    };
+- `FaceSet`：面片集合。
+- `EdgeSet`：边线集合。
+- `PointSet`：点集合。
+- `CurveSet`：曲线近似集合。
+- `TextLabelSet`：文字集合。
+- `MarkerSet`：固定像素 marker 集合。
+- `OverlayObject`：overlay 对象。
+- `ViewportWidget`：视口控件对象。
 
-    readonly depthSample?: {
-        readonly group: string;
-    };
+### geometry
 
-    readonly highlight?: {
-        readonly key: string;
-    };
-}
-```
+GPU 上传前的几何数据结构。geometry 只负责数据，不负责样式和业务语义。
 
-引擎可以根据这些数据执行 picking、depth sampling 或 highlight，但不理解这些数据背后的 CAD 业务对象。
+- `Geometry`
+- `FaceGeometry`
+- `EdgeGeometry`
+- `PointGeometry`
+- `CurveGeometry`
+- `TextGeometry`
+- `MarkerGeometry`
+- `VertexBufferLayout`
+- `GeometryBuffer`
+- `IndexBuffer`
+- `GeometryBounds`
 
-## CAD 适配层
+### style
 
-CAD 业务渲染层应通过适配器把 `CadDocument / EditDraft` 转换为 `RenderScene`。
+CAD 视口样式。这里不以通用 PBR material 为核心，而是表达工程视口需要的显示状态。
 
-```text
-CadDocument / EditDraft
-    -> cad-rendering adapter
-    -> WebGL engine
-```
+- `RenderStyle`
+- `FaceStyle`
+- `EdgeStyle`
+- `PointStyle`
+- `CurveStyle`
+- `TextStyle`
+- `MarkerStyle`
+- `HighlightStyle`
+- `HiddenLineStyle`
+- `XRayStyle`
+- `StyleResolver`
 
-示例映射：
+### view
 
-```text
-body / sketch line / origin marker
-    -> tags: ["navigation-primary", "pickable"]
+视口和相机。该层负责屏幕尺寸、设备像素比、工程视图相机、fit 和 depth 反算。
 
-reference plane
-    -> tags: ["navigation-secondary", "pickable"]
+- `RenderViewport`
+- `ViewportSize`
+- `ViewportRect`
+- `Camera`
+- `OrthographicCamera`
+- `PerspectiveCamera`
+- `StandardViewFrame`
+- `CameraFitter`
+- `CameraClipping`
+- `CameraRay`
+- `DepthUnprojector`
 
-label / annotation
-    -> tags: ["overlay"]
-```
+### pipeline
 
-WebGL 引擎只看到 tags，不知道 body、sketch、reference plane 或 annotation。
+渲染管线和 pass 系统。pass 是 picking、depth sampling、highlight、overlay 等能力的主要扩展点。
 
-## 包边界
+- `RenderPipeline`
+- `RenderPass`
+- `PassRegistry`
+- `RenderQueue`
+- `DrawCommand`
+- `ColorPass`
+- `DepthPrepass`
+- `PickIdPass`
+- `NavigationDepthPass`
+- `HighlightPass`
+- `OverlayPass`
+- `CompositePass`
 
-长期目标：
+### interaction
 
-- WebGL 引擎包是可复用渲染引擎。
-- 引擎包不依赖 `core`、`editor`、`apps/web`。
-- 引擎包不依赖 `cad-rendering`、`core`、`sketch`、`editor` 或 `apps/web`。
-- CAD 到 RenderScene 的转换位于 `cad-rendering`。
+渲染相关交互数据。这里返回通用命中结果，上层再解释成 CAD 选择语义。
 
-当前包边界：
+- `PickKey`
+- `PickResult`
+- `HitTester`
+- `PickBuffer`
+- `PickBufferReader`
+- `NavigationDepthSampler`
+- `SelectionHighlight`
+- `HoverHighlight`
+- `PreselectionHighlight`
 
-```text
-webgl-engine -> math / shared
-cad-rendering -> webgl-engine / core / sketch / math / shared
-editor / apps-web -> cad-rendering / webgl-engine
-```
+### webgl
 
-`renderer` 独立包不再保留，原相机、bounds、picking 和 WebGL2 实现统一下沉到 `webgl-engine`。
+WebGL2 后端。该层负责 shader、buffer、texture、framebuffer 和 GPU 资源生命周期。
 
-## 设计原则
+- `WebGLRenderer`
+- `WebGLDevice`
+- `ShaderProgram`
+- `ShaderLibrary`
+- `BufferManager`
+- `TextureManager`
+- `FramebufferManager`
+- `VertexArrayManager`
+- `ResourceRegistry`
+- `ResourceCache`
 
-- 引擎只认识图形概念，不认识业务概念。
-- 基础协议保持小而稳定。
-- 可选能力通过 tags / attachments 扩展。
-- 上层负责业务语义到渲染语义的映射。
-- picking 和 depth sampling 返回通用 id / depth / world point，上层解释业务含义。
+### extension
+
+引擎扩展机制。扩展由 `webgl-engine` 包提供，按需安装到 `RenderEngine`。
+
+- `RenderExtension`
+- `LabelsExtension`
+- `PickingExtension`
+- `NavigationDepthExtension`
+- `ViewCubeExtension`
+- `CadHelpersExtension`
+- `HiddenLineExtension`
+- `XRayExtension`
+
+## 实现优先级
+
+### v1 引擎骨架
+
+- `RenderEngine`
+- `RenderGraph`
+- `RenderLayer`
+- `RenderObject`
+- `RenderGroup`
+- `RenderViewport`
+- `OrthographicCamera`
+- `CameraFitter`
+- `FaceSet`
+- `EdgeSet`
+- `PointSet`
+- `MarkerSet`
+- `FaceGeometry`
+- `EdgeGeometry`
+- `PointGeometry`
+- `FaceStyle`
+- `EdgeStyle`
+- `PointStyle`
+- `MarkerStyle`
+- `RenderPipeline`
+- `RenderPass`
+- `ColorPass`
+- `WebGLRenderer`
+- `ResourceRegistry`
+
+### v2 CAD 视口基础
+
+- `TextLabelSet`
+- `LabelsExtension`
+- `PickKey`
+- `PickResult`
+- `PickingExtension`
+- `NavigationDepthExtension`
+- `HighlightPass`
+- `SelectionHighlight`
+- `HoverHighlight`
+- `PreselectionHighlight`
+- `ViewCubeExtension`
+- `CadHelpersExtension`
+- layer depth policy
+- incremental dirty update
+
+### v3 大模型和高级显示
+
+- indexed geometry
+- geometry range update
+- instancing
+- render queue sorting
+- hidden-line pass
+- xray pass
+- section clipping
+- silhouette edge
+- multi viewport
+- offscreen snapshot
+- render stats panel
+
+### future 后端和质量增强
+
+- WebGPU backend
+- worker geometry preparation
+- high quality text shaping
+- screen-space anti-aliasing
+- large assembly streaming
+- progressive rendering

@@ -25,6 +25,16 @@ export {
     calculateRenderSceneNavigationBoundingSphere,
     getBoundingBoxCorners,
 } from './bounds';
+export {
+    calculateCameraBasis,
+    calculateViewDepth,
+    getCameraViewHeight,
+    projectBoundsToScreenRect,
+    projectWorldToScreen,
+    screenPointToWorldOnViewPlane,
+    screenPointToWorldRay,
+    type CameraBasis,
+} from './cameraGeometry';
 export { createRenderScene } from './renderScene';
 export {
     pickRenderNode,

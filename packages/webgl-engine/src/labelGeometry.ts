@@ -1,11 +1,5 @@
 import type { RenderScene, LabelBatchRenderNode, LabelDisplayItem } from './types';
-import {
-    addVector3,
-    normalizeVector3,
-    scaleVector3,
-    subtractVector3,
-    type Vector3,
-} from '@occt-draw/math';
+import { Vec3, type Vector3 } from '@occt-draw/math';
 import type { CameraState, ViewportSize } from './types';
 import {
     createLabelGlyphKey,
@@ -13,6 +7,7 @@ import {
     type LabelAtlas,
     type LabelGlyph,
 } from './labelAtlas';
+import { getCameraViewHeight } from './cameraGeometry';
 import type { LabelVertex } from './types';
 
 interface LabelQuad {
@@ -122,15 +117,15 @@ function resolveGlyph(label: LabelDisplayItem, atlas: Pick<LabelAtlas, 'glyphs'>
 
 function resolveFrameBasis(label: LabelDisplayItem): TextFrameBasis {
     return {
-        xAxis: normalizeVector3(label.frame.xAxis),
-        yAxis: normalizeVector3(label.frame.yAxis),
+        xAxis: Vec3.normalize(label.frame.xAxis),
+        yAxis: Vec3.normalize(label.frame.yAxis),
     };
 }
 
 function resolveInsertWorld(label: LabelDisplayItem, frameBasis: TextFrameBasis): Vector3 {
-    return addVector3(
-        addVector3(label.frame.origin, scaleVector3(frameBasis.xAxis, label.insert.x)),
-        scaleVector3(frameBasis.yAxis, label.insert.y),
+    return Vec3.add(
+        Vec3.add(label.frame.origin, Vec3.scale(frameBasis.xAxis, label.insert.x)),
+        Vec3.scale(frameBasis.yAxis, label.insert.y),
     );
 }
 
@@ -163,9 +158,9 @@ function resolveTextTopLeft(
     );
     const verticalOffset = resolveVerticalJustifyOffset(label, metrics);
 
-    return addVector3(
-        addVector3(insertWorld, scaleVector3(frameBasis.xAxis, -horizontalOffset)),
-        scaleVector3(frameBasis.yAxis, -verticalOffset),
+    return Vec3.add(
+        Vec3.add(insertWorld, Vec3.scale(frameBasis.xAxis, -horizontalOffset)),
+        Vec3.scale(frameBasis.yAxis, -verticalOffset),
     );
 }
 
@@ -177,9 +172,9 @@ function applyPaddingPixels(
 ): Vector3 {
     const padding = label.paddingPixels ?? { x: 0, y: 0 };
 
-    return addVector3(
-        addVector3(topLeft, scaleVector3(frameBasis.xAxis, padding.x * worldUnitsPerPixel)),
-        scaleVector3(frameBasis.yAxis, padding.y * worldUnitsPerPixel),
+    return Vec3.add(
+        Vec3.add(topLeft, Vec3.scale(frameBasis.xAxis, padding.x * worldUnitsPerPixel)),
+        Vec3.scale(frameBasis.yAxis, padding.y * worldUnitsPerPixel),
     );
 }
 
@@ -227,9 +222,9 @@ function buildLabelQuad(
     metrics: TextBoxMetrics,
     frameBasis: TextFrameBasis,
 ): LabelQuad {
-    const topRight = addVector3(topLeft, scaleVector3(frameBasis.xAxis, metrics.width));
-    const bottomLeft = addVector3(topLeft, scaleVector3(frameBasis.yAxis, metrics.height));
-    const bottomRight = addVector3(topRight, scaleVector3(frameBasis.yAxis, metrics.height));
+    const topRight = Vec3.add(topLeft, Vec3.scale(frameBasis.xAxis, metrics.width));
+    const bottomLeft = Vec3.add(topLeft, Vec3.scale(frameBasis.yAxis, metrics.height));
+    const bottomRight = Vec3.add(topRight, Vec3.scale(frameBasis.yAxis, metrics.height));
 
     return {
         bottomLeft,
@@ -249,17 +244,5 @@ function createLabelVertex(position: Vector3, u: number, v: number, color: Vecto
 }
 
 function calculateWorldUnitsPerPixel(camera: CameraState, viewportSize: ViewportSize): number {
-    if (camera.projection === 'orthographic') {
-        return camera.orthographicHeight / Math.max(viewportSize.height, 1);
-    }
-
-    const distanceToTarget = lengthVector3(subtractVector3(camera.position, camera.target));
-
-    return (
-        (2 * distanceToTarget * Math.tan(camera.fovYRadians / 2)) / Math.max(viewportSize.height, 1)
-    );
-}
-
-function lengthVector3(vector: Vector3): number {
-    return Math.hypot(vector.x, vector.y, vector.z);
+    return getCameraViewHeight(camera) / Math.max(viewportSize.height, 1);
 }

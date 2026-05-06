@@ -1,4 +1,5 @@
-import { crossVector3, normalizeVector3, subtractVector3, type Vector3 } from '@occt-draw/math';
+import { Vec3 } from '@occt-draw/math';
+import { calculateCameraBasis } from './cameraGeometry';
 import type { CameraState, ViewportSize } from './types';
 import type { Matrix4 } from './types';
 
@@ -77,9 +78,10 @@ function perspectiveMatrix4(
 }
 
 function lookAtMatrix4(camera: CameraState): Matrix4 {
-    const zAxis = normalizeVector3(subtractVector3(camera.position, camera.target));
-    const xAxis = normalizeVector3(crossVector3(camera.up, zAxis));
-    const yAxis = crossVector3(zAxis, xAxis);
+    const basis = calculateCameraBasis(camera);
+    const xAxis = basis.right;
+    const yAxis = basis.up;
+    const zAxis = basis.view;
 
     return new Float32Array([
         xAxis.x,
@@ -94,9 +96,9 @@ function lookAtMatrix4(camera: CameraState): Matrix4 {
         yAxis.z,
         zAxis.z,
         0,
-        -dot(xAxis, camera.position),
-        -dot(yAxis, camera.position),
-        -dot(zAxis, camera.position),
+        -Vec3.dot(xAxis, camera.position),
+        -Vec3.dot(yAxis, camera.position),
+        -Vec3.dot(zAxis, camera.position),
         1,
     ]);
 }
@@ -119,8 +121,4 @@ function multiplyMatrix4(left: Matrix4, right: Matrix4): Matrix4 {
 
 function matrixValue(matrix: Matrix4, index: number): number {
     return matrix[index] ?? 0;
-}
-
-function dot(left: Vector3, right: Vector3): number {
-    return left.x * right.x + left.y * right.y + left.z * right.z;
 }

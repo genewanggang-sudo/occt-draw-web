@@ -1,5 +1,5 @@
 import type { ReferencePlaneKind } from '@occt-draw/core';
-import { createPoint3, type Plane, type Point3, type Vector2, type Vector3 } from '@occt-draw/math';
+import type { Plane3, Vector2, Vector3 } from '@occt-draw/math';
 
 export type SketchModuleStatus = 'active';
 export type SketchId = string;
@@ -139,38 +139,11 @@ export function findSketchPointById(sketch: Sketch, id: SketchEntityId): SketchP
     return entity?.kind === 'point' ? entity : null;
 }
 
-export function sketchPointToWorld(sketch: Sketch, point: SketchPoint): Point3 {
-    if (sketch.planeKind === 'yz') {
-        return createPoint3(0, point.x, point.y);
-    }
-
-    if (sketch.planeKind === 'zx') {
-        return createPoint3(point.y, 0, point.x);
-    }
-
-    return createPoint3(point.x, point.y, 0);
-}
-
-export function sketchPointToWorldOnPlane(plane: Plane, point: SketchPoint): Point3 {
+export function sketchPointToWorldOnPlane(plane: Plane3, point: SketchPoint): Vector3 {
     return plane.localToWorld(point);
 }
 
-export function worldPointToSketchPoint2(
-    planeKind: ReferencePlaneKind,
-    point: Vector3,
-): { readonly x: number; readonly y: number } {
-    if (planeKind === 'yz') {
-        return { x: point.y, y: point.z };
-    }
-
-    if (planeKind === 'zx') {
-        return { x: point.z, y: point.x };
-    }
-
-    return { x: point.x, y: point.y };
-}
-
-export function worldPointToSketchPointOnPlane(plane: Plane, point: Vector3): Vector2 {
+export function worldPointToSketchPointOnPlane(plane: Plane3, point: Vector3): Vector2 {
     return plane.projectPointToLocal(point);
 }
 

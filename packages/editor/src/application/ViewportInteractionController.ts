@@ -1,24 +1,14 @@
 import type { RenderScene } from '@occt-draw/cad-rendering';
 import {
-    getBoundingBoxCorners,
+    projectBoundsToScreenRect,
+    screenPointToWorldRay,
     type BoundingBox3,
     type BoundingSphere,
-    type CameraState,
     type NavigationDepthSample,
     type NavigationDepthSampleInput,
     type StandardCameraView,
-    type ViewportSize,
 } from '@occt-draw/webgl-engine';
-import {
-    addVector3,
-    crossVector3,
-    dotVector3,
-    lengthVector3,
-    normalizeVector3,
-    scaleVector3,
-    subtractVector3,
-    type Vector3,
-} from '@occt-draw/math';
+import { BBox3, Measurement, Projection, Vec3, type Vector3 } from '@occt-draw/math';
 import type { CommandContext, CommandPointerEvent, CommandResult } from '../commands/CadCommand';
 import { SelectCommand } from '../commands/SelectCommand';
 import { SketchCommand } from '../commands/SketchCommand';
@@ -224,14 +214,8 @@ export class ViewportInteractionController {
                   });
 
         const nearest = [...samples].sort((left, right) => {
-            const leftDistance = Math.hypot(
-                left.canvasPoint.x - point.x,
-                left.canvasPoint.y - point.y,
-            );
-            const rightDistance = Math.hypot(
-                right.canvasPoint.x - point.x,
-                right.canvasPoint.y - point.y,
-            );
+            const leftDistance = Measurement.distance2(left.canvasPoint, point).value;
+            const rightDistance = Measurement.distance2(right.canvasPoint, point).value;
 
             if (Math.abs(leftDistance - rightDistance) > 1e-6) {
                 return leftDistance - rightDistance;
@@ -262,8 +246,8 @@ export class ViewportInteractionController {
             return null;
         }
 
-        return scaleVector3(
-            samples.reduce((total, sample) => addVector3(total, sample.worldPoint), {
+        return Vec3.scale(
+            samples.reduce((total, sample) => Vec3.add(total, sample.worldPoint), {
                 x: 0,
                 y: 0,
                 z: 0,
@@ -274,12 +258,13 @@ export class ViewportInteractionController {
 
     private getRotateCenterBasedOnBounds(state: EditorState): Vector3 | null {
         const bounds = this.context.getDisplayBounds();
+        const bbox = BBox3.fromBoundsLike(bounds);
 
-        if (!isFiniteBounds(bounds)) {
+        if (!bbox.isFinite()) {
             return null;
         }
 
-        const projectedBounds = projectBoundsToViewport(
+        const projectedBounds = projectBoundsToScreenRect(
             bounds,
             state.navigation.camera,
             state.navigation.viewportSize,
@@ -295,7 +280,7 @@ export class ViewportInteractionController {
             projectedBounds.maxY >= 0 &&
             projectedBounds.minY <= viewport.height;
 
-        return fitsReasonableViewport ? getBoundsCenter(bounds) : null;
+        return fitsReasonableViewport ? bbox.center : null;
     }
 
     private getRotateCenterBasedOnCanvasLocationAndBoundsDepth(
@@ -303,8 +288,9 @@ export class ViewportInteractionController {
         point: ScreenPoint,
     ): Vector3 | null {
         const bounds = this.context.getDisplayBounds();
+        const bbox = BBox3.fromBoundsLike(bounds);
 
-        if (!isFiniteBounds(bounds)) {
+        if (!bbox.isFinite()) {
             return null;
         }
 
@@ -313,14 +299,13 @@ export class ViewportInteractionController {
             state.navigation.camera,
             state.navigation.viewportSize,
         );
-        const center = getBoundsCenter(bounds);
-        const diameter = Math.max(lengthVector3(subtractVector3(bounds.max, bounds.min)), 1);
+        const diameter = Math.max(Measurement.boundsDiameter3(bbox).value, 1);
         const distance = Math.max(
-            dotVector3(subtractVector3(center, ray.origin), ray.direction),
+            Projection.pointToRayParameter3(bbox.center, ray).value,
             diameter * 0.01,
         );
 
-        return addVector3(ray.origin, scaleVector3(ray.direction, distance));
+        return ray.pointAt(distance);
     }
 
     public handlePointerMove(event: EditorPointerInput): boolean {
@@ -423,139 +408,6 @@ export class ViewportInteractionController {
             },
         };
     }
-}
-
-interface CameraBasis {
-    readonly forward: Vector3;
-    readonly right: Vector3;
-    readonly up: Vector3;
-}
-
-interface ProjectedBounds {
-    readonly maxX: number;
-    readonly maxY: number;
-    readonly minX: number;
-    readonly minY: number;
-}
-
-interface WorldRay {
-    readonly direction: Vector3;
-    readonly origin: Vector3;
-}
-
-function getBoundsCenter(bounds: BoundingBox3): Vector3 {
-    return scaleVector3(addVector3(bounds.min, bounds.max), 0.5);
-}
-
-function isFiniteBounds(bounds: BoundingBox3): boolean {
-    return (
-        Number.isFinite(bounds.min.x) &&
-        Number.isFinite(bounds.min.y) &&
-        Number.isFinite(bounds.min.z) &&
-        Number.isFinite(bounds.max.x) &&
-        Number.isFinite(bounds.max.y) &&
-        Number.isFinite(bounds.max.z)
-    );
-}
-
-function projectBoundsToViewport(
-    bounds: BoundingBox3,
-    camera: CameraState,
-    viewportSize: ViewportSize,
-): ProjectedBounds {
-    const basis = getCameraBasis(camera);
-    let minX = Number.POSITIVE_INFINITY;
-    let maxX = Number.NEGATIVE_INFINITY;
-    let minY = Number.POSITIVE_INFINITY;
-    let maxY = Number.NEGATIVE_INFINITY;
-
-    for (const corner of getBoundingBoxCorners(bounds)) {
-        const point = projectWorldToScreen(corner, camera, basis, viewportSize);
-        minX = Math.min(minX, point.x);
-        maxX = Math.max(maxX, point.x);
-        minY = Math.min(minY, point.y);
-        maxY = Math.max(maxY, point.y);
-    }
-
-    return { maxX, maxY, minX, minY };
-}
-
-function projectWorldToScreen(
-    point: Vector3,
-    camera: CameraState,
-    basis: CameraBasis,
-    viewportSize: ViewportSize,
-): ScreenPoint {
-    const relative = subtractVector3(point, camera.target);
-    const aspect = Math.max(viewportSize.width / viewportSize.height, 0.001);
-    const halfHeight = getViewHeight(camera) / 2;
-    const halfWidth = halfHeight * aspect;
-    const projectedX = dotVector3(relative, basis.right);
-    const projectedY = dotVector3(relative, basis.up);
-
-    return {
-        x: ((projectedX / halfWidth + 1) / 2) * viewportSize.width,
-        y: ((1 - projectedY / halfHeight) / 2) * viewportSize.height,
-    };
-}
-
-function screenPointToWorldRay(
-    point: ScreenPoint,
-    camera: CameraState,
-    viewportSize: ViewportSize,
-): WorldRay {
-    const basis = getCameraBasis(camera);
-    const height = getViewHeight(camera);
-    const width = height * (viewportSize.width / viewportSize.height);
-    const x = (point.x / viewportSize.width - 0.5) * width;
-    const y = (0.5 - point.y / viewportSize.height) * height;
-    const viewPlanePoint = addVector3(
-        camera.target,
-        addVector3(scaleVector3(basis.right, x), scaleVector3(basis.up, y)),
-    );
-
-    if (camera.projection === 'perspective') {
-        return {
-            direction: normalizeVector3(subtractVector3(viewPlanePoint, camera.position)),
-            origin: camera.position,
-        };
-    }
-
-    return {
-        direction: basis.forward,
-        origin: subtractVector3(
-            viewPlanePoint,
-            scaleVector3(
-                basis.forward,
-                dotVector3(subtractVector3(camera.target, camera.position), basis.forward),
-            ),
-        ),
-    };
-}
-
-function getViewHeight(camera: CameraState): number {
-    if (camera.projection === 'orthographic') {
-        return camera.orthographicHeight;
-    }
-
-    const distance = Math.max(
-        0.001,
-        Math.hypot(
-            camera.position.x - camera.target.x,
-            camera.position.y - camera.target.y,
-            camera.position.z - camera.target.z,
-        ),
-    );
-
-    return 2 * distance * Math.tan(camera.fovYRadians / 2);
-}
-
-function getCameraBasis(camera: CameraState): CameraBasis {
-    const forward = normalizeVector3(subtractVector3(camera.target, camera.position));
-    const right = normalizeVector3(crossVector3(forward, camera.up));
-    const up = normalizeVector3(crossVector3(right, forward));
-
-    return { forward, right, up };
 }
 
 function isViewNavigationPointer(event: EditorPointerInput): boolean {

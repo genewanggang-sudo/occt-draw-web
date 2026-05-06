@@ -8,13 +8,7 @@ import {
     type ReferenceOriginObject,
     type ReferencePlaneObject,
 } from '@occt-draw/core';
-import {
-    addVector3,
-    createLineSegment3,
-    createVector3,
-    scaleVector3,
-    type Vector3,
-} from '@occt-draw/math';
+import { LineSegment3, Vec2, Vec3 } from '@occt-draw/math';
 import {
     findSketchPointById,
     listSketchLines,
@@ -114,7 +108,7 @@ export class DisplayProjector {
                 }
 
                 return [
-                    createLineSegment3(
+                    new LineSegment3(
                         sketchPointToWorldOnPlane(plane, startPoint),
                         sketchPointToWorldOnPlane(plane, endPoint),
                     ),
@@ -131,7 +125,7 @@ export class DisplayProjector {
                     name: feature.name,
                     depthRole: 'primary',
                     visible: !feature.suppressed,
-                    color: createVector3(0.05, 0.38, 0.85),
+                    color: Vec3.of(0.05, 0.38, 0.85),
                     segments,
                 } satisfies LineBatchRenderNode);
             }
@@ -143,7 +137,7 @@ export class DisplayProjector {
                     name: `${feature.name} 端点`,
                     depthRole: 'primary',
                     visible: !feature.suppressed,
-                    color: createVector3(0.05, 0.38, 0.85),
+                    color: Vec3.of(0.05, 0.38, 0.85),
                     points,
                     sizePixels: 7,
                 } satisfies PointBatchRenderNode);
@@ -173,7 +167,7 @@ export class DisplayProjector {
                 name: '临时线段',
                 depthRole: 'primary',
                 visible: true,
-                color: createVector3(0.35, 0.72, 1),
+                color: Vec3.of(0.35, 0.72, 1),
                 segments,
             } satisfies LineBatchRenderNode,
             {
@@ -182,7 +176,7 @@ export class DisplayProjector {
                 name: '临时端点',
                 depthRole: 'primary',
                 visible: true,
-                color: createVector3(0.35, 0.72, 1),
+                color: Vec3.of(0.35, 0.72, 1),
                 points: segments.flatMap((segment) => [segment.start, segment.end]),
                 sizePixels: 7,
             } satisfies PointBatchRenderNode,
@@ -215,7 +209,7 @@ function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerBatc
         visible: object.visible,
         markers: [
             {
-                color: createVector3(0.78, 0.8, 0.82),
+                color: Vec3.of(0.78, 0.8, 0.82),
                 position: object.position,
                 shape: 'origin',
                 sizePixels: 13,
@@ -227,22 +221,14 @@ function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerBatc
 function projectReferencePlaneObject(object: ReferencePlaneObject): readonly RenderNode[] {
     const plane = referencePlaneToPlane(object);
     const halfSize = object.size / 2;
-    const labelYAxis = scaleVector3(plane.yAxis, -1);
-    const left = scaleVector3(plane.xAxis, -halfSize);
-    const right = scaleVector3(plane.xAxis, halfSize);
-    const bottom = scaleVector3(plane.yAxis, -halfSize);
-    const top = scaleVector3(plane.yAxis, halfSize);
+    const labelYAxis = Vec3.scale(plane.yAxis, -1);
     const corners = [
-        addMany(plane.origin, left, bottom),
-        addMany(plane.origin, right, bottom),
-        addMany(plane.origin, right, top),
-        addMany(plane.origin, left, top),
+        plane.localToWorld(Vec2.of(-halfSize, -halfSize)),
+        plane.localToWorld(Vec2.of(halfSize, -halfSize)),
+        plane.localToWorld(Vec2.of(halfSize, halfSize)),
+        plane.localToWorld(Vec2.of(-halfSize, halfSize)),
     ] as const;
-    const labelFrameOrigin = addMany(
-        plane.origin,
-        scaleVector3(plane.xAxis, -halfSize),
-        scaleVector3(plane.yAxis, halfSize),
-    );
+    const labelFrameOrigin = plane.localToWorld(Vec2.of(-halfSize, halfSize));
 
     return [
         {
@@ -251,7 +237,7 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Ren
             name: `${object.name} 面`,
             depthRole: 'secondary',
             visible: object.visible,
-            color: createVector3(0.12, 0.42, 0.8),
+            color: Vec3.of(0.12, 0.42, 0.8),
             opacity: 0.18,
             triangles: [
                 { a: corners[0], b: corners[1], c: corners[2] },
@@ -264,12 +250,12 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Ren
             name: object.name,
             depthRole: 'secondary',
             visible: object.visible,
-            color: createVector3(0.22, 0.5, 0.9),
+            color: Vec3.of(0.22, 0.5, 0.9),
             segments: [
-                createLineSegment3(corners[0], corners[1]),
-                createLineSegment3(corners[1], corners[2]),
-                createLineSegment3(corners[2], corners[3]),
-                createLineSegment3(corners[3], corners[0]),
+                new LineSegment3(corners[0], corners[1]),
+                new LineSegment3(corners[1], corners[2]),
+                new LineSegment3(corners[2], corners[3]),
+                new LineSegment3(corners[3], corners[0]),
             ],
         } satisfies LineBatchRenderNode,
         {
@@ -280,7 +266,7 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Ren
             visible: object.visible,
             labels: [
                 {
-                    color: createVector3(0.86, 0.86, 0.86),
+                    color: Vec3.of(0.86, 0.86, 0.86),
                     fontWeight: 400,
                     frame: {
                         origin: labelFrameOrigin,
@@ -318,10 +304,6 @@ function getReferencePlaneLabel(planeKind: ReferencePlaneObject['planeKind']): L
     }
 
     return 'Front';
-}
-
-function addMany(origin: Vector3, ...vectors: readonly Vector3[]): Vector3 {
-    return vectors.reduce((current, vector) => addVector3(current, vector), origin);
 }
 
 function findReferencePlaneById(

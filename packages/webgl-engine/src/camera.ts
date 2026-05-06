@@ -1,19 +1,11 @@
 import type { RenderScene } from './types';
-import {
-    addVector3,
-    createVector3,
-    crossVector3,
-    dotVector3,
-    normalizeVector3,
-    scaleVector3,
-    subtractVector3,
-    type Vector3,
-} from '@occt-draw/math';
+import { BBox3, Measurement, Scalar, Vec3, type Vector3 } from '@occt-draw/math';
 import {
     calculateBoundingSphere,
     calculateRenderSceneNavigationBoundingBox,
     getBoundingBoxCorners,
 } from './bounds';
+import { calculateCameraBasis, calculateViewDepth } from './cameraGeometry';
 import type { BoundingBox3, CameraState, ScreenPoint2, ViewportSize } from './types';
 
 export type StandardCameraView =
@@ -74,84 +66,77 @@ const STANDARD_CORNER_FRAMES: Readonly<Partial<Record<StandardCameraView, Standa
 };
 const STANDARD_FACE_FRAMES: Readonly<Partial<Record<StandardCameraView, StandardCameraFrame>>> = {
     back: {
-        up: createVector3(0, 0, 1),
-        viewDirection: createVector3(0, 1, 0),
+        up: Vec3.of(0, 0, 1),
+        viewDirection: Vec3.of(0, 1, 0),
     },
     bottom: {
-        up: createVector3(0, -1, 0),
-        viewDirection: createVector3(0, 0, -1),
+        up: Vec3.of(0, -1, 0),
+        viewDirection: Vec3.of(0, 0, -1),
     },
     front: {
-        up: createVector3(0, 0, 1),
-        viewDirection: createVector3(0, -1, 0),
+        up: Vec3.of(0, 0, 1),
+        viewDirection: Vec3.of(0, -1, 0),
     },
     left: {
-        up: createVector3(0, 0, 1),
-        viewDirection: createVector3(-1, 0, 0),
+        up: Vec3.of(0, 0, 1),
+        viewDirection: Vec3.of(-1, 0, 0),
     },
     right: {
-        up: createVector3(0, 0, 1),
-        viewDirection: createVector3(1, 0, 0),
+        up: Vec3.of(0, 0, 1),
+        viewDirection: Vec3.of(1, 0, 0),
     },
     top: {
-        up: createVector3(0, 1, 0),
-        viewDirection: createVector3(0, 0, 1),
+        up: Vec3.of(0, 1, 0),
+        viewDirection: Vec3.of(0, 0, 1),
     },
 };
 
 const STANDARD_VIEW_DIRECTIONS: Readonly<Record<StandardCameraView, Vector3>> = {
-    back: createVector3(0, 1, 0),
-    bottom: createVector3(0, 0, -1),
-    'bottom-back': createVector3(0, 1, -1),
-    'bottom-front': createVector3(0, -1, -1),
-    'bottom-left': createVector3(-1, 0, -1),
-    'bottom-right': createVector3(1, 0, -1),
-    front: createVector3(0, -1, 0),
-    'front-left': createVector3(-1, -1, 0),
+    back: Vec3.of(0, 1, 0),
+    bottom: Vec3.of(0, 0, -1),
+    'bottom-back': Vec3.of(0, 1, -1),
+    'bottom-front': Vec3.of(0, -1, -1),
+    'bottom-left': Vec3.of(-1, 0, -1),
+    'bottom-right': Vec3.of(1, 0, -1),
+    front: Vec3.of(0, -1, 0),
+    'front-left': Vec3.of(-1, -1, 0),
     'front-left-bottom': TRIMETRIC_BOTTOM_LEFT_FRONT_FRAME.viewDirection,
     'front-left-top': TRIMETRIC_TOP_LEFT_FRONT_FRAME.viewDirection,
-    'front-right': createVector3(1, -1, 0),
+    'front-right': Vec3.of(1, -1, 0),
     'front-right-bottom': TRIMETRIC_BOTTOM_RIGHT_FRONT_FRAME.viewDirection,
     'front-right-top': TRIMETRIC_TOP_RIGHT_FRONT_FRAME.viewDirection,
     home: TRIMETRIC_VIEW_DIRECTION,
-    isometric: createVector3(Math.sqrt(1 / 3), -Math.sqrt(1 / 3), Math.sqrt(1 / 3)),
-    left: createVector3(-1, 0, 0),
-    'left-back': createVector3(-1, 1, 0),
+    isometric: Vec3.of(Math.sqrt(1 / 3), -Math.sqrt(1 / 3), Math.sqrt(1 / 3)),
+    left: Vec3.of(-1, 0, 0),
+    'left-back': Vec3.of(-1, 1, 0),
     'left-back-bottom': TRIMETRIC_BOTTOM_LEFT_BACK_FRAME.viewDirection,
     'left-back-top': TRIMETRIC_TOP_LEFT_BACK_FRAME.viewDirection,
-    right: createVector3(1, 0, 0),
-    'right-back': createVector3(1, 1, 0),
+    right: Vec3.of(1, 0, 0),
+    'right-back': Vec3.of(1, 1, 0),
     'right-back-bottom': TRIMETRIC_BOTTOM_RIGHT_BACK_FRAME.viewDirection,
     'right-back-top': TRIMETRIC_TOP_RIGHT_BACK_FRAME.viewDirection,
-    top: createVector3(0, 0, 1),
-    'top-back': createVector3(0, 1, 1),
-    'top-front': createVector3(0, -1, 1),
-    'top-left': createVector3(-1, 0, 1),
-    'top-right': createVector3(1, 0, 1),
+    top: Vec3.of(0, 0, 1),
+    'top-back': Vec3.of(0, 1, 1),
+    'top-front': Vec3.of(0, -1, 1),
+    'top-left': Vec3.of(-1, 0, 1),
+    'top-right': Vec3.of(1, 0, 1),
     trimetric: TRIMETRIC_VIEW_DIRECTION,
 };
 
-const ISOMETRIC_UP = createVector3(-Math.sqrt(1 / 6), Math.sqrt(1 / 6), 2 * Math.sqrt(1 / 6));
-const WORLD_UP = createVector3(0, 0, 1);
-const TOP_BOTTOM_UP = createVector3(0, 1, 0);
+const ISOMETRIC_UP = Vec3.of(-Math.sqrt(1 / 6), Math.sqrt(1 / 6), 2 * Math.sqrt(1 / 6));
+const WORLD_UP = Vec3.of(0, 0, 1);
+const TOP_BOTTOM_UP = Vec3.of(0, 1, 0);
 
 export const DEFAULT_CAMERA_STATE: CameraState = {
     projection: 'orthographic',
-    position: scaleVector3(TRIMETRIC_VIEW_DIRECTION, 9.604686356149273),
-    target: createVector3(0, 0, 0),
+    position: Vec3.scale(TRIMETRIC_VIEW_DIRECTION, 9.604686356149273),
+    target: Vec3.of(0, 0, 0),
     up: TRIMETRIC_UP,
     orthographicHeight: 9,
     fovYRadians: Math.PI / 4,
     near: 0.1,
     far: 100,
 };
-
-interface CameraBasis {
-    readonly forward: Vector3;
-    readonly right: Vector3;
-    readonly up: Vector3;
-    readonly view: Vector3;
-}
 
 export function createCameraStateForScene(scene: RenderScene): CameraState {
     return createStandardCameraState(calculateRenderSceneNavigationBoundingBox(scene), 'trimetric');
@@ -207,8 +192,8 @@ export function getStandardCameraFrame(view: StandardCameraView): StandardCamera
 
     if (view === 'isometric') {
         return {
-            up: createVector3(ISOMETRIC_UP.x, ISOMETRIC_UP.y, ISOMETRIC_UP.z),
-            viewDirection: normalizeVector3(STANDARD_VIEW_DIRECTIONS.isometric),
+            up: Vec3.of(ISOMETRIC_UP.x, ISOMETRIC_UP.y, ISOMETRIC_UP.z),
+            viewDirection: Vec3.normalize(STANDARD_VIEW_DIRECTIONS.isometric),
         };
     }
 
@@ -234,10 +219,10 @@ export function fitCameraToBounds(
     let maxZ = Number.NEGATIVE_INFINITY;
 
     for (const corner of corners) {
-        const relative = subtractVector3(corner, sphere.center);
-        const x = dotVector3(relative, basis.right);
-        const y = dotVector3(relative, basis.up);
-        const z = dotVector3(relative, basis.view);
+        const relative = Vec3.subtract(corner, sphere.center);
+        const x = Vec3.dot(relative, basis.right);
+        const y = Vec3.dot(relative, basis.up);
+        const z = Vec3.dot(relative, basis.view);
 
         minX = Math.min(minX, x);
         maxX = Math.max(maxX, x);
@@ -252,7 +237,7 @@ export function fitCameraToBounds(
     const contentDepth = Math.max(maxZ - minZ, 1);
     const orthographicHeight = Math.max(contentHeight, contentWidth / aspect) * 1.18;
     const distance = Math.max(sphere.radius * 3.5, contentDepth * 2, 1);
-    const position = addVector3(sphere.center, scaleVector3(basis.view, distance));
+    const position = Vec3.add(sphere.center, Vec3.scale(basis.view, distance));
 
     return {
         ...camera,
@@ -269,14 +254,17 @@ export function frameCameraClippingToBounds(
     bounds: BoundingBox3,
 ): CameraState {
     const framedCamera = ensureCameraOutsideBounds(camera, bounds);
-    const forward = normalizeVector3(subtractVector3(framedCamera.target, framedCamera.position));
+    const basis = calculateCameraBasis(framedCamera);
     const corners = getBoundingBoxCorners(bounds);
-    const boundsDiameter = getBoundsDiameter(bounds);
+    const boundsDiameter = Math.max(
+        Measurement.boundsDiameter3(BBox3.fromBoundsLike(bounds)).value,
+        1,
+    );
     let minDepth = Number.POSITIVE_INFINITY;
     let maxDepth = Number.NEGATIVE_INFINITY;
 
     for (const corner of corners) {
-        const depth = dotVector3(subtractVector3(corner, framedCamera.position), forward);
+        const depth = calculateViewDepth(framedCamera, basis, corner);
 
         minDepth = Math.min(minDepth, depth);
         maxDepth = Math.max(maxDepth, depth);
@@ -302,11 +290,13 @@ export function frameCameraClippingToBounds(
 }
 
 function ensureCameraOutsideBounds(camera: CameraState, bounds: BoundingBox3): CameraState {
-    const forward = normalizeVector3(subtractVector3(camera.target, camera.position));
-    const center = scaleVector3(addVector3(bounds.min, bounds.max), 0.5);
-    const boundsDiameter = getBoundsDiameter(bounds);
+    const basis = calculateCameraBasis(camera);
+    const forward = basis.forward;
+    const bbox = BBox3.fromBoundsLike(bounds);
+    const center = bbox.center;
+    const boundsDiameter = Math.max(Measurement.boundsDiameter3(bbox).value, 1);
     const safeCenterDepth = boundsDiameter * 0.6;
-    const centerDepth = dotVector3(subtractVector3(center, camera.position), forward);
+    const centerDepth = calculateViewDepth(camera, basis, center);
 
     if (centerDepth >= safeCenterDepth) {
         return camera;
@@ -314,23 +304,12 @@ function ensureCameraOutsideBounds(camera: CameraState, bounds: BoundingBox3): C
 
     return {
         ...camera,
-        position: addVector3(camera.position, scaleVector3(forward, centerDepth - safeCenterDepth)),
+        position: Vec3.add(camera.position, Vec3.scale(forward, centerDepth - safeCenterDepth)),
     };
 }
 
-function getBoundsDiameter(bounds: BoundingBox3): number {
-    return Math.max(
-        Math.hypot(
-            bounds.max.x - bounds.min.x,
-            bounds.max.y - bounds.min.y,
-            bounds.max.z - bounds.min.z,
-        ),
-        1,
-    );
-}
-
 export function cameraDepth01ToViewDepth(camera: CameraState, depth01: number): number {
-    const clampedDepth = Math.min(Math.max(depth01, 0), 1);
+    const clampedDepth = Scalar.clamp(depth01, 0, 1);
 
     if (camera.projection === 'orthographic') {
         return camera.near + clampedDepth * (camera.far - camera.near);
@@ -361,13 +340,13 @@ export function canvasDepthToWorld(
             : viewDepth * Math.tan(camera.fovYRadians / 2);
     const halfWidth = halfHeight * aspect;
 
-    return addVector3(
+    return Vec3.add(
         camera.position,
-        addVector3(
-            scaleVector3(basis.forward, viewDepth),
-            addVector3(
-                scaleVector3(basis.right, ndcX * halfWidth),
-                scaleVector3(basis.up, ndcY * halfHeight),
+        Vec3.add(
+            Vec3.scale(basis.forward, viewDepth),
+            Vec3.add(
+                Vec3.scale(basis.right, ndcX * halfWidth),
+                Vec3.scale(basis.up, ndcY * halfHeight),
             ),
         ),
     );
@@ -379,7 +358,7 @@ function createCameraFromFrame(bounds: BoundingBox3, frame: StandardCameraFrame)
 
     return {
         projection: 'orthographic',
-        position: addVector3(sphere.center, scaleVector3(frame.viewDirection, distance)),
+        position: Vec3.add(sphere.center, Vec3.scale(frame.viewDirection, distance)),
         target: sphere.center,
         up: frame.up,
         orthographicHeight: sphere.radius * 2.4,
@@ -391,12 +370,8 @@ function createCameraFromFrame(bounds: BoundingBox3, frame: StandardCameraFrame)
 
 function cloneStandardCameraFrame(frame: StandardCameraFrame): StandardCameraFrame {
     return {
-        up: createVector3(frame.up.x, frame.up.y, frame.up.z),
-        viewDirection: createVector3(
-            frame.viewDirection.x,
-            frame.viewDirection.y,
-            frame.viewDirection.z,
-        ),
+        up: Vec3.of(frame.up.x, frame.up.y, frame.up.z),
+        viewDirection: Vec3.of(frame.viewDirection.x, frame.viewDirection.y, frame.viewDirection.z),
     };
 }
 
@@ -409,8 +384,8 @@ function createTrimetricCornerFrame(turnIndex: number, isTop: boolean): Standard
     const cosVertical = Math.cos(verticalAngle);
 
     return {
-        up: createVector3(-sinHorizontal * cosVertical, cosHorizontal * cosVertical, sinVertical),
-        viewDirection: createVector3(
+        up: Vec3.of(-sinHorizontal * cosVertical, cosHorizontal * cosVertical, sinVertical),
+        viewDirection: Vec3.of(
             sinHorizontal * sinVertical,
             -cosHorizontal * sinVertical,
             cosVertical,
@@ -422,28 +397,13 @@ function createStandardCameraFrame(
     viewDirection: Vector3,
     preferredUp: Vector3,
 ): StandardCameraFrame {
-    const view = normalizeVector3(viewDirection);
-    const projectedUp = subtractVector3(
-        preferredUp,
-        scaleVector3(view, dotVector3(preferredUp, view)),
-    );
-    const up =
-        Math.hypot(projectedUp.x, projectedUp.y, projectedUp.z) > 1e-6
-            ? normalizeVector3(projectedUp)
-            : TOP_BOTTOM_UP;
-    const right = normalizeVector3(crossVector3(up, view));
+    const view = Vec3.normalize(viewDirection);
+    const projectedUp = Vec3.subtract(preferredUp, Vec3.scale(view, Vec3.dot(preferredUp, view)));
+    const up = Vec3.length(projectedUp) > 1e-6 ? Vec3.normalize(projectedUp) : TOP_BOTTOM_UP;
+    const right = Vec3.normalize(Vec3.cross(up, view));
 
     return {
-        up: normalizeVector3(crossVector3(view, right)),
+        up: Vec3.normalize(Vec3.cross(view, right)),
         viewDirection: view,
     };
-}
-
-function calculateCameraBasis(camera: CameraState): CameraBasis {
-    const view = normalizeVector3(subtractVector3(camera.position, camera.target));
-    const right = normalizeVector3(crossVector3(camera.up, view));
-    const up = normalizeVector3(crossVector3(view, right));
-    const forward = scaleVector3(view, -1);
-
-    return { forward, right, up, view };
 }

@@ -1,33 +1,76 @@
-export { clampNumber } from './scalar';
-export { MATH_EPSILON, areNumbersEqual, isNearlyZero } from './tolerance';
-export { Point2, Vec2, createPoint2, createVector2, type Vector2 } from './vector2';
 export {
-    Point3,
+    Angle,
+    DEFAULT_TOLERANCE,
+    FULL_TURN,
+    GeometryResult,
+    HALF_TURN,
+    Interval,
+    MATH_EPSILON,
+    RIGHT_ANGLE,
+    Scalar,
+    Tolerance,
+    areNumbersEqual,
+    clampNumber,
+    isNearlyZero,
+    type GeometryResultStatus,
+} from './value';
+export {
+    Matrix3,
+    Matrix4,
+    Quaternion,
+    Vec2,
     Vec3,
-    addVector3,
-    createPoint3,
-    createVector3,
-    crossVector3,
-    distanceVector3,
-    dotVector3,
-    lengthVector3,
-    normalizeVector3,
-    rotateVectorAroundAxis,
-    scaleVector3,
-    subtractVector3,
+    Vec4,
+    type Vector2,
     type Vector3,
-} from './vector3';
-export { LineSegment2, LineSegment3, createLineSegment2, createLineSegment3 } from './lineSegment';
-export { Matrix4, createIdentityMatrix4, multiplyMatrix4 } from './matrix4';
+    type Vector4,
+} from './linear';
+export { Coord2, Coord3 } from './coordinate';
 export {
-    Plane,
-    createPlane,
-    intersectRayWithPlane,
-    projectPointToPlane,
-    signedDistanceToPlane,
-} from './plane';
-export { Ray3, createRay3 } from './ray';
-export { Transform3, createIdentityTransform3 } from './transform3';
+    Arc2,
+    BBox2,
+    BSpline2,
+    Bezier2,
+    Circle2,
+    CurveParameter,
+    Ellipse2,
+    EllipticalArc2,
+    Line2,
+    LineSegment2,
+    Nurbs2,
+    ParameterDomain,
+    Polygon2,
+    Polyline2,
+    type BoundedCurve2,
+    type Curve2,
+} from './geometry-2d';
+export {
+    BBox3,
+    Line3,
+    LineSegment3,
+    OBB3,
+    Plane3,
+    Ray3,
+    Sphere3,
+    type Triangle3,
+} from './geometry-3d';
+export {
+    Classification,
+    Containment,
+    Distance,
+    Intersection,
+    Measurement,
+    Projection,
+    type ClassificationResult,
+    type ClassificationStatus,
+    type ClosestPointResult,
+    type ContainmentResult,
+    type DistanceResult,
+    type IntersectionResult,
+    type MeasurementResult,
+    type ProjectionResult,
+} from './query';
+export { BoundsApproximation, CurveSampler, PolylineApproximation } from './approximation';
 export {
     MATH_MODULE_MANIFEST,
     getMathModuleManifest,

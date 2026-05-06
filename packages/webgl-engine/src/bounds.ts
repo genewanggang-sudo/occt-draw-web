@@ -1,13 +1,8 @@
 import type { RenderScene, RenderNode } from './types';
-import {
-    addVector3,
-    createVector3,
-    lengthVector3,
-    scaleVector3,
-    subtractVector3,
-    type Vector3,
-} from '@occt-draw/math';
+import { BBox3, Vec3, type Vector3 } from '@occt-draw/math';
 import type { BoundingBox3, BoundingSphere } from './types';
+
+const DEFAULT_BOUNDS = new BBox3(Vec3.of(-1, -1, -1), Vec3.of(1, 1, 1));
 
 export function calculateRenderSceneBoundingBox(scene: RenderScene): BoundingBox3 {
     return calculateRenderSceneBoundingBoxByPredicate(scene, () => true);
@@ -32,7 +27,7 @@ function calculateRenderSceneBoundingBoxByPredicate(
     scene: RenderScene,
     shouldIncludeObject: (object: RenderNode) => boolean,
 ): BoundingBox3 {
-    let bounds: BoundingBox3 | null = null;
+    let bounds: BBox3 | null = null;
 
     for (const object of scene.nodes) {
         if (!object.visible || !shouldIncludeObject(object)) {
@@ -42,42 +37,25 @@ function calculateRenderSceneBoundingBoxByPredicate(
         bounds = expandBoundsByObject(bounds, object);
     }
 
-    return (
-        bounds ?? {
-            min: createVector3(-1, -1, -1),
-            max: createVector3(1, 1, 1),
-        }
-    );
+    return bounds ?? DEFAULT_BOUNDS;
 }
 
 export function calculateBoundingSphere(bounds: BoundingBox3): BoundingSphere {
-    const center = scaleVector3(addVector3(bounds.min, bounds.max), 0.5);
-    const radius = Math.max(lengthVector3(subtractVector3(bounds.max, center)), 1);
-
-    return { center, radius };
+    return new BBox3(bounds.min, bounds.max).toBoundingSphere(1);
 }
 
 export function getBoundingBoxCorners(bounds: BoundingBox3): readonly Vector3[] {
-    return [
-        createVector3(bounds.min.x, bounds.min.y, bounds.min.z),
-        createVector3(bounds.max.x, bounds.min.y, bounds.min.z),
-        createVector3(bounds.min.x, bounds.max.y, bounds.min.z),
-        createVector3(bounds.max.x, bounds.max.y, bounds.min.z),
-        createVector3(bounds.min.x, bounds.min.y, bounds.max.z),
-        createVector3(bounds.max.x, bounds.min.y, bounds.max.z),
-        createVector3(bounds.min.x, bounds.max.y, bounds.max.z),
-        createVector3(bounds.max.x, bounds.max.y, bounds.max.z),
-    ];
+    return new BBox3(bounds.min, bounds.max).corners();
 }
 
-function expandBoundsByObject(bounds: BoundingBox3 | null, object: RenderNode): BoundingBox3 {
+function expandBoundsByObject(bounds: BBox3 | null, object: RenderNode): BBox3 {
     if (object.kind === 'label-batch') {
         return expandBoundsByPoints(
             bounds,
             object.labels.map((label) =>
-                addVector3(
-                    addVector3(label.frame.origin, scaleVector3(label.frame.xAxis, label.insert.x)),
-                    scaleVector3(label.frame.yAxis, label.insert.y),
+                Vec3.add(
+                    Vec3.add(label.frame.origin, Vec3.scale(label.frame.xAxis, label.insert.x)),
+                    Vec3.scale(label.frame.yAxis, label.insert.y),
                 ),
             ),
         );
@@ -107,39 +85,16 @@ function expandBoundsByObject(bounds: BoundingBox3 | null, object: RenderNode): 
     );
 }
 
-function expandBoundsByPoints(
-    bounds: BoundingBox3 | null,
-    points: readonly Vector3[],
-): BoundingBox3 {
+function expandBoundsByPoints(bounds: BBox3 | null, points: readonly Vector3[]): BBox3 {
     let nextBounds = bounds;
 
     for (const point of points) {
         nextBounds = expandBoundsByPoint(nextBounds, point);
     }
 
-    return (
-        nextBounds ?? {
-            min: createVector3(-1, -1, -1),
-            max: createVector3(1, 1, 1),
-        }
-    );
+    return nextBounds ?? DEFAULT_BOUNDS;
 }
 
-function expandBoundsByPoint(bounds: BoundingBox3 | null, point: Vector3): BoundingBox3 {
-    if (!bounds) {
-        return { min: point, max: point };
-    }
-
-    return {
-        min: createVector3(
-            Math.min(bounds.min.x, point.x),
-            Math.min(bounds.min.y, point.y),
-            Math.min(bounds.min.z, point.z),
-        ),
-        max: createVector3(
-            Math.max(bounds.max.x, point.x),
-            Math.max(bounds.max.y, point.y),
-            Math.max(bounds.max.z, point.z),
-        ),
-    };
+function expandBoundsByPoint(bounds: BBox3 | null, point: Vector3): BBox3 {
+    return bounds ? bounds.expandByPoint(point) : new BBox3(point, point);
 }

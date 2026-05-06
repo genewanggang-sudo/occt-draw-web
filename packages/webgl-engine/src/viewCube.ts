@@ -1,6 +1,7 @@
 import { createLabelGlyphKey, DEFAULT_LABEL_FONT_WEIGHT, type LabelAtlas } from './labelAtlas';
 import { toLabelVertexBuffer } from './labelGeometry';
 import { toVertexBuffer } from './vertexBuffer';
+import { calculateCameraBasis, type CameraBasis } from './cameraGeometry';
 import type {
     CameraState,
     LabelVertex,
@@ -12,12 +13,15 @@ import type {
     ViewportSize,
 } from './types';
 import {
-    createVector3,
-    crossVector3,
-    dotVector3,
-    normalizeVector3,
-    scaleVector3,
-    subtractVector3,
+    Angle,
+    Arc2,
+    Circle2,
+    Containment,
+    Coord3,
+    CurveSampler,
+    Measurement,
+    Vec2,
+    Vec3,
     type Vector3,
 } from '@occt-draw/math';
 import type { RenderPipelineResources } from './renderPipeline';
@@ -25,12 +29,6 @@ import type { RenderPipelineResources } from './renderPipeline';
 interface ScreenPoint {
     readonly x: number;
     readonly y: number;
-}
-
-interface CameraBasis2 {
-    readonly forward: Vector3;
-    readonly right: Vector3;
-    readonly up: Vector3;
 }
 
 interface ViewCubeMatrices {
@@ -145,24 +143,24 @@ const VIEW_CUBE_DEPTH_SCALE = 0.35;
 const FACE_LABEL_NORMAL_OFFSET = 0.004;
 const CENTER_LOCAL = { x: 0, y: 0 };
 
-const FACE_COLOR = createVector3(1, 1, 1);
+const FACE_COLOR = Vec3.of(1, 1, 1);
 const FACE_ALPHA = 0.95;
 const FACE_HOVER_ALPHA = 0.6;
-const BACK_FACE_COLOR = createVector3(206 / 255, 219 / 255, 229 / 255);
+const BACK_FACE_COLOR = Vec3.of(206 / 255, 219 / 255, 229 / 255);
 const BACK_FACE_ALPHA = 0.6;
-const FACE_HOVER_COLOR = createVector3(144 / 255, 206 / 255, 241 / 255);
+const FACE_HOVER_COLOR = Vec3.of(144 / 255, 206 / 255, 241 / 255);
 const BACK_FACE_HOVER_COLOR = FACE_HOVER_COLOR;
-const TEXT_COLOR = createVector3(0.02, 0.025, 0.03);
-const TEXT_HOVER_COLOR = createVector3(1, 1, 1);
+const TEXT_COLOR = Vec3.of(0.02, 0.025, 0.03);
+const TEXT_HOVER_COLOR = Vec3.of(1, 1, 1);
 const ARROW_COLOR = BACK_FACE_COLOR;
 const ARROW_ALPHA = 0.6;
-const ARROW_HOVER_COLOR = createVector3(0.24, 0.55, 0.9);
-const CORNER_COLOR = createVector3(0.88, 0.92, 0.96);
-const CORNER_HOVER_COLOR = createVector3(0.28, 0.6, 0.92);
-const HIDDEN_AXIS_COLOR = createVector3(0.52, 0.56, 0.62);
-const X_AXIS_COLOR = createVector3(0.85, 0.12, 0.1);
-const Y_AXIS_COLOR = createVector3(0.1, 0.58, 0.2);
-const Z_AXIS_COLOR = createVector3(0.15, 0.38, 0.85);
+const ARROW_HOVER_COLOR = Vec3.of(0.24, 0.55, 0.9);
+const CORNER_COLOR = Vec3.of(0.88, 0.92, 0.96);
+const CORNER_HOVER_COLOR = Vec3.of(0.28, 0.6, 0.92);
+const HIDDEN_AXIS_COLOR = Vec3.of(0.52, 0.56, 0.62);
+const X_AXIS_COLOR = Vec3.of(0.85, 0.12, 0.1);
+const Y_AXIS_COLOR = Vec3.of(0.1, 0.58, 0.2);
+const Z_AXIS_COLOR = Vec3.of(0.15, 0.38, 0.85);
 
 export function renderViewCubeOverlay(
     context: WebGL2RenderingContext,
@@ -301,7 +299,7 @@ export function hitTestViewCube(input: {
 
     const corner = findClosest(
         layout.corners,
-        (target) => distance(target.center, localPoint) <= target.radius,
+        (target) => Measurement.distance2(target.center, localPoint).value <= target.radius,
     );
 
     if (corner) {
@@ -309,8 +307,10 @@ export function hitTestViewCube(input: {
     }
 
     return (
-        findClosest(layout.faces, (target) => isPointInPolygon(localPoint, target.points))?.id ??
-        null
+        findClosest(
+            layout.faces,
+            (target) => Containment.pointInPolygon2(localPoint, target.points).contains,
+        )?.id ?? null
     );
 }
 
@@ -331,7 +331,7 @@ export function getViewCubeViewportRect(viewportSize: ViewportSize): {
 }
 
 function createViewCubeLayout(camera: CameraState): ViewCubeLayout {
-    const basis = calculateBasis(camera);
+    const basis = calculateCameraBasis(camera);
     const bodyHalfSize = calculateViewCubeBodyHalfSize();
     const triangles: TrianglePart[] = [];
     const lines: LinePart[] = [];
@@ -389,7 +389,7 @@ function createViewCubeLayout(camera: CameraState): ViewCubeLayout {
             face.id,
         );
 
-        if (signedPolygonArea(frontTargetPoints) > 0) {
+        if (Measurement.polygonSignedArea2(frontTargetPoints).value > 0) {
             faces.push({
                 depth: faceDepth,
                 id: face.id,
@@ -397,7 +397,7 @@ function createViewCubeLayout(camera: CameraState): ViewCubeLayout {
             });
         }
 
-        if (signedPolygonArea(backTargetPoints) < 0) {
+        if (Measurement.polygonSignedArea2(backTargetPoints).value < 0) {
             faces.push({
                 depth: backDepth,
                 id: face.id,
@@ -407,24 +407,34 @@ function createViewCubeLayout(camera: CameraState): ViewCubeLayout {
 
         faceLabels.push({
             alpha: 1,
-            center: addVector3Local(
-                face.center,
-                scaleVector3(face.normal, FACE_LABEL_NORMAL_OFFSET),
-            ),
+            center: Vec3.add(face.center, Vec3.scale(face.normal, FACE_LABEL_NORMAL_OFFSET)),
             color: TEXT_COLOR,
             coordinateSpace: 'body',
             depth: faceDepth + 0.04,
             height: VIEW_CUBE_TEXT_HEIGHT_PX,
             id: face.id,
             text: face.label,
-            xAxis: normalizeVector3(face.uAxis),
-            yAxis: normalizeVector3(face.vAxis),
+            xAxis: Vec3.normalize(face.uAxis),
+            yAxis: Vec3.normalize(face.vAxis),
         });
     }
 
     for (const corner of createCornerDefinitions(bodyHalfSize)) {
-        const normal = normalizeVector3(corner.position);
-        const circlePoints3 = createCircle3(corner.position, normal, corner.radius);
+        const normal = Vec3.normalize(corner.position);
+        const reference = Math.abs(normal.z) < 0.9 ? Vec3.of(0, 0, 1) : Vec3.of(0, 1, 0);
+        const u = Vec3.normalize(Vec3.cross(reference, normal));
+        const v = Vec3.normalize(Vec3.cross(normal, u));
+        const circleFrame = new Coord3({
+            origin: corner.position,
+            xAxis: u,
+            yAxis: v,
+            zAxis: normal,
+        });
+        const circlePoints3 = CurveSampler.sampleCurve2(
+            new Circle2(Vec2.zero(), corner.radius),
+            CIRCLE_SEGMENTS,
+            { includeEnd: false },
+        ).map((point) => circleFrame.localToWorld(Vec3.of(point.x, point.y, 0)));
         const circlePoints = circlePoints3.map((point) => projectLocalPoint(point, basis));
         const projectedCenter = projectLocalPoint(corner.position, basis);
         const projectedCirclePoints = circlePoints.map((point) => toScreenPoint(point.point));
@@ -439,7 +449,7 @@ function createViewCubeLayout(camera: CameraState): ViewCubeLayout {
             corner.id,
         );
 
-        if (signedPolygonArea(projectedCirclePoints) > 0) {
+        if (Measurement.polygonSignedArea2(projectedCirclePoints).value > 0) {
             corners.push({
                 center: toScreenPoint(projectedCenter.point),
                 depth: projectedCenter.depth,
@@ -466,7 +476,7 @@ function createViewCubeLayout(camera: CameraState): ViewCubeLayout {
 }
 
 function createViewCubeMatrices(camera: CameraState, viewportSize: ViewportSize): ViewCubeMatrices {
-    const basis = calculateBasis(camera);
+    const basis = calculateCameraBasis(camera);
     const origin = getViewCubeOrigin(viewportSize);
     const viewportWidth = Math.max(viewportSize.width, 1);
     const viewportHeight = Math.max(viewportSize.height, 1);
@@ -683,25 +693,25 @@ function appendAxisParts(
     lines: LinePart[],
     hiddenAxisSegments: LinePart[],
     labels: TextPart[],
-    basis: CameraBasis2,
+    basis: CameraBasis,
     bodyHalfSize: number,
 ): void {
-    const start = createVector3(
+    const start = Vec3.of(
         -bodyHalfSize - localFromPixels(VIEW_CUBE_AXIS_GAP),
         -bodyHalfSize - localFromPixels(VIEW_CUBE_AXIS_GAP),
         -bodyHalfSize - localFromPixels(VIEW_CUBE_AXIS_GAP),
     );
     const axes = [
-        { axis: createVector3(1, 0, 0), color: X_AXIS_COLOR, text: 'X' },
-        { axis: createVector3(0, 1, 0), color: Y_AXIS_COLOR, text: 'Y' },
-        { axis: createVector3(0, 0, 1), color: Z_AXIS_COLOR, text: 'Z' },
+        { axis: Vec3.of(1, 0, 0), color: X_AXIS_COLOR, text: 'X' },
+        { axis: Vec3.of(0, 1, 0), color: Y_AXIS_COLOR, text: 'Y' },
+        { axis: Vec3.of(0, 0, 1), color: Z_AXIS_COLOR, text: 'Z' },
     ];
 
     for (const item of axes) {
-        const end = addVector3Local(start, scaleVector3(item.axis, bodyHalfSize * 2));
+        const end = Vec3.add(start, Vec3.scale(item.axis, bodyHalfSize * 2));
         const projectedStart = projectLocalPoint(start, basis);
         const projectedEnd = projectLocalPoint(end, basis);
-        const facing = Math.max(0, dotVector3(normalizeVector3(item.axis), basis.forward));
+        const facing = Math.max(0, Vec3.dot(Vec3.normalize(item.axis), basis.forward));
         const alpha = calculateAxisLabelAlpha(facing);
 
         lines.push({
@@ -920,52 +930,52 @@ function calculateViewCubeBodyHalfSize(): number {
 function createFaceDefinitions(bodyHalfSize: number): readonly FaceDefinition[] {
     return [
         {
-            center: createVector3(0, 0, bodyHalfSize),
+            center: Vec3.of(0, 0, bodyHalfSize),
             id: 'top',
             label: '上',
-            normal: createVector3(0, 0, 1),
-            uAxis: createVector3(1, 0, 0),
-            vAxis: createVector3(0, 1, 0),
+            normal: Vec3.of(0, 0, 1),
+            uAxis: Vec3.of(1, 0, 0),
+            vAxis: Vec3.of(0, 1, 0),
         },
         {
-            center: createVector3(0, 0, -bodyHalfSize),
+            center: Vec3.of(0, 0, -bodyHalfSize),
             id: 'bottom',
             label: '下',
-            normal: createVector3(0, 0, -1),
-            uAxis: createVector3(1, 0, 0),
-            vAxis: createVector3(0, -1, 0),
+            normal: Vec3.of(0, 0, -1),
+            uAxis: Vec3.of(1, 0, 0),
+            vAxis: Vec3.of(0, -1, 0),
         },
         {
-            center: createVector3(0, -bodyHalfSize, 0),
+            center: Vec3.of(0, -bodyHalfSize, 0),
             id: 'front',
             label: '前',
-            normal: createVector3(0, -1, 0),
-            uAxis: createVector3(1, 0, 0),
-            vAxis: createVector3(0, 0, 1),
+            normal: Vec3.of(0, -1, 0),
+            uAxis: Vec3.of(1, 0, 0),
+            vAxis: Vec3.of(0, 0, 1),
         },
         {
-            center: createVector3(0, bodyHalfSize, 0),
+            center: Vec3.of(0, bodyHalfSize, 0),
             id: 'back',
             label: '后',
-            normal: createVector3(0, 1, 0),
-            uAxis: createVector3(-1, 0, 0),
-            vAxis: createVector3(0, 0, 1),
+            normal: Vec3.of(0, 1, 0),
+            uAxis: Vec3.of(-1, 0, 0),
+            vAxis: Vec3.of(0, 0, 1),
         },
         {
-            center: createVector3(bodyHalfSize, 0, 0),
+            center: Vec3.of(bodyHalfSize, 0, 0),
             id: 'right',
             label: '右',
-            normal: createVector3(1, 0, 0),
-            uAxis: createVector3(0, 1, 0),
-            vAxis: createVector3(0, 0, 1),
+            normal: Vec3.of(1, 0, 0),
+            uAxis: Vec3.of(0, 1, 0),
+            vAxis: Vec3.of(0, 0, 1),
         },
         {
-            center: createVector3(-bodyHalfSize, 0, 0),
+            center: Vec3.of(-bodyHalfSize, 0, 0),
             id: 'left',
             label: '左',
-            normal: createVector3(-1, 0, 0),
-            uAxis: createVector3(0, -1, 0),
-            vAxis: createVector3(0, 0, 1),
+            normal: Vec3.of(-1, 0, 0),
+            uAxis: Vec3.of(0, -1, 0),
+            vAxis: Vec3.of(0, 0, 1),
         },
     ];
 }
@@ -983,8 +993,8 @@ function createCornerDefinitions(bodyHalfSize: number): readonly {
         for (const y of [-value, value]) {
             for (const z of [-value, value]) {
                 corners.push({
-                    id: vectorToCornerId(createVector3(x, y, z)),
-                    position: createVector3(x, y, z),
+                    id: vectorToCornerId(Vec3.of(x, y, z)),
+                    position: Vec3.of(x, y, z),
                     radius,
                 });
             }
@@ -1003,11 +1013,17 @@ function createRoundedRectangle3(
     radius: number,
     normal: Vector3,
 ): readonly Vector3[] {
-    const u = normalizeVector3(uAxis);
-    const v = normalizeVector3(vAxis);
+    const u = Vec3.normalize(uAxis);
+    const v = Vec3.normalize(vAxis);
     const halfWidth = width / 2;
     const halfHeight = height / 2;
     const r = Math.min(radius, halfWidth, halfHeight);
+    const frame = new Coord3({
+        origin: center,
+        xAxis: u,
+        yAxis: v,
+        zAxis: normal,
+    });
     const corners = [
         { centerU: halfWidth - r, centerV: halfHeight - r, start: 0, end: Math.PI / 2 },
         { centerU: -halfWidth + r, centerV: halfHeight - r, start: Math.PI / 2, end: Math.PI },
@@ -1027,45 +1043,21 @@ function createRoundedRectangle3(
     const points: Vector3[] = [];
 
     for (const corner of corners) {
-        for (let index = 0; index <= ROUNDED_RECT_SEGMENTS; index++) {
-            const progress = index / ROUNDED_RECT_SEGMENTS;
-            const angle = corner.start + (corner.end - corner.start) * progress;
-            points.push(
-                addVector3Local(
-                    center,
-                    addVector3Local(
-                        scaleVector3(u, corner.centerU + Math.cos(angle) * r),
-                        scaleVector3(v, corner.centerV + Math.sin(angle) * r),
-                    ),
-                ),
-            );
-        }
-    }
+        const arc = new Arc2(
+            new Circle2(Vec2.of(corner.centerU, corner.centerV), r),
+            Angle.fromRadians(corner.start),
+            Angle.fromRadians(corner.end),
+        );
 
-    if (dotVector3(crossVector3(u, v), normalizeVector3(normal)) < 0) {
-        points.reverse();
-    }
-
-    return points;
-}
-
-function createCircle3(center: Vector3, normal: Vector3, radius: number): readonly Vector3[] {
-    const reference = Math.abs(normal.z) < 0.9 ? createVector3(0, 0, 1) : createVector3(0, 1, 0);
-    const u = normalizeVector3(crossVector3(reference, normal));
-    const v = normalizeVector3(crossVector3(normal, u));
-    const points: Vector3[] = [];
-
-    for (let index = 0; index < CIRCLE_SEGMENTS; index++) {
-        const angle = (index / CIRCLE_SEGMENTS) * Math.PI * 2;
         points.push(
-            addVector3Local(
-                center,
-                addVector3Local(
-                    scaleVector3(u, Math.cos(angle) * radius),
-                    scaleVector3(v, Math.sin(angle) * radius),
-                ),
+            ...CurveSampler.sampleCurve2(arc, ROUNDED_RECT_SEGMENTS + 1).map((point) =>
+                frame.localToWorld(Vec3.of(point.x, point.y, 0)),
             ),
         );
+    }
+
+    if (Vec3.dot(Vec3.cross(u, v), Vec3.normalize(normal)) < 0) {
+        points.reverse();
     }
 
     return points;
@@ -1078,15 +1070,16 @@ function createAnnularSectorPoints(
     startAngle: number,
     endAngle: number,
 ): { readonly inner: readonly ScreenPoint[]; readonly outer: readonly ScreenPoint[] } {
-    const inner: ScreenPoint[] = [];
-    const outer: ScreenPoint[] = [];
-
-    for (let index = 0; index <= ARC_SEGMENTS; index++) {
-        const progress = index / ARC_SEGMENTS;
-        const angle = startAngle + (endAngle - startAngle) * progress;
-        inner.push(pointOnCircle(center, innerRadius, angle));
-        outer.push(pointOnCircle(center, outerRadius, angle));
-    }
+    const start = Angle.fromRadians(startAngle);
+    const end = Angle.fromRadians(endAngle);
+    const inner = CurveSampler.sampleCurve2(
+        new Arc2(new Circle2(center, innerRadius), start, end),
+        ARC_SEGMENTS + 1,
+    );
+    const outer = CurveSampler.sampleCurve2(
+        new Arc2(new Circle2(center, outerRadius), start, end),
+        ARC_SEGMENTS + 1,
+    );
 
     return { inner, outer };
 }
@@ -1185,8 +1178,8 @@ function appendDashedLine(
             alpha,
             color: lineColor,
             depth,
-            end: lerpVector3(start, end, endProgress),
-            start: lerpVector3(start, end, startProgress),
+            end: Vec3.lerp(start, end, endProgress),
+            start: Vec3.lerp(start, end, startProgress),
         });
     }
 }
@@ -1280,45 +1273,36 @@ function createLabelQuad(
     readonly topLeft: Vector3;
     readonly topRight: Vector3;
 } {
-    const xAxis = label.xAxis ?? createVector3(1, 0, 0);
-    const yAxis = label.yAxis ?? createVector3(0, 1, 0);
+    const xAxis = label.xAxis ?? Vec3.of(1, 0, 0);
+    const yAxis = label.yAxis ?? Vec3.of(0, 1, 0);
     const halfWidth = width / 2;
     const halfHeight = height / 2;
 
     return {
-        bottomLeft: addPoint(
-            addPoint(label.center, scaleVector3(xAxis, -halfWidth)),
-            scaleVector3(yAxis, -halfHeight),
+        bottomLeft: Vec3.add(
+            Vec3.add(label.center, Vec3.scale(xAxis, -halfWidth)),
+            Vec3.scale(yAxis, -halfHeight),
         ),
-        bottomRight: addPoint(
-            addPoint(label.center, scaleVector3(xAxis, halfWidth)),
-            scaleVector3(yAxis, -halfHeight),
+        bottomRight: Vec3.add(
+            Vec3.add(label.center, Vec3.scale(xAxis, halfWidth)),
+            Vec3.scale(yAxis, -halfHeight),
         ),
-        topLeft: addPoint(
-            addPoint(label.center, scaleVector3(xAxis, -halfWidth)),
-            scaleVector3(yAxis, halfHeight),
+        topLeft: Vec3.add(
+            Vec3.add(label.center, Vec3.scale(xAxis, -halfWidth)),
+            Vec3.scale(yAxis, halfHeight),
         ),
-        topRight: addPoint(
-            addPoint(label.center, scaleVector3(xAxis, halfWidth)),
-            scaleVector3(yAxis, halfHeight),
+        topRight: Vec3.add(
+            Vec3.add(label.center, Vec3.scale(xAxis, halfWidth)),
+            Vec3.scale(yAxis, halfHeight),
         ),
     };
 }
 
-function calculateBasis(camera: CameraState): CameraBasis2 {
-    const view = normalizeVector3(subtractVector3(camera.position, camera.target));
-    const right = normalizeVector3(crossVector3(camera.up, view));
-    const up = normalizeVector3(crossVector3(view, right));
-    const forward = scaleVector3(view, -1);
-
-    return { forward, right, up };
-}
-
-function projectLocalPoint(point: Vector3, basis: CameraBasis2): ProjectedPoint {
-    const viewPoint = createVector3(
-        dotVector3(point, basis.right),
-        dotVector3(point, basis.up),
-        dotVector3(point, basis.forward),
+function projectLocalPoint(point: Vector3, basis: CameraBasis): ProjectedPoint {
+    const viewPoint = Vec3.of(
+        Vec3.dot(point, basis.right),
+        Vec3.dot(point, basis.up),
+        Vec3.dot(point, basis.forward),
     );
 
     return {
@@ -1345,7 +1329,7 @@ function getViewCubeOrigin(viewportSize: ViewportSize): ScreenPoint {
 
 function isPointInArrow(target: ArrowTarget, point: ScreenPoint): boolean {
     if (target.points) {
-        return isPointInPolygon(point, target.points);
+        return Containment.pointInPolygon2(point, target.points).contains;
     }
 
     if (
@@ -1358,14 +1342,16 @@ function isPointInArrow(target: ArrowTarget, point: ScreenPoint): boolean {
         return false;
     }
 
-    if (target.headPoints && isPointInPolygon(point, target.headPoints)) {
+    if (target.headPoints && Containment.pointInPolygon2(point, target.headPoints).contains) {
         return true;
     }
 
-    const radialDistance = distance(point, target.center);
-    const angle = normalizeAngle(Math.atan2(point.y - target.center.y, point.x - target.center.x));
-    const start = normalizeAngle(target.startAngle);
-    const end = normalizeAngle(target.endAngle);
+    const radialDistance = Measurement.distance2(point, target.center).value;
+    const angle = Angle.fromRadians(
+        Math.atan2(point.y - target.center.y, point.x - target.center.x),
+    ).normalizedPositive().radians;
+    const start = Angle.fromRadians(target.startAngle).normalizedPositive().radians;
+    const end = Angle.fromRadians(target.endAngle).normalizedPositive().radians;
     const isInsideAngle =
         start <= end ? angle >= start && angle <= end : angle >= start || angle <= end;
 
@@ -1400,7 +1386,7 @@ function calculateAxisLabelAlpha(facing: number): number {
 }
 
 function getPolygonCenter(points: readonly Vector3[]): Vector3 {
-    return createVector3(
+    return Vec3.of(
         points.reduce((sum, point) => sum + point.x, 0) / points.length,
         points.reduce((sum, point) => sum + point.y, 0) / points.length,
         points.reduce((sum, point) => sum + point.z, 0) / points.length,
@@ -1415,45 +1401,12 @@ function localFromPixels(pixels: number): number {
     return pixels / VIEW_CUBE_SCREEN_SIZE_PX;
 }
 
-function pointOnCircle(center: ScreenPoint, radius: number, angle: number): ScreenPoint {
-    return {
-        x: center.x + Math.cos(angle) * radius,
-        y: center.y + Math.sin(angle) * radius,
-    };
-}
-
 function toScreenPoint(point: Vector3): ScreenPoint {
     return { x: point.x, y: point.y };
 }
 
 function toViewPoint(point: ScreenPoint): Vector3 {
-    return createVector3(point.x, point.y, 0);
-}
-
-function isPointInPolygon(point: ScreenPoint, polygon: readonly ScreenPoint[]): boolean {
-    let inside = false;
-
-    for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index++) {
-        const currentPoint = polygon[index];
-        const previousPoint = polygon[previous];
-
-        if (!currentPoint || !previousPoint) {
-            continue;
-        }
-
-        const crosses =
-            currentPoint.y > point.y !== previousPoint.y > point.y &&
-            point.x <
-                ((previousPoint.x - currentPoint.x) * (point.y - currentPoint.y)) /
-                    (previousPoint.y - currentPoint.y) +
-                    currentPoint.x;
-
-        if (crosses) {
-            inside = !inside;
-        }
-    }
-
-    return inside;
+    return Vec3.of(point.x, point.y, 0);
 }
 
 function findClosest<T extends { readonly depth: number }>(
@@ -1463,29 +1416,20 @@ function findClosest<T extends { readonly depth: number }>(
     return [...targets].sort((left, right) => left.depth - right.depth).find(predicate) ?? null;
 }
 
-function addVector3Local(left: Vector3, right: Vector3): Vector3 {
-    return createVector3(left.x + right.x, left.y + right.y, left.z + right.z);
-}
-
-function addPoint(left: Vector3, right: Vector3): Vector3 {
-    return createVector3(left.x + right.x, left.y + right.y, left.z + right.z);
-}
-
-function distance(left: ScreenPoint, right: ScreenPoint): number {
-    return Math.hypot(left.x - right.x, left.y - right.y);
-}
-
 function calculateProjectedRadius(points: readonly ScreenPoint[], center: Vector3): number {
     const centerPoint = toScreenPoint(center);
 
     return (
-        points.reduce((maxRadius, point) => Math.max(maxRadius, distance(point, centerPoint)), 0) *
-        1.25
+        points.reduce(
+            (maxRadius, point) =>
+                Math.max(maxRadius, Measurement.distance2(point, centerPoint).value),
+            0,
+        ) * 1.25
     );
 }
 
 function offsetViewPoint(point: Vector3, direction: ScreenPoint, amount: number): Vector3 {
-    return createVector3(point.x + direction.x * amount, point.y + direction.y * amount, point.z);
+    return Vec3.of(point.x + direction.x * amount, point.y + direction.y * amount, point.z);
 }
 
 function subtractPoint(left: ScreenPoint, right: ScreenPoint): ScreenPoint {
@@ -1496,46 +1440,11 @@ function subtractPoint(left: ScreenPoint, right: ScreenPoint): ScreenPoint {
 }
 
 function normalize2(point: ScreenPoint): ScreenPoint {
-    const length = Math.hypot(point.x, point.y);
+    const vector = Vec2.from(point);
 
-    if (length <= 1e-6) {
+    if (vector.length() <= 1e-6) {
         return { x: 0, y: 1 };
     }
 
-    return {
-        x: point.x / length,
-        y: point.y / length,
-    };
-}
-
-function signedPolygonArea(points: readonly ScreenPoint[]): number {
-    let area = 0;
-
-    for (let index = 0, previous = points.length - 1; index < points.length; previous = index++) {
-        const currentPoint = points[index];
-        const previousPoint = points[previous];
-
-        if (!currentPoint || !previousPoint) {
-            continue;
-        }
-
-        area += previousPoint.x * currentPoint.y - currentPoint.x * previousPoint.y;
-    }
-
-    return area / 2;
-}
-
-function lerpVector3(start: Vector3, end: Vector3, progress: number): Vector3 {
-    return createVector3(
-        start.x + (end.x - start.x) * progress,
-        start.y + (end.y - start.y) * progress,
-        start.z + (end.z - start.z) * progress,
-    );
-}
-
-function normalizeAngle(angle: number): number {
-    const fullTurn = Math.PI * 2;
-    const normalized = angle % fullTurn;
-
-    return normalized < 0 ? normalized + fullTurn : normalized;
+    return vector.normalize();
 }
