@@ -128,8 +128,10 @@ CAD 视口样式。这里不以通用 PBR material 为核心，而是表达工�
 - `RenderQueue / RenderQueueBuilder / DrawCommand`：已作为内部模块落地，把 `RenderGraph` 转换成本帧绘制计划。
 - `RenderBackend`：已作为内部后端接口落地，隔离 `RenderEngine` 和具体图形 API。
 - `WebGLRenderer`：已作为当前 WebGL2 后端实现落地，管理 context、shader、buffer、label atlas 和 GPU 资源。
+- `ResourceRegistry`：已作为 WebGL 后端内部资源生命周期管理模块落地，集中释放 program、buffer、VAO、label atlas、buffer cache 和 navigation depth 资源。
 - `RenderMaterial / RenderState / ShaderVariantKey`：已作为内部 style-to-backend 语义落地，由公开 `Style` 解析生成。
 - `RenderBufferCache`：WebGL buffer 缓存，避免 clean geometry 重复上传。
+- `RenderPipelineResources`：仍是迁移期内部过渡结构，用于兼容 `HighlightPass / OverlayPass / ViewCube` 对 raw WebGL resource 的依赖，不是使用者 API。
 - shader、label atlas、VAO、WebGL state guard、legacy adapter：只属于 WebGL 后端或迁移层。
 
 ## 目标架构和后续规划
@@ -195,7 +197,7 @@ import {
 
 - `createWebglRenderer`：仅保留为 legacy / deprecated facade，新代码使用 `new RenderEngine(canvas)`。
 - `packages/webgl-engine/src/**` deep import：上层只能从 `@occt-draw/webgl-engine` 包入口导入。
-- `RenderBufferCache / renderQueue / shader / label atlas / legacy adapter`：这些是内部实现，不是使用者 API。
+- `RenderBufferCache / RenderQueue / ResourceRegistry / WebGLRenderer / RenderPipelineResources / shader / label atlas / legacy adapter`：这些是内部实现，不是使用者 API。
 
 ### 最小接入示例
 
@@ -339,7 +341,7 @@ const targetId = viewCube.hitTest({
 
 内部 API：
 
-- WebGL resource、buffer cache、render queue、shader、label atlas、legacy adapter。
+- WebGL resource、ResourceRegistry、buffer cache、render queue、RenderPipelineResources、shader、label atlas、legacy adapter。
 
 ## 生命周期约定
 
@@ -368,7 +370,7 @@ const targetId = viewCube.hitTest({
 ### 当前重构阶段
 
 - 内部 `RenderQueue / RenderQueueBuilder / DrawCommand`
-- 内部 `RenderBackend / WebGLRenderer`
+- 内部 `RenderBackend / WebGLRenderer / ResourceRegistry`
 - 内部 `RenderMaterial / RenderState`
 - 文档中的当前 API、内部实现、目标架构分层
 
@@ -376,7 +378,6 @@ const targetId = viewCube.hitTest({
 
 - `RenderViewport`
 - `Camera / OrthographicCamera / PerspectiveCamera`
-- `ResourceRegistry`
 - `BufferGeometry`
 - `PickIdPass`
 - `NavigationDepthPass`
@@ -536,6 +537,7 @@ interface RenderPass {
 
 下一阶段不在本轮实现：
 
+- `HighlightPass / OverlayPass` 对 `RenderPipelineResources` raw WebGL resource 的依赖收口到 backend helper。
 - `sortPolicy` 驱动的完整渲染排序策略。
 - indexed geometry、instancing、hidden-line、xray 等高级显示。
 

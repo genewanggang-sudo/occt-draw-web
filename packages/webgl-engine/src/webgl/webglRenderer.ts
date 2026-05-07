@@ -14,6 +14,7 @@ import type { RenderPipelineResources } from '../renderPipeline';
 import { LabelAtlasManager } from './labelAtlasManager';
 import { RenderBufferCache } from './renderBufferCache';
 import type { RenderBackend, RenderBackendFrameInput } from './renderBackend';
+import { WebGLResourceRegistry } from './resourceRegistry';
 import { createLabelVertexArray, createRenderVertexArray } from './vertexArrayFactory';
 
 export class WebGLRenderer implements RenderBackend {
@@ -25,6 +26,7 @@ export class WebGLRenderer implements RenderBackend {
     private readonly labelVertexArray: WebGLVertexArrayObject;
     public readonly navigationDepthResources: NavigationDepthResources;
     private readonly program: WebGLProgram;
+    private readonly registry: WebGLResourceRegistry;
     private readonly renderBufferCache: RenderBufferCache;
     private readonly vertexArray: WebGLVertexArrayObject;
     private frameCameraKey = '';
@@ -38,9 +40,15 @@ export class WebGLRenderer implements RenderBackend {
         context: WebGL2RenderingContext,
     ) {
         this.context = context;
-        this.program = createProgram(context);
-        this.labelProgram = createLabelProgram(context);
+        this.registry = new WebGLResourceRegistry(context);
+        this.program = this.registry.registerProgram(createProgram(context));
+        this.labelProgram = this.registry.registerProgram(createLabelProgram(context));
         this.navigationDepthResources = createNavigationDepthResources(context);
+        this.registry.registerDisposable({
+            dispose: () => {
+                disposeNavigationDepthResources(context, this.navigationDepthResources);
+            },
+        });
 
         const positionLocation = context.getAttribLocation(this.program, 'a_position');
         const colorLocation = context.getAttribLocation(this.program, 'a_color');
@@ -63,23 +71,27 @@ export class WebGLRenderer implements RenderBackend {
             throw new Error('WebGL label renderer initialization failed: missing label uniform.');
         }
 
-        const buffer = context.createBuffer();
-        const labelBuffer = context.createBuffer();
-        const labelAtlasManager = new LabelAtlasManager(context);
-        const renderBufferCache = new RenderBufferCache(context);
-        const vertexArray = createRenderVertexArray(context, {
-            alphaLocation,
-            buffer,
-            colorLocation,
-            positionLocation,
-        });
-        const labelVertexArray = createLabelVertexArray(context, {
-            labelAlphaLocation,
-            labelBuffer,
-            labelColorLocation,
-            labelPositionLocation,
-            labelUvLocation,
-        });
+        const buffer = this.registry.registerBuffer(context.createBuffer());
+        const labelBuffer = this.registry.registerBuffer(context.createBuffer());
+        const labelAtlasManager = this.registry.registerDisposable(new LabelAtlasManager(context));
+        const renderBufferCache = this.registry.registerDisposable(new RenderBufferCache(context));
+        const vertexArray = this.registry.registerVertexArray(
+            createRenderVertexArray(context, {
+                alphaLocation,
+                buffer,
+                colorLocation,
+                positionLocation,
+            }),
+        );
+        const labelVertexArray = this.registry.registerVertexArray(
+            createLabelVertexArray(context, {
+                labelAlphaLocation,
+                labelBuffer,
+                labelColorLocation,
+                labelPositionLocation,
+                labelUvLocation,
+            }),
+        );
 
         this.buffer = buffer;
         this.labelAtlasManager = labelAtlasManager;
@@ -139,15 +151,7 @@ export class WebGLRenderer implements RenderBackend {
     }
 
     public dispose(): void {
-        this.context.deleteVertexArray(this.vertexArray);
-        this.context.deleteVertexArray(this.labelVertexArray);
-        this.context.deleteBuffer(this.buffer);
-        this.context.deleteBuffer(this.labelBuffer);
-        this.context.deleteProgram(this.program);
-        this.context.deleteProgram(this.labelProgram);
-        this.labelAtlasManager.dispose();
-        disposeNavigationDepthResources(this.context, this.navigationDepthResources);
-        this.renderBufferCache.dispose();
+        this.registry.dispose();
     }
 
     public draw(command: Exclude<DrawCommand, { readonly primitiveKind: 'label' }>): void {
