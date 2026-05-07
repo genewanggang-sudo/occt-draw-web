@@ -2,11 +2,11 @@ import { createEditDraft, referencePlaneToPlane } from '@occt-draw/core';
 import { LineSegment3, Vec3, type Plane3 } from '@occt-draw/math';
 import {
     addSketchEntity,
-    createSketchLine,
     createSketchPoint,
     findSketchPointById,
     removeSketchEntity,
     sketchPointToWorldOnPlane,
+    SketchApplicationService,
     type Sketch,
     type SketchEntityId,
 } from '@occt-draw/sketch';
@@ -232,19 +232,18 @@ export class SketchLineCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const endPointId = createSketchEntityId(sketch, 'point');
-        const lineId = createSketchEntityId(sketch, 'line');
-        const endPoint = createSketchPoint({
-            id: endPointId,
-            x: point.x,
-            y: point.y,
-        });
-        const line = createSketchLine({
-            endPointId,
-            id: lineId,
+        const startPoint = findSketchPointById(sketch, startPointId);
+
+        if (!startPoint) {
+            return createUnhandledCommandResult();
+        }
+
+        const change = new SketchApplicationService().addLineSegment({
+            endPosition: point,
+            sketch,
             startPointId,
+            startPosition: startPoint,
         });
-        const nextSketch = addSketchEntity(addSketchEntity(sketch, endPoint), line);
 
         return createHandledCommandResult({
             activeSketchSession: {
@@ -258,7 +257,7 @@ export class SketchLineCommand extends CadCommand {
                 status: 'running',
             },
             draft: null,
-            sketches: replaceSketch(state, nextSketch),
+            sketches: replaceSketch(state, change.after),
         });
     }
 }
