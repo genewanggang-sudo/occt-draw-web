@@ -29,8 +29,30 @@ flowchart TB
         Addon -.-> Interaction
     end
 
-    App --> Core
+App --> Core
 ```
+
+## 当前分层一览
+
+主链路：
+
+```txt
+应用层
+  -> RenderEngine
+  -> RenderGraph
+  -> RenderPipeline
+  -> RenderBackend
+  -> WebGLRenderer
+  -> WebGL2
+```
+
+- 应用层：只从 `@occt-draw/webgl-engine` 包入口使用公开类，不 deep import 内部模块。
+- `RenderEngine`：公开入口，绑定 canvas，管理 graph、highlight、viewport，并调度每一帧。
+- `RenderGraph`：场景结构，管理 layer 和 object，不理解 GPU 资源。
+- `RenderPipeline`：渲染阶段顺序，执行 color、highlight、overlay 等 pass，不直接访问 WebGL。
+- `RenderBackend`：内部后端接口，承接 pass 发出的绘制请求。
+- `WebGLRenderer`：内部 WebGL2 后端实现，管理 shader、buffer、label atlas、WebGL state 和资源释放。
+- `RenderQueue / WebGLImmediateRenderer / ResourceRegistry`：内部实现细节，应用层和 pass 不直接依赖。
 
 ## 当前稳定公开 API
 
@@ -188,18 +210,23 @@ import {
 
 推荐使用流程：
 
-1. 应用层创建 `RenderEngine`，传入目标 `HTMLCanvasElement`。
+1. 应用层创建 `RenderEngine`，传入目标 `HTMLCanvasElement`，把这个 canvas 交给引擎绘制。
 2. 应用层创建 `RenderGraph`。
-3. 应用层创建 scene layer 和 overlay layer。
-4. 应用层创建 `FaceSet / EdgeSet / PointSet / MarkerSet / TextLabelSet` 等对象。
+3. 应用层创建 `RenderLayer`，例如 scene layer 和 overlay layer。
+4. 应用层添加 `FaceSet / EdgeSet / PointSet / MarkerSet / TextLabelSet` 等 render object。
 5. 应用层按需创建 `ViewCube` 等 addon，并加入 overlay layer。
-6. 应用层调用 `engine.setGraph(graph)`、`engine.setHighlight(highlight)`、`engine.resize(viewportSize)`、`engine.render(camera)`。
+6. 应用层调用 `engine.setGraph(graph)`。
+7. 视口尺寸变化时调用 `engine.resize(viewportSize)`。
+8. 选择状态变化时调用 `engine.setHighlight(highlight)`。
+9. 相机变化或数据更新后调用 `engine.render(camera)`。
 
 不推荐使用：
 
 - `createWebglRenderer`：仅保留为 legacy / deprecated facade，新代码使用 `new RenderEngine(canvas)`。
 - `packages/webgl-engine/src/**` deep import：上层只能从 `@occt-draw/webgl-engine` 包入口导入。
 - `RenderBufferCache / RenderQueue / ResourceRegistry / WebGLRenderer / RenderPipelineResources / shader / label atlas / legacy adapter`：这些是内部实现，不是使用者 API。
+
+`RenderEngine` 是 canvas 渲染入口，不是 scene、object 或 WebGL 后端。使用者创建它之后，只通过 graph、camera、highlight 等输入驱动渲染。
 
 ### 最小接入示例
 
@@ -345,6 +372,21 @@ const targetId = viewCube.hitTest({
 
 - WebGL resource、ResourceRegistry、backend immediate draw、buffer cache、render queue、RenderPipelineResources、shader、label atlas、legacy adapter。
 
+## 扩展放置规则
+
+- 新图元：新增 `RenderObject` 子类，例如后续 `CurveSet`、`MeshSet`。图元负责 geometry、style、bounds、dirty flags 和 pick metadata。
+- 新辅助控件：新增 `ViewportWidget` / addon 类，例如 `AxesHelper / GridHelper / BoundsHelper`。应用层决定是否实例化、加入哪个 layer，以及如何处理事件。
+- 新渲染阶段：新增 `RenderPass`，例如 hidden-line、xray、section。pass 只表达阶段意图，通过 backend 绘制，不直接访问 WebGL。
+- 新 WebGL 细节：放到 backend 内部，例如 shader、buffer、state、atlas、resource registry，不进入应用层或 pass。
+- 新数学算法：优先进入 `@occt-draw/math`，例如曲线采样、矩阵、包围盒、几何计算。
+
+禁止做法：
+
+- 不新增公开散落流程函数。
+- 不允许上层 deep import `packages/webgl-engine/src/**`。
+- 不把 ViewCube、helper 或 widget 逻辑写死进主 render pipeline。
+- 不把 CAD 业务语义塞进 WebGL 后端。
+
 ## 生命周期约定
 
 - 应用层负责创建 graph、layer、object 和 addon。
@@ -352,7 +394,7 @@ const targetId = viewCube.hitTest({
 - `RenderObject` 负责维护自身 geometry、style、bounds 和 dirty 状态。
 - 内部 `WebGLRenderer` 只管理 GPU 资源，不持有业务状态。
 - 旧 `RenderScene` 输入通过兼容适配器迁移到 `RenderGraph`，避免当前功能一次性重写。
-- `webglRenderer.ts` 只保留公开 `RenderEngine` 门面和 deprecated facade；VAO、label atlas、buffer cache、shader 等细节放到内部 WebGL 后端。
+- `renderEngine.ts` 只保留公开 `RenderEngine` 门面和 deprecated facade；VAO、label atlas、buffer cache、shader 等细节放到内部 WebGL 后端。
 - `legacy/` 目录只服务迁移期，不作为长期核心架构。
 
 ## 实现优先级
@@ -528,7 +570,7 @@ interface RenderPass {
 
 ## 当前实现状态
 
-- `RenderGraph` 已经是主渲染链路输入，`webglRenderer.render(camera)` 不再转回 `RenderScene`。
+- `RenderGraph` 已经是主渲染链路输入，`RenderEngine.render(camera)` 直接调度当前 graph、pipeline 和 backend。
 - `RenderObject` 当前落地为 `FaceSet / EdgeSet / PointSet / MarkerSet / TextLabelSet / ViewCube`，CAD 业务类型不进入 `webgl-engine`。
 - `RenderPass` 是管线阶段，不承载 CAD 业务语义。当前顺序为 `ColorPass -> HighlightPass -> OverlayPass`。
 - `RenderPassContext` 已不再暴露 `WebGL2RenderingContext`，pass 只通过 backend 访问绘制能力。
@@ -605,7 +647,7 @@ if (targetId) {
 - `createRenderScene`
 - `pickRenderNode`
 - `hitTestViewCube`
-- `createWebglRenderer().render(input)`
+- `createWebglRenderer` facade
 
 legacy 兼容代码必须集中放在 `webgl-engine/src/legacy`，不得混入 `core / scene / pipeline / webgl` 的长期实现。
 
@@ -681,8 +723,8 @@ legacy 兼容代码必须集中放在 `webgl-engine/src/legacy`，不得混入 `
     - `point-batch` -> `PointSet`
     - `marker-batch` -> `MarkerSet`
     - `label-batch` -> `TextLabelSet`
-- 保留 `createWebglRenderer` 作为兼容 facade。
-- `createWebglRenderer().render(input)` 内部先构建 `RenderGraph`，再交给新引擎骨架。
+- 保留 `createWebglRenderer` 作为 deprecated facade，新代码使用 `new RenderEngine(canvas)`。
+- legacy 输入协议只允许通过 `legacy/` 适配器迁移到 `RenderGraph`，不作为新代码推荐入口。
 - 兼容适配层必须支持 `RenderGraph -> RenderScene`，直到旧 GPU 绘制路径完全删除。
 
 验收标准：
