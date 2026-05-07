@@ -4,7 +4,6 @@ import { collectPickableGraphObjects } from '../graphTraversal';
 import { createRenderPrimitiveId } from '../primitiveId';
 import { EdgeSet, FaceSet, MarkerSet, PointSet } from '../scene';
 import type { MarkerVertex, RenderHighlightState, RenderVertex } from '../types';
-import { toVertexBuffer } from '../vertexBuffer';
 import type { RenderPass, RenderPassContext } from './renderPass';
 
 type HighlightKind = 'hovered' | 'preselected' | 'selected';
@@ -22,7 +21,7 @@ const HIGHLIGHT_POINT_SIZE_GROWTH = 4;
 export class HighlightPass implements RenderPass {
     public readonly name = 'highlight';
 
-    public execute({ context, input, resources }: RenderPassContext): void {
+    public execute({ input, resources }: RenderPassContext): void {
         const lineVertices: RenderVertex[] = [];
         const pointVertices: MarkerVertex[] = [];
         const markerVertices: MarkerVertex[] = [];
@@ -45,24 +44,39 @@ export class HighlightPass implements RenderPass {
             return;
         }
 
-        context.useProgram(resources.program);
-        context.bindVertexArray(resources.vertexArray);
-        context.bindBuffer(context.ARRAY_BUFFER, resources.buffer);
-        context.enable(context.BLEND);
-        context.blendFunc(context.SRC_ALPHA, context.ONE_MINUS_SRC_ALPHA);
-        context.depthMask(false);
-        context.depthFunc(context.LEQUAL);
+        resources.backend.drawImmediatePrimitives({
+            drawMode: 'lines',
+            state: HIGHLIGHT_RENDER_STATE,
+            vertices: lineVertices,
+        });
 
-        drawVertices(context, resources, lineVertices, context.LINES, 1, 0);
-        drawPointVertices(context, resources, pointVertices);
-        drawMarkerVertices(context, resources, markerVertices);
+        for (const vertex of pointVertices) {
+            resources.backend.drawImmediatePrimitives({
+                drawMode: 'points',
+                pointShape: 'circle',
+                pointSize: vertex.sizePixels,
+                state: HIGHLIGHT_RENDER_STATE,
+                vertices: [vertex],
+            });
+        }
 
-        context.depthMask(true);
-        context.depthFunc(context.LESS);
-        context.disable(context.BLEND);
-        context.bindVertexArray(null);
+        for (const vertex of markerVertices) {
+            resources.backend.drawImmediatePrimitives({
+                drawMode: 'points',
+                pointShape: 'marker',
+                pointSize: vertex.sizePixels,
+                state: HIGHLIGHT_RENDER_STATE,
+                vertices: [vertex],
+            });
+        }
     }
 }
+
+const HIGHLIGHT_RENDER_STATE = {
+    blend: true,
+    depthFunc: 'lequal',
+    depthWrite: false,
+} as const;
 
 function resolveHighlightTarget(
     entry: RenderGraphObjectEntry,
@@ -273,48 +287,4 @@ function appendLine(
     color: Vector3,
 ): void {
     vertices.push({ alpha: 1, color, position: start }, { alpha: 1, color, position: end });
-}
-
-function drawVertices(
-    context: WebGL2RenderingContext,
-    resources: RenderPassContext['resources'],
-    vertices: readonly RenderVertex[],
-    mode: number,
-    pointSize: number,
-    pointShape: number,
-): void {
-    if (vertices.length === 0) {
-        return;
-    }
-
-    context.bufferData(context.ARRAY_BUFFER, toVertexBuffer(vertices), context.STATIC_DRAW);
-    context.uniform1f(resources.pointSizeLocation, pointSize);
-    context.uniform1f(resources.pointShapeLocation, pointShape);
-    context.drawArrays(mode, 0, vertices.length);
-}
-
-function drawMarkerVertices(
-    context: WebGL2RenderingContext,
-    resources: RenderPassContext['resources'],
-    vertices: readonly MarkerVertex[],
-): void {
-    for (const vertex of vertices) {
-        context.bufferData(context.ARRAY_BUFFER, toVertexBuffer([vertex]), context.STATIC_DRAW);
-        context.uniform1f(resources.pointSizeLocation, vertex.sizePixels);
-        context.uniform1f(resources.pointShapeLocation, 2);
-        context.drawArrays(context.POINTS, 0, 1);
-    }
-}
-
-function drawPointVertices(
-    context: WebGL2RenderingContext,
-    resources: RenderPassContext['resources'],
-    vertices: readonly MarkerVertex[],
-): void {
-    for (const vertex of vertices) {
-        context.bufferData(context.ARRAY_BUFFER, toVertexBuffer([vertex]), context.STATIC_DRAW);
-        context.uniform1f(resources.pointSizeLocation, vertex.sizePixels);
-        context.uniform1f(resources.pointShapeLocation, 1);
-        context.drawArrays(context.POINTS, 0, 1);
-    }
 }

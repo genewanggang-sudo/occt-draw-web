@@ -129,9 +129,10 @@ CAD 视口样式。这里不以通用 PBR material 为核心，而是表达工�
 - `RenderBackend`：已作为内部后端接口落地，隔离 `RenderEngine` 和具体图形 API。
 - `WebGLRenderer`：已作为当前 WebGL2 后端实现落地，管理 context、shader、buffer、label atlas 和 GPU 资源。
 - `ResourceRegistry`：已作为 WebGL 后端内部资源生命周期管理模块落地，集中释放 program、buffer、VAO、label atlas、buffer cache 和 navigation depth 资源。
+- backend immediate draw：已作为内部能力落地，用于 highlight、overlay、widget 等非 graph queue 的临时绘制。
 - `RenderMaterial / RenderState / ShaderVariantKey`：已作为内部 style-to-backend 语义落地，由公开 `Style` 解析生成。
 - `RenderBufferCache`：WebGL buffer 缓存，避免 clean geometry 重复上传。
-- `RenderPipelineResources`：仍是迁移期内部过渡结构，用于兼容 `HighlightPass / OverlayPass / ViewCube` 对 raw WebGL resource 的依赖，不是使用者 API。
+- `RenderPipelineResources`：已收窄为迁移期内部过渡上下文，仅保留 backend 和 label atlas glyphs，不是使用者 API。
 - shader、label atlas、VAO、WebGL state guard、legacy adapter：只属于 WebGL 后端或迁移层。
 
 ## 目标架构和后续规划
@@ -341,7 +342,7 @@ const targetId = viewCube.hitTest({
 
 内部 API：
 
-- WebGL resource、ResourceRegistry、buffer cache、render queue、RenderPipelineResources、shader、label atlas、legacy adapter。
+- WebGL resource、ResourceRegistry、backend immediate draw、buffer cache、render queue、RenderPipelineResources、shader、label atlas、legacy adapter。
 
 ## 生命周期约定
 
@@ -530,14 +531,15 @@ interface RenderPass {
 - `RenderObject` 当前落地为 `FaceSet / EdgeSet / PointSet / MarkerSet / TextLabelSet / ViewCube`，CAD 业务类型不进入 `webgl-engine`。
 - `RenderPass` 是管线阶段，不承载 CAD 业务语义。当前顺序为 `ColorPass -> HighlightPass -> OverlayPass`。
 - `ColorPass` 绘制主场景：face、edge、point、marker 和 label。
-- `HighlightPass` 绘制 hover、preselect、select 高亮，直接遍历 `RenderGraph`，跳过 overlay、不可见和不可 pick 对象。
-- `OverlayPass` 绘制 ViewCube 等 overlay object，ViewCube 命中由 `ViewCube.hitTest(...)` 提供。
-- `webglStateGuard` 统一保存和恢复 WebGL 全局状态，`NavigationDepthSampler` 和 `OverlayPass` 使用该基础设施。
+- `HighlightPass` 绘制 hover、preselect、select 高亮，直接遍历 `RenderGraph`，跳过 overlay、不可见和不可 pick 对象，并通过 backend immediate draw 执行底层绘制。
+- `OverlayPass` 绘制 ViewCube 等 overlay object，ViewCube 命中由 `ViewCube.hitTest(...)` 提供，overlay 绘制通过 ViewCube overlay model 和 backend immediate draw 执行。
+- `webglStateGuard` 统一保存和恢复 WebGL 全局状态，当前由 `NavigationDepthSampler` 使用。
 - `legacy/` 只保留迁移期兼容代码，业务代码和包主入口不再使用旧 `RenderScene / RenderNode / RenderFrameInput`。
 
 下一阶段不在本轮实现：
 
-- `HighlightPass / OverlayPass` 对 `RenderPipelineResources` raw WebGL resource 的依赖收口到 backend helper。
+- 删除或继续收窄 `RenderPassContext.context`。
+- 将 backend immediate draw 进一步模块化为 highlight renderer / overlay renderer。
 - `sortPolicy` 驱动的完整渲染排序策略。
 - indexed geometry、instancing、hidden-line、xray 等高级显示。
 

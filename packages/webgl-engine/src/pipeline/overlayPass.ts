@@ -1,26 +1,32 @@
-import { renderViewCubeOverlay } from '../viewCube';
+import { createViewCubeOverlayModel } from '../viewCube';
 import { ViewCube } from '../addon';
 import type { RenderGraph } from '../core';
-import { withWebglStateRestored } from '../webgl';
 import type { RenderPass, RenderPassContext } from './renderPass';
 
 export class OverlayPass implements RenderPass {
     public readonly name = 'overlay';
 
-    public execute({ context, input, resources }: RenderPassContext): void {
+    public execute({ input, resources }: RenderPassContext): void {
         const viewCube = findViewCube(input.graph)?.toRenderInput();
 
         if (!viewCube) {
             return;
         }
 
-        withWebglStateRestored(context, () => {
-            renderViewCubeOverlay(context, resources, {
-                camera: input.camera,
-                hoveredTargetId: viewCube.hoveredTargetId,
-                viewportSize: input.viewportSize,
-            });
+        const model = createViewCubeOverlayModel({
+            camera: input.camera,
+            glyphs: resources.labelAtlasGlyphs,
+            hoveredTargetId: viewCube.hoveredTargetId,
+            viewportSize: input.viewportSize,
         });
+
+        for (const command of model.commands) {
+            if (command.kind === 'labels') {
+                resources.backend.drawImmediateLabels(command);
+            } else {
+                resources.backend.drawImmediatePrimitives(command);
+            }
+        }
     }
 }
 

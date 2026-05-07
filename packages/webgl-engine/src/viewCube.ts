@@ -1,10 +1,9 @@
 import { createLabelGlyphKey, DEFAULT_LABEL_FONT_WEIGHT, type LabelAtlas } from './labelAtlas';
-import { toLabelVertexBuffer } from './labelGeometry';
-import { toVertexBuffer } from './vertexBuffer';
 import { calculateCameraBasis, type CameraBasis } from './cameraGeometry';
 import type {
     CameraState,
     LabelVertex,
+    Matrix4,
     RenderVertex,
     ScreenPoint2,
     ViewCubeArrowCommand,
@@ -25,7 +24,6 @@ import {
     Vec3,
     type Vector3,
 } from '@occt-draw/math';
-import type { RenderPipelineResources } from './renderPipeline';
 
 interface ScreenPoint {
     readonly x: number;
@@ -119,6 +117,38 @@ interface FaceDefinition {
     readonly vAxis: Vector3;
 }
 
+export type ViewCubeOverlayCommand = ViewCubeOverlayLabelCommand | ViewCubeOverlayPrimitiveCommand;
+
+export interface ViewCubeOverlayLabelCommand {
+    readonly kind: 'labels';
+    readonly matrix: Matrix4;
+    readonly state: ViewCubeOverlayRenderState;
+    readonly vertices: readonly LabelVertex[];
+}
+
+export interface ViewCubeOverlayModel {
+    readonly commands: readonly ViewCubeOverlayCommand[];
+}
+
+export interface ViewCubeOverlayPrimitiveCommand {
+    readonly drawMode: 'lines' | 'points' | 'triangles';
+    readonly kind: 'primitives';
+    readonly matrix: Matrix4;
+    readonly pointShape?: 'circle' | 'marker' | 'none';
+    readonly pointSize?: number;
+    readonly state: ViewCubeOverlayRenderState;
+    readonly vertices: readonly RenderVertex[];
+}
+
+export interface ViewCubeOverlayRenderState {
+    readonly blend?: boolean;
+    readonly clearDepthBuffer?: boolean;
+    readonly cullFace?: 'back' | 'front' | 'none';
+    readonly depthFunc?: 'lequal' | 'less';
+    readonly depthTest?: boolean;
+    readonly depthWrite?: boolean;
+}
+
 const VIEW_CUBE_SCREEN_SIZE_PX = 150;
 const VIEW_CUBE_TOP_MARGIN_PX = 15;
 const VIEW_CUBE_RIGHT_MARGIN_PX = 15;
@@ -163,117 +193,123 @@ const X_AXIS_COLOR = Vec3.of(0.85, 0.12, 0.1);
 const Y_AXIS_COLOR = Vec3.of(0.1, 0.58, 0.2);
 const Z_AXIS_COLOR = Vec3.of(0.15, 0.38, 0.85);
 
-export function renderViewCubeOverlay(
-    context: WebGL2RenderingContext,
-    resources: RenderPipelineResources,
-    input: {
-        readonly camera: CameraState;
-        readonly hoveredTargetId: ViewCubeTargetId | null;
-        readonly viewportSize: ViewportSize;
-    },
-): void {
+export function createViewCubeOverlayModel(input: {
+    readonly camera: CameraState;
+    readonly glyphs: LabelAtlas['glyphs'];
+    readonly hoveredTargetId: ViewCubeTargetId | null;
+    readonly viewportSize: ViewportSize;
+}): ViewCubeOverlayModel {
     const matrices = createViewCubeMatrices(input.camera, input.viewportSize);
     const layout = createViewCubeLayout(input.camera);
     const vertices = createViewCubeVertices(layout, input.hoveredTargetId);
     const faceLabelVertices = createViewCubeLabelVertices({
-        glyphs: resources.labelAtlasGlyphs,
+        glyphs: input.glyphs,
         hoveredTargetId: input.hoveredTargetId,
         labels: layout.faceLabels,
     });
     const axisLabelVertices = createViewCubeLabelVertices({
-        glyphs: resources.labelAtlasGlyphs,
+        glyphs: input.glyphs,
         hoveredTargetId: input.hoveredTargetId,
         labels: layout.axisLabels,
     });
     const axisLabelShowThroughVertices = createViewCubeLabelVertices({
-        glyphs: resources.labelAtlasGlyphs,
+        glyphs: input.glyphs,
         hoveredTargetId: input.hoveredTargetId,
         labels: createShowThroughLabels(layout.axisLabels),
     });
+    const commands: ViewCubeOverlayCommand[] = [
+        createViewCubePrimitiveCommand(vertices.backTriangles, 'triangles', matrices.bodyMatrix, {
+            blend: true,
+            clearDepthBuffer: true,
+            cullFace: 'front',
+            depthTest: true,
+            depthWrite: true,
+        }),
+        createViewCubePrimitiveCommand(vertices.frontTriangles, 'triangles', matrices.bodyMatrix, {
+            blend: true,
+            cullFace: 'back',
+            depthTest: true,
+            depthWrite: true,
+        }),
+        createViewCubeLabelCommand(faceLabelVertices, matrices.bodyMatrix, {
+            blend: true,
+            cullFace: 'back',
+            depthTest: true,
+            depthWrite: true,
+        }),
+        createViewCubePrimitiveCommand(vertices.bodyLines, 'lines', matrices.bodyMatrix, {
+            blend: true,
+            cullFace: 'none',
+            depthTest: true,
+            depthWrite: false,
+        }),
+        createViewCubeLabelCommand(axisLabelVertices, matrices.screenMatrix, {
+            blend: true,
+            cullFace: 'none',
+            depthTest: true,
+            depthWrite: false,
+        }),
+        createViewCubePrimitiveCommand(
+            vertices.showThroughBodyLines,
+            'lines',
+            matrices.bodyMatrix,
+            {
+                blend: true,
+                cullFace: 'none',
+                depthTest: false,
+                depthWrite: false,
+            },
+        ),
+        createViewCubeLabelCommand(axisLabelShowThroughVertices, matrices.screenMatrix, {
+            blend: true,
+            cullFace: 'none',
+            depthTest: false,
+            depthWrite: false,
+        }),
+        createViewCubePrimitiveCommand(
+            vertices.screenTriangles,
+            'triangles',
+            matrices.screenMatrix,
+            {
+                blend: true,
+                cullFace: 'none',
+                depthTest: false,
+                depthWrite: false,
+            },
+        ),
+    ];
 
-    context.clear(context.DEPTH_BUFFER_BIT);
-    context.enable(context.DEPTH_TEST);
-    context.enable(context.BLEND);
-    context.blendFunc(context.SRC_ALPHA, context.ONE_MINUS_SRC_ALPHA);
-    context.depthMask(true);
+    return { commands: commands.filter((command) => command.vertices.length > 0) };
+}
 
-    context.useProgram(resources.program);
-    context.bindVertexArray(resources.vertexArray);
+function createViewCubeLabelCommand(
+    vertices: readonly LabelVertex[],
+    matrix: Matrix4,
+    state: ViewCubeOverlayRenderState,
+): ViewCubeOverlayLabelCommand {
+    return {
+        kind: 'labels',
+        matrix,
+        state,
+        vertices,
+    };
+}
 
-    context.enable(context.CULL_FACE);
-    context.frontFace(context.CCW);
-    context.cullFace(context.FRONT);
-    drawOverlayVertices(
-        context,
-        resources,
-        vertices.backTriangles,
-        context.TRIANGLES,
-        1,
-        false,
-        matrices.bodyMatrix,
-    );
-
-    context.cullFace(context.BACK);
-    drawOverlayVertices(
-        context,
-        resources,
-        vertices.frontTriangles,
-        context.TRIANGLES,
-        1,
-        false,
-        matrices.bodyMatrix,
-    );
-
-    if (faceLabelVertices.length > 0) {
-        drawLabelVertices(context, resources, faceLabelVertices, matrices.bodyMatrix);
-    }
-
-    context.disable(context.CULL_FACE);
-    context.depthMask(false);
-    drawOverlayVertices(
-        context,
-        resources,
-        vertices.bodyLines,
-        context.LINES,
-        1,
-        false,
-        matrices.bodyMatrix,
-    );
-
-    if (axisLabelVertices.length > 0) {
-        drawLabelVertices(context, resources, axisLabelVertices, matrices.screenMatrix);
-    }
-
-    context.disable(context.DEPTH_TEST);
-    drawOverlayVertices(
-        context,
-        resources,
-        vertices.showThroughBodyLines,
-        context.LINES,
-        1,
-        false,
-        matrices.bodyMatrix,
-    );
-
-    if (axisLabelShowThroughVertices.length > 0) {
-        drawLabelVertices(context, resources, axisLabelShowThroughVertices, matrices.screenMatrix);
-    }
-
-    drawOverlayVertices(
-        context,
-        resources,
-        vertices.screenTriangles,
-        context.TRIANGLES,
-        1,
-        false,
-        matrices.screenMatrix,
-    );
-
-    context.disable(context.BLEND);
-    context.disable(context.CULL_FACE);
-    context.enable(context.DEPTH_TEST);
-    context.depthMask(true);
-    context.bindVertexArray(null);
+function createViewCubePrimitiveCommand(
+    vertices: readonly RenderVertex[],
+    drawMode: ViewCubeOverlayPrimitiveCommand['drawMode'],
+    matrix: Matrix4,
+    state: ViewCubeOverlayRenderState,
+): ViewCubeOverlayPrimitiveCommand {
+    return {
+        drawMode,
+        kind: 'primitives',
+        matrix,
+        pointShape: 'none',
+        pointSize: 1,
+        state,
+        vertices,
+    };
 }
 
 export function findViewCubeTargetAtPoint(input: {
@@ -1183,50 +1219,6 @@ function appendDashedLine(
             start: Vec3.lerp(start, end, startProgress),
         });
     }
-}
-
-function drawOverlayVertices(
-    context: WebGL2RenderingContext,
-    resources: RenderPipelineResources,
-    vertices: readonly RenderVertex[],
-    mode: number,
-    pointSize: number,
-    usePointShape: boolean,
-    matrix: Float32Array,
-): void {
-    if (vertices.length === 0) {
-        return;
-    }
-
-    context.useProgram(resources.program);
-    context.bindVertexArray(resources.vertexArray);
-    context.uniformMatrix4fv(resources.matrixLocation, false, matrix);
-    context.bindBuffer(context.ARRAY_BUFFER, resources.buffer);
-    context.bufferData(context.ARRAY_BUFFER, toVertexBuffer(vertices), context.STATIC_DRAW);
-    context.uniform1f(resources.pointSizeLocation, pointSize);
-    context.uniform1f(resources.pointShapeLocation, usePointShape ? 1 : 0);
-    context.drawArrays(mode, 0, vertices.length);
-}
-
-function drawLabelVertices(
-    context: WebGL2RenderingContext,
-    resources: RenderPipelineResources,
-    vertices: readonly LabelVertex[],
-    matrix: Float32Array,
-): void {
-    if (vertices.length === 0) {
-        return;
-    }
-
-    context.useProgram(resources.labelProgram);
-    context.uniformMatrix4fv(resources.labelMatrixLocation, false, matrix);
-    context.activeTexture(context.TEXTURE0);
-    context.bindTexture(context.TEXTURE_2D, resources.labelAtlasTexture);
-    context.uniform1i(resources.labelTextureLocation, 0);
-    context.bindVertexArray(resources.labelVertexArray);
-    context.bindBuffer(context.ARRAY_BUFFER, resources.labelBuffer);
-    context.bufferData(context.ARRAY_BUFFER, toLabelVertexBuffer(vertices), context.STATIC_DRAW);
-    context.drawArrays(context.TRIANGLES, 0, vertices.length);
 }
 
 function createTrianglePart(
