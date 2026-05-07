@@ -228,6 +228,43 @@ import {
 
 `RenderEngine` 是 canvas 渲染入口，不是 scene、object 或 WebGL 后端。使用者创建它之后，只通过 graph、camera、highlight 等输入驱动渲染。
 
+## 核心对象模型
+
+渲染引擎里要画的东西统一表达为 `RenderObject`：
+
+```txt
+RenderObject = Geometry + Style + Bounds + DirtyFlags + PickMetadata
+```
+
+- `Geometry`：形状数据，例如三角面、线段、点坐标。
+- `Style`：显示样式，例如颜色、透明度、点大小。
+- `Bounds`：对象包围盒，用于 fit、navigation depth 和视口范围计算。
+- `DirtyFlags`：对象、geometry、style、bounds 的局部更新标记。
+- `PickMetadata`：pickable、interactionId、metadata 等交互信息。
+
+`FaceSet / EdgeSet / PointSet / MarkerSet / TextLabelSet` 都是 `RenderObject` 子类。这里的 `Set` 表示“一组同类 primitive 的可渲染对象”，不是普通数组。
+
+```txt
+FaceSet  = FaceGeometry  + FaceStyle
+EdgeSet  = EdgeGeometry  + EdgeStyle
+PointSet = PointGeometry + PointStyle
+```
+
+- `FaceSet`：一组面片的渲染对象。
+- `EdgeSet`：一组线段的渲染对象。
+- `PointSet`：一组点的渲染对象。
+
+初始化场景并画点线面的链路：
+
+```txt
+RenderEngine
+  <- RenderGraph
+    <- RenderLayer
+      <- FaceSet / EdgeSet / PointSet
+```
+
+使用者先创建点线面对象，把它们加入 layer，再把 layer 加入 graph，最后把 graph 交给 `RenderEngine`。`RenderEngine` 不直接持有点线面，只负责调度渲染。
+
 ### 最小接入示例
 
 ```ts
@@ -298,6 +335,72 @@ engine.setHighlight({
 });
 engine.render(camera);
 ```
+
+### 最小点线面示例
+
+```ts
+const engine = new RenderEngine(canvas);
+const graph = new RenderGraph();
+const layer = new RenderLayer('scene');
+
+const a = Vec3.of(0, 0, 0);
+const b = Vec3.of(1, 0, 0);
+const c = Vec3.of(0, 1, 0);
+
+const face = new FaceSet(
+    new FaceGeometry([{ a, b, c }]),
+    new FaceStyle({ color: Vec3.of(0.1, 0.45, 0.9), opacity: 0.45 }),
+);
+
+const edge = new EdgeSet(
+    new EdgeGeometry([new LineSegment3(a, b), new LineSegment3(b, c), new LineSegment3(c, a)]),
+    new EdgeStyle({ color: Vec3.of(1, 1, 1) }),
+);
+
+const point = new PointSet(
+    new PointGeometry([Vec3.of(0.5, 0.5, 0)]),
+    new PointStyle({ color: Vec3.of(1, 0.2, 0.1), sizePixels: 10 }),
+);
+
+layer.add(face);
+layer.add(edge);
+layer.add(point);
+graph.addLayer(layer);
+
+const viewportSize = { width: canvas.clientWidth, height: canvas.clientHeight };
+const camera = createStandardCameraState(graph.bounds, 'isometric', viewportSize);
+
+engine.setGraph(graph);
+engine.resize(viewportSize);
+engine.render(camera);
+```
+
+### 新增图元扩展方式
+
+新增图元时优先按对象模型扩展，而不是新增公开散落流程函数。
+
+```ts
+class CurveGeometry {
+    constructor(public readonly curves: readonly CurveData[]) {}
+}
+
+class CurveStyle {
+    constructor(public readonly color: Vector3) {}
+}
+
+class CurveSet extends RenderObject {
+    readonly geometry: CurveGeometry;
+    readonly style: CurveStyle;
+}
+```
+
+新增图元应包含：
+
+- 新增 `Geometry` 类表达数据。
+- 新增 `Style` 类表达显示。
+- 新增 `RenderObject` 子类组合 geometry 和 style。
+- 让 `RenderQueueBuilder` 或后续 geometry pipeline 识别该对象。
+- 不新增公开 `drawCurve(...) / renderCurve(...) / createCurveVertices(...)` 这类散落流程函数。
 
 ### 对象更新约定
 
