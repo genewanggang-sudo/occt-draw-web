@@ -1,21 +1,21 @@
 import { Vec3, type Vector3 } from '@occt-draw/math';
 import { getCameraViewHeight } from '../cameraGeometry';
+import { GeometryBufferBuilder, type GeometryBuffer } from '../geometry';
 import type { RenderGraphObjectEntry } from '../graphTraversal';
 import { collectSceneGraphObjects } from '../graphTraversal';
 import { createLabelGlyphKey, DEFAULT_LABEL_FONT_WEIGHT, type LabelAtlas } from '../labelAtlas';
-import { EdgeSet, FaceSet, MarkerSet, PointSet, TextLabelSet } from '../scene';
-import type { CameraState, LabelVertex, MarkerVertex, RenderVertex, ViewportSize } from '../types';
+import { MarkerSet, TextLabelSet } from '../scene';
+import { RenderableObject } from '../renderableObject';
+import type { CameraState, LabelVertex, MarkerVertex, ViewportSize } from '../types';
 import type { RenderFrameContext } from './renderPass';
 import {
-    resolveEdgeMaterial,
-    resolveFaceMaterial,
     resolveMarkerMaterial,
-    resolvePointMaterial,
     resolveTextMaterial,
     type RenderMaterial,
+    RenderMaterialResolver,
 } from './renderMaterial';
 
-export type DrawPrimitiveKind = 'edge' | 'face' | 'label' | 'marker' | 'point';
+export type DrawPrimitiveKind = 'edge' | 'face' | 'label' | 'marker' | 'point' | (string & {});
 export type DrawMode = 'lines' | 'points' | 'triangles';
 
 interface BaseDrawCommand<TObject, TVertex> {
@@ -34,22 +34,39 @@ interface BaseDrawCommand<TObject, TVertex> {
     readonly vertices: readonly TVertex[];
 }
 
+interface BufferDrawCommand<TObject> {
+    readonly geometryBuffer: GeometryBuffer;
+    readonly cacheKey: string;
+    readonly depthPolicy: 'scene';
+    readonly dirtyFlags: {
+        readonly geometry: boolean;
+        readonly object: boolean;
+        readonly style: boolean;
+    };
+    readonly drawMode: DrawMode;
+    readonly material: RenderMaterial;
+    readonly object: TObject;
+    readonly primitiveKind: DrawPrimitiveKind;
+    readonly style: TObject extends { readonly style: infer TStyle } ? TStyle : never;
+}
+
 export type DrawCommand =
-    | (BaseDrawCommand<EdgeSet, RenderVertex> & { readonly primitiveKind: 'edge' })
-    | (BaseDrawCommand<FaceSet, RenderVertex> & { readonly primitiveKind: 'face' })
+    | (BufferDrawCommand<RenderableObject<unknown, unknown>> & { readonly primitiveKind: string })
     | (BaseDrawCommand<MarkerSet, MarkerVertex> & { readonly primitiveKind: 'marker' })
-    | (BaseDrawCommand<PointSet, RenderVertex> & { readonly primitiveKind: 'point' })
     | (BaseDrawCommand<TextLabelSet, LabelVertex> & { readonly primitiveKind: 'label' });
 
 export class RenderQueue {
-    public readonly edges: Extract<DrawCommand, { readonly primitiveKind: 'edge' }>[] = [];
-    public readonly faces: Extract<DrawCommand, { readonly primitiveKind: 'face' }>[] = [];
+    public readonly edges: BufferDrawCommand<RenderableObject<unknown, unknown>>[] = [];
+    public readonly faces: BufferDrawCommand<RenderableObject<unknown, unknown>>[] = [];
     public readonly labels: Extract<DrawCommand, { readonly primitiveKind: 'label' }>[] = [];
     public readonly markers: Extract<DrawCommand, { readonly primitiveKind: 'marker' }>[] = [];
-    public readonly points: Extract<DrawCommand, { readonly primitiveKind: 'point' }>[] = [];
+    public readonly points: BufferDrawCommand<RenderableObject<unknown, unknown>>[] = [];
 }
 
 export class RenderQueueBuilder {
+    private readonly geometryBuffers = new GeometryBufferBuilder();
+    private readonly materials = new RenderMaterialResolver();
+
     public build(input: RenderFrameContext, atlas: Pick<LabelAtlas, 'glyphs'>): RenderQueue {
         const queue = new RenderQueue();
         const worldUnitsPerPixel = calculateWorldUnitsPerPixel(input.camera, input.viewportSize);
@@ -69,42 +86,8 @@ export class RenderQueueBuilder {
     ): void {
         const { object } = entry;
 
-        if (object instanceof FaceSet) {
-            queue.faces.push({
-                cacheKey: `color:face:${object.id}`,
-                depthPolicy: 'scene',
-                dirtyFlags: object.dirtyFlags,
-                drawMode: 'triangles',
-                material: resolveFaceMaterial(object.style),
-                object,
-                primitiveKind: 'face',
-                style: object.style,
-                vertices: createFaceVertices(object),
-            });
-        } else if (object instanceof EdgeSet) {
-            queue.edges.push({
-                cacheKey: `color:edge:${object.id}`,
-                depthPolicy: 'scene',
-                dirtyFlags: object.dirtyFlags,
-                drawMode: 'lines',
-                material: resolveEdgeMaterial(object.style),
-                object,
-                primitiveKind: 'edge',
-                style: object.style,
-                vertices: createEdgeVertices(object),
-            });
-        } else if (object instanceof PointSet) {
-            queue.points.push({
-                cacheKey: `color:point:${object.id}`,
-                depthPolicy: 'scene',
-                dirtyFlags: object.dirtyFlags,
-                drawMode: 'points',
-                material: resolvePointMaterial(object.style),
-                object,
-                primitiveKind: 'point',
-                style: object.style,
-                vertices: createPointVertices(object),
-            });
+        if (object instanceof RenderableObject) {
+            this.appendRenderableObject(queue, object);
         } else if (object instanceof MarkerSet) {
             queue.markers.push({
                 cacheKey: `color:marker:${object.id}`,
@@ -131,41 +114,35 @@ export class RenderQueueBuilder {
             });
         }
     }
-}
 
-function createFaceVertices(object: FaceSet): readonly RenderVertex[] {
-    const vertices: RenderVertex[] = [];
+    private appendRenderableObject(
+        queue: RenderQueue,
+        object: RenderableObject<unknown, unknown>,
+    ): void {
+        const primitive = object.createRenderablePrimitive({
+            geometry: this.geometryBuffers,
+            materials: this.materials,
+        });
+        const command: BufferDrawCommand<RenderableObject<unknown, unknown>> = {
+            cacheKey: primitive.cacheKey,
+            depthPolicy: 'scene',
+            dirtyFlags: object.dirtyFlags,
+            drawMode: primitive.drawMode,
+            geometryBuffer: primitive.geometryBuffer,
+            material: primitive.material,
+            object,
+            primitiveKind: primitive.primitiveKind,
+            style: object.style,
+        };
 
-    for (const triangle of object.geometry.triangles) {
-        vertices.push(
-            { position: triangle.a, color: object.style.color, alpha: object.style.opacity },
-            { position: triangle.b, color: object.style.color, alpha: object.style.opacity },
-            { position: triangle.c, color: object.style.color, alpha: object.style.opacity },
-        );
+        if (primitive.drawMode === 'triangles') {
+            queue.faces.push(command);
+        } else if (primitive.drawMode === 'lines') {
+            queue.edges.push(command);
+        } else {
+            queue.points.push(command);
+        }
     }
-
-    return vertices;
-}
-
-function createEdgeVertices(object: EdgeSet): readonly RenderVertex[] {
-    const vertices: RenderVertex[] = [];
-
-    for (const segment of object.geometry.segments) {
-        vertices.push(
-            { position: segment.start, color: object.style.color, alpha: 1 },
-            { position: segment.end, color: object.style.color, alpha: 1 },
-        );
-    }
-
-    return vertices;
-}
-
-function createPointVertices(object: PointSet): readonly RenderVertex[] {
-    return object.geometry.points.map((point) => ({
-        alpha: 1,
-        color: object.style.color,
-        position: point,
-    }));
 }
 
 function createMarkerVertices(object: MarkerSet): readonly MarkerVertex[] {

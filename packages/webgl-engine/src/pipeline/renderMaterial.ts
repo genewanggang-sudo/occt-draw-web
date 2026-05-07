@@ -83,3 +83,25 @@ export function resolveTextMaterial(_style: TextStyle): RenderMaterial {
         shaderVariantKey: 'label',
     };
 }
+
+export class RenderMaterialResolver {
+    public edge(style: EdgeStyle): RenderMaterial {
+        return resolveEdgeMaterial(style);
+    }
+
+    public face(style: FaceStyle): RenderMaterial {
+        return resolveFaceMaterial(style);
+    }
+
+    public marker(style: MarkerStyle): RenderMaterial {
+        return resolveMarkerMaterial(style);
+    }
+
+    public point(style: PointStyle): RenderMaterial {
+        return resolvePointMaterial(style);
+    }
+
+    public text(style: TextStyle): RenderMaterial {
+        return resolveTextMaterial(style);
+    }
+}

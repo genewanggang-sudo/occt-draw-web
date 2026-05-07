@@ -1,3 +1,5 @@
+import type { BufferIndex, GeometryBuffer } from '../geometry';
+
 interface RenderBufferCacheEntry {
     buffer: WebGLBuffer;
     byteLength: number;
@@ -77,6 +79,65 @@ export class RenderBufferCache {
             );
             entry.byteLength = input.data.byteLength;
             entry.itemCount = input.itemCount;
+            this.uploadCount += 1;
+        }
+
+        return entry.buffer;
+    }
+
+    public getGeometryBufferArrayBuffer(input: {
+        readonly dirty: boolean;
+        readonly geometry: GeometryBuffer;
+        readonly key: string;
+        readonly usage?: number;
+    }): WebGLBuffer {
+        const bufferInput = {
+            data: input.geometry.interleaved,
+            dirty: input.dirty,
+            itemCount: input.geometry.vertexCount,
+            key: input.key,
+        };
+
+        return this.getArrayBuffer(
+            input.usage === undefined ? bufferInput : { ...bufferInput, usage: input.usage },
+        );
+    }
+
+    public getElementArrayBuffer(input: {
+        readonly dirty: boolean;
+        readonly index: BufferIndex;
+        readonly key: string;
+        readonly usage?: number;
+    }): WebGLBuffer {
+        const cacheKey = input.key;
+        let entry = this.entries.get(cacheKey);
+
+        if (!entry) {
+            const buffer = this.context.createBuffer();
+            entry = {
+                buffer,
+                byteLength: 0,
+                itemCount: 0,
+                seenFrame: this.frameIndex,
+            };
+            this.entries.set(cacheKey, entry);
+        }
+
+        entry.seenFrame = this.frameIndex;
+
+        if (
+            input.dirty ||
+            entry.byteLength !== input.index.data.byteLength ||
+            entry.itemCount !== input.index.data.length
+        ) {
+            this.context.bindBuffer(this.context.ELEMENT_ARRAY_BUFFER, entry.buffer);
+            this.context.bufferData(
+                this.context.ELEMENT_ARRAY_BUFFER,
+                input.index.data,
+                input.usage ?? this.context.STATIC_DRAW,
+            );
+            entry.byteLength = input.index.data.byteLength;
+            entry.itemCount = input.index.data.length;
             this.uploadCount += 1;
         }
 

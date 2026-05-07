@@ -6,134 +6,54 @@ import type {
     PointGeometry,
     TextGeometry,
 } from '../geometry';
+import { RenderableObject, type RenderObjectBuilder } from '../renderableObject';
 import type { EdgeStyle, FaceStyle, MarkerStyle, PointStyle, TextStyle } from '../style';
 import type { GeometryBounds, RenderObjectOptions } from '../core';
 import { RenderObject } from '../core';
 
-export class FaceSet extends RenderObject {
-    private currentGeometry: FaceGeometry;
-    private currentStyle: FaceStyle;
-
+export class FaceSet extends RenderableObject<FaceGeometry, FaceStyle> {
     constructor(geometry: FaceGeometry, style: FaceStyle, options: RenderObjectOptions = {}) {
-        super('face-set', options);
-        this.currentGeometry = geometry;
-        this.currentStyle = style;
+        super('face-set', geometry, style, options);
     }
 
-    public get bounds(): GeometryBounds {
+    protected computeBounds(): GeometryBounds {
         return boundsFromPoints(
             this.geometry.triangles.flatMap((triangle) => [triangle.a, triangle.b, triangle.c]),
         );
     }
 
-    public get geometry(): FaceGeometry {
-        return this.currentGeometry;
-    }
-
-    public get style(): FaceStyle {
-        return this.currentStyle;
-    }
-
-    public setGeometry(geometry: FaceGeometry): void {
-        if (this.currentGeometry === geometry) {
-            return;
-        }
-
-        this.currentGeometry = geometry;
-        this.markDirty({ bounds: true, geometry: true });
-    }
-
-    public setStyle(style: FaceStyle): void {
-        if (this.currentStyle === style) {
-            return;
-        }
-
-        this.currentStyle = style;
-        this.markDirty({ style: true });
+    protected build(builder: RenderObjectBuilder): void {
+        builder.faces(this.geometry.triangles, this.style);
     }
 }
 
-export class EdgeSet extends RenderObject {
-    private currentGeometry: EdgeGeometry;
-    private currentStyle: EdgeStyle;
-
+export class EdgeSet extends RenderableObject<EdgeGeometry, EdgeStyle> {
     constructor(geometry: EdgeGeometry, style: EdgeStyle, options: RenderObjectOptions = {}) {
-        super('edge-set', options);
-        this.currentGeometry = geometry;
-        this.currentStyle = style;
+        super('edge-set', geometry, style, options);
     }
 
-    public get bounds(): GeometryBounds {
+    protected computeBounds(): GeometryBounds {
         return boundsFromPoints(
             this.geometry.segments.flatMap((segment) => [segment.start, segment.end]),
         );
     }
 
-    public get geometry(): EdgeGeometry {
-        return this.currentGeometry;
-    }
-
-    public get style(): EdgeStyle {
-        return this.currentStyle;
-    }
-
-    public setGeometry(geometry: EdgeGeometry): void {
-        if (this.currentGeometry === geometry) {
-            return;
-        }
-
-        this.currentGeometry = geometry;
-        this.markDirty({ bounds: true, geometry: true });
-    }
-
-    public setStyle(style: EdgeStyle): void {
-        if (this.currentStyle === style) {
-            return;
-        }
-
-        this.currentStyle = style;
-        this.markDirty({ style: true });
+    protected build(builder: RenderObjectBuilder): void {
+        builder.edges(this.geometry.segments, this.style);
     }
 }
 
-export class PointSet extends RenderObject {
-    private currentGeometry: PointGeometry;
-    private currentStyle: PointStyle;
-
+export class PointSet extends RenderableObject<PointGeometry, PointStyle> {
     constructor(geometry: PointGeometry, style: PointStyle, options: RenderObjectOptions = {}) {
-        super('point-set', options);
-        this.currentGeometry = geometry;
-        this.currentStyle = style;
+        super('point-set', geometry, style, options);
     }
 
-    public get bounds(): GeometryBounds {
+    protected computeBounds(): GeometryBounds {
         return boundsFromPoints(this.geometry.points);
     }
 
-    public get geometry(): PointGeometry {
-        return this.currentGeometry;
-    }
-
-    public get style(): PointStyle {
-        return this.currentStyle;
-    }
-
-    public setGeometry(geometry: PointGeometry): void {
-        if (this.currentGeometry === geometry) {
-            return;
-        }
-
-        this.currentGeometry = geometry;
-        this.markDirty({ bounds: true, geometry: true });
-    }
-
-    public setStyle(style: PointStyle): void {
-        if (this.currentStyle === style) {
-            return;
-        }
-
-        this.currentStyle = style;
-        this.markDirty({ style: true });
+    protected build(builder: RenderObjectBuilder): void {
+        builder.points(this.geometry.points, this.style);
     }
 }
 

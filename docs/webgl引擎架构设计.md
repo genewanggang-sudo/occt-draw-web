@@ -154,6 +154,8 @@ CAD 视口样式。这里不以通用 PBR material 为核心，而是表达工�
 - backend immediate draw：已作为内部能力落地，用于 highlight、overlay、widget 等非 graph queue 的临时绘制。
 - `WebGLImmediateRenderer`：已作为内部 helper 落地，承接 immediate primitive / label 绘制和对应 WebGL state。
 - `RenderMaterial / RenderState / ShaderVariantKey`：已作为内部 style-to-backend 语义落地，由公开 `Style` 解析生成。
+- `RenderableObject`：已作为可扩展渲染对象基类落地，内置 face、edge、point 和外部自定义图元走同一套对象协议。
+- `GeometryBuffer / GeometryBufferBuilder / VertexAttributeLayout / BufferIndex / dirty range`：已作为 geometry-to-GPU buffer 基础落地，统一维护 position attribute layout、bounds 和 vertex count。
 - `RenderBufferCache`：WebGL buffer 缓存，避免 clean geometry 重复上传。
 - `RenderPipelineResources`：已收窄为迁移期内部过渡上下文，仅保留 backend 和 label atlas glyphs，不是使用者 API。
 - shader、label atlas、VAO、WebGL state guard、legacy adapter：只属于 WebGL 后端或迁移层。
@@ -166,7 +168,7 @@ CAD 视口样式。这里不以通用 PBR material 为核心，而是表达工�
 - queue：`RenderQueue / DrawCommand / RenderQueueBuilder`
 - material：`RenderMaterial / RenderState / ShaderVariantKey`
 - viewport：`RenderViewport / Camera / OrthographicCamera / PerspectiveCamera`
-- geometry：`BufferGeometry / VertexBufferLayout / GeometryBuffer / IndexBuffer / dirty range`
+- geometry：`GeometryBuffer / VertexBufferLayout / IndexBuffer / dirty range`
 - pass：`DepthPrepass / PickIdPass / NavigationDepthPass / HiddenLinePass / XRayPass / CompositePass`
 - addon：`AxesHelper / GridHelper / PlaneHelper / OriginHelper / BoundsHelper / SectionPlaneWidget`
 
@@ -264,6 +266,21 @@ RenderEngine
 ```
 
 使用者先创建点线面对象，把它们加入 layer，再把 layer 加入 graph，最后把 graph 交给 `RenderEngine`。`RenderEngine` 不直接持有点线面，只负责调度渲染。
+
+引擎内部会把公开 geometry 转成 GPU 更容易消费的 `GeometryBuffer`：
+
+```txt
+RenderObject
+  -> Public Geometry
+  -> Internal GeometryBuffer
+  -> DrawCommand
+  -> WebGLRenderer
+  -> GPU Buffer
+```
+
+使用者不需要直接创建或管理 `GeometryBuffer`。它是引擎内部 GPU-ready buffer 数据，只表达几何数据到 GPU buffer 的结构，用来集中管理 position attribute layout、可选 index buffer、dirty range 和 bounds cache。颜色、透明度、点大小等显示语义不进入 `GeometryBuffer`，而是由 `Style -> RenderMaterial` 解析后交给 backend。
+
+当前 face、edge、point 都继承 `RenderableObject`，对象自己描述 geometry 如何变成 `GeometryBuffer`，以及 style 如何变成 `RenderMaterial`。`RenderQueueBuilder` 不再通过 `instanceof FaceSet / EdgeSet / PointSet` 中心化识别这三类对象。`TextGeometry` 继续走 label atlas 专用路径，`MarkerGeometry` 继续保留固定像素 marker 路径。
 
 ### 最小接入示例
 
@@ -377,7 +394,7 @@ engine.render(camera);
 
 ### 新增图元扩展方式
 
-新增图元时优先按对象模型扩展，而不是新增公开散落流程函数。
+新增图元时优先按对象模型扩展，而不是新增公开散落流程函数，也不要求修改 `RenderQueueBuilder` 或 `WebGLRenderer`。
 
 ```ts
 class CurveGeometry {
@@ -388,9 +405,26 @@ class CurveStyle {
     constructor(public readonly color: Vector3) {}
 }
 
-class CurveSet extends RenderObject {
-    readonly geometry: CurveGeometry;
-    readonly style: CurveStyle;
+class CurveSet extends RenderableObject<CurveGeometry, CurveStyle> {
+    constructor(geometry: CurveGeometry, style: CurveStyle, options?: RenderObjectOptions) {
+        super('curve-set', geometry, style, options);
+    }
+
+    protected build(builder: RenderObjectBuilder): void {
+        builder.lines(
+            sampleCurvesToSegments(this.geometry.curves),
+            new EdgeStyle({
+                color: this.style.color,
+            }),
+            {
+                primitiveKind: 'curve',
+            },
+        );
+    }
+
+    protected computeBounds(): GeometryBounds {
+        return boundsFromPoints(this.geometry.curves.flat());
+    }
 }
 ```
 
@@ -398,8 +432,9 @@ class CurveSet extends RenderObject {
 
 - 新增 `Geometry` 类表达数据。
 - 新增 `Style` 类表达显示。
-- 新增 `RenderObject` 子类组合 geometry 和 style。
-- 让 `RenderQueueBuilder` 或后续 geometry pipeline 识别该对象。
+- 新增 `RenderableObject` 子类组合 geometry 和 style。
+- 在对象类中重写 `build(builder)`，通过 `RenderObjectBuilder` 提交 faces、edges、points 或 lines。
+- 在对象类中重写 `computeBounds()`，为 fit、navigation depth 和视口范围提供 bounds。
 - 不新增公开 `drawCurve(...) / renderCurve(...) / createCurveVertices(...)` 这类散落流程函数。
 
 ### 对象更新约定
@@ -473,11 +508,11 @@ const targetId = viewCube.hitTest({
 
 内部 API：
 
-- WebGL resource、ResourceRegistry、backend immediate draw、buffer cache、render queue、RenderPipelineResources、shader、label atlas、legacy adapter。
+- WebGL resource、ResourceRegistry、backend immediate draw、GeometryBuffer、buffer cache、render queue、RenderPipelineResources、shader、label atlas、legacy adapter。
 
 ## 扩展放置规则
 
-- 新图元：新增 `RenderObject` 子类，例如后续 `CurveSet`、`MeshSet`。图元负责 geometry、style、bounds、dirty flags 和 pick metadata。
+- 新图元：新增 `RenderableObject` 子类，例如后续 `CurveSet`、`MeshSet`。图元负责 geometry、style、bounds、dirty flags 和 pick metadata，并通过引擎提供的 builder/resolver 接入渲染管线。
 - 新辅助控件：新增 `ViewportWidget` / addon 类，例如 `AxesHelper / GridHelper / BoundsHelper`。应用层决定是否实例化、加入哪个 layer，以及如何处理事件。
 - 新渲染阶段：新增 `RenderPass`，例如 hidden-line、xray、section。pass 只表达阶段意图，通过 backend 绘制，不直接访问 WebGL。
 - 新 WebGL 细节：放到 backend 内部，例如 shader、buffer、state、atlas、resource registry，不进入应用层或 pass。
@@ -519,13 +554,15 @@ const targetId = viewCube.hitTest({
 - 内部 `RenderQueue / RenderQueueBuilder / DrawCommand`
 - 内部 `RenderBackend / WebGLRenderer / ResourceRegistry`
 - 内部 `RenderMaterial / RenderState`
+- 公开扩展 `RenderableObject / RenderObjectBuilder`
+- 内部 `GeometryBuffer / VertexAttributeLayout / BufferIndex / dirty range`
 - 文档中的当前 API、内部实现、目标架构分层
 
 ### 下一阶段专业化
 
 - `RenderViewport`
 - `Camera / OrthographicCamera / PerspectiveCamera`
-- `BufferGeometry`
+- `GeometryBuffer` 的 indexed draw、dirty range 局部更新和 marker / label 专用 buffer 收口
 - `PickIdPass`
 - `NavigationDepthPass`
 - `AxesHelper / GridHelper / BoundsHelper`

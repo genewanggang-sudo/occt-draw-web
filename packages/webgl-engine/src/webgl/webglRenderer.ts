@@ -8,6 +8,12 @@ import {
     type NavigationDepthResources,
 } from '../navigationDepth';
 import type { DrawCommand, DrawMode } from '../pipeline/renderQueue';
+import type {
+    BufferAttributeSemantic,
+    BufferIndexType,
+    GeometryBuffer,
+    VertexAttributeLayout,
+} from '../geometry';
 import { createProgram } from '../shaderProgram';
 import type { ViewportSize } from '../types';
 import type { RenderPipelineResources } from '../renderPipeline';
@@ -165,34 +171,30 @@ export class WebGLRenderer implements RenderBackend {
     }
 
     public draw(command: Exclude<DrawCommand, { readonly primitiveKind: 'label' }>): void {
-        if (command.primitiveKind === 'marker') {
+        if (isMarkerDrawCommand(command)) {
             this.drawMarkerVertices(command);
             return;
         }
 
-        if (command.vertices.length === 0) {
+        if (command.geometryBuffer.vertexCount === 0) {
             return;
         }
 
-        const buffer = this.renderBufferCache.getArrayBuffer({
-            data: toVertexBuffer(command.vertices),
-            dirty: isRenderBufferDirty(command),
-            itemCount: command.vertices.length,
+        const buffer = this.renderBufferCache.getGeometryBufferArrayBuffer({
+            geometry: command.geometryBuffer,
+            dirty: isGeometryBufferDirty(command),
             key: command.cacheKey,
         });
 
         this.applyRenderState(command);
-        this.bindRenderVertexBuffer(buffer);
+        this.bindRenderVertexBuffer(buffer, command.geometryBuffer.layout);
+        this.applyMaterialVertexAttributes(command);
         this.context.uniform1f(this.bindings.pointSizeLocation, command.material.pointSize);
         this.context.uniform1f(
             this.bindings.pointShapeLocation,
             command.primitiveKind === 'point' ? 1 : 0,
         );
-        this.context.drawArrays(
-            resolveDrawMode(this.context, command.drawMode),
-            0,
-            command.vertices.length,
-        );
+        this.drawGeometryBuffer(command.geometryBuffer, command.drawMode, command.cacheKey);
     }
 
     public drawImmediateLabels(input: ImmediateLabelDrawInput): void {
@@ -326,9 +328,7 @@ export class WebGLRenderer implements RenderBackend {
         );
     }
 
-    private bindRenderVertexBuffer(buffer: WebGLBuffer): void {
-        const stride = 7 * Float32Array.BYTES_PER_ELEMENT;
-
+    private bindRenderVertexBuffer(buffer: WebGLBuffer, layout: VertexAttributeLayout): void {
         disableVertexAttribs(this.context, [
             this.bindings.labelPositionLocation,
             this.bindings.labelUvLocation,
@@ -336,33 +336,41 @@ export class WebGLRenderer implements RenderBackend {
             this.bindings.labelAlphaLocation,
         ]);
         this.context.bindBuffer(this.context.ARRAY_BUFFER, buffer);
-        this.context.enableVertexAttribArray(this.bindings.positionLocation);
-        this.context.vertexAttribPointer(
+        disableVertexAttribs(this.context, [
             this.bindings.positionLocation,
-            3,
-            this.context.FLOAT,
-            false,
-            stride,
-            0,
-        );
-        this.context.enableVertexAttribArray(this.bindings.colorLocation);
-        this.context.vertexAttribPointer(
             this.bindings.colorLocation,
-            3,
-            this.context.FLOAT,
-            false,
-            stride,
-            3 * Float32Array.BYTES_PER_ELEMENT,
-        );
-        this.context.enableVertexAttribArray(this.bindings.alphaLocation);
-        this.context.vertexAttribPointer(
             this.bindings.alphaLocation,
-            1,
-            this.context.FLOAT,
-            false,
-            stride,
-            6 * Float32Array.BYTES_PER_ELEMENT,
+        ]);
+
+        for (const attribute of layout.attributes) {
+            const location = this.resolveRenderAttributeLocation(attribute.semantic);
+
+            if (location < 0) {
+                continue;
+            }
+
+            this.context.enableVertexAttribArray(location);
+            this.context.vertexAttribPointer(
+                location,
+                attribute.components,
+                this.context.FLOAT,
+                false,
+                layout.strideFloats * Float32Array.BYTES_PER_ELEMENT,
+                attribute.offsetFloats * Float32Array.BYTES_PER_ELEMENT,
+            );
+        }
+    }
+
+    private applyMaterialVertexAttributes(
+        command: Exclude<DrawCommand, { readonly primitiveKind: 'label' | 'marker' }>,
+    ): void {
+        this.context.vertexAttrib3f(
+            this.bindings.colorLocation,
+            command.material.color.x,
+            command.material.color.y,
+            command.material.color.z,
         );
+        this.context.vertexAttrib1f(this.bindings.alphaLocation, command.material.alpha);
     }
 
     private drawMarkerVertices(
@@ -384,11 +392,55 @@ export class WebGLRenderer implements RenderBackend {
                 key: `${command.cacheKey}:${String(index)}`,
             });
 
-            this.bindRenderVertexBuffer(buffer);
+            this.bindRenderVertexBuffer(buffer, {
+                attributes: [
+                    { components: 3, offsetFloats: 0, semantic: 'position' },
+                    { components: 3, offsetFloats: 3, semantic: 'color' },
+                    { components: 1, offsetFloats: 6, semantic: 'alpha' },
+                ],
+                strideFloats: 7,
+            });
             this.context.uniform1f(this.bindings.pointSizeLocation, vertex.sizePixels);
             this.context.uniform1f(this.bindings.pointShapeLocation, 2);
             this.context.drawArrays(this.context.POINTS, 0, 1);
         }
+    }
+
+    private drawGeometryBuffer(
+        geometry: GeometryBuffer,
+        drawMode: DrawMode,
+        cacheKey: string,
+    ): void {
+        if (geometry.index) {
+            const indexBuffer = this.renderBufferCache.getElementArrayBuffer({
+                dirty: false,
+                index: geometry.index,
+                key: `${cacheKey}:index`,
+            });
+
+            this.context.bindBuffer(this.context.ELEMENT_ARRAY_BUFFER, indexBuffer);
+            this.context.drawElements(
+                resolveDrawMode(this.context, drawMode),
+                geometry.index.data.length,
+                resolveIndexType(this.context, geometry.index.type),
+                0,
+            );
+            return;
+        }
+
+        this.context.drawArrays(resolveDrawMode(this.context, drawMode), 0, geometry.vertexCount);
+    }
+
+    private resolveRenderAttributeLocation(semantic: BufferAttributeSemantic): number {
+        if (semantic === 'position') {
+            return this.bindings.positionLocation;
+        }
+
+        if (semantic === 'color') {
+            return this.bindings.colorLocation;
+        }
+
+        return this.bindings.alphaLocation;
     }
 }
 
@@ -414,6 +466,18 @@ function isRenderBufferDirty(command: DrawCommand): boolean {
     return command.dirtyFlags.geometry || command.dirtyFlags.object || command.dirtyFlags.style;
 }
 
+function isMarkerDrawCommand(
+    command: Exclude<DrawCommand, { readonly primitiveKind: 'label' }>,
+): command is Extract<DrawCommand, { readonly primitiveKind: 'marker' }> {
+    return command.primitiveKind === 'marker' && 'vertices' in command;
+}
+
+function isGeometryBufferDirty(
+    command: Exclude<DrawCommand, { readonly primitiveKind: 'label' | 'marker' }>,
+): boolean {
+    return command.dirtyFlags.geometry || command.dirtyFlags.object;
+}
+
 function resolveDrawMode(context: WebGL2RenderingContext, mode: DrawMode): number {
     if (mode === 'lines') {
         return context.LINES;
@@ -424,4 +488,8 @@ function resolveDrawMode(context: WebGL2RenderingContext, mode: DrawMode): numbe
     }
 
     return context.TRIANGLES;
+}
+
+function resolveIndexType(context: WebGL2RenderingContext, type: BufferIndexType): number {
+    return type === 'uint16' ? context.UNSIGNED_SHORT : context.UNSIGNED_INT;
 }
