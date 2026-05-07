@@ -2,16 +2,17 @@ import type { GeometryBuffer, GeometryBufferBuilder } from './geometry';
 import { type GeometryBounds, RenderObject, type RenderObjectOptions } from './core';
 import type { DrawMode, DrawPrimitiveKind } from './pipeline/renderQueue';
 import type { RenderMaterial, RenderMaterialResolver } from './pipeline/renderMaterial';
-import type { EdgeStyle, FaceStyle, PointStyle } from './style';
+import type { EdgeStyle, FaceStyle, MarkerStyle, PointStyle } from './style';
 import type { LineSegment3, Vector3 } from '@occt-draw/math';
-import type { SurfaceTriangle } from './types';
+import type { MarkerDisplayItem, MarkerVertex, SurfaceTriangle } from './types';
 
 export interface RenderablePrimitive {
     readonly cacheKey: string;
     readonly drawMode: DrawMode;
-    readonly geometryBuffer: GeometryBuffer;
+    readonly geometryBuffer?: GeometryBuffer;
     readonly material: RenderMaterial;
     readonly primitiveKind: DrawPrimitiveKind;
+    readonly vertices?: readonly MarkerVertex[];
 }
 
 export interface RenderableObjectBuildContext {
@@ -21,9 +22,10 @@ export interface RenderableObjectBuildContext {
 
 interface RenderablePrimitiveDraft {
     readonly drawMode: DrawMode;
-    readonly geometryBuffer: GeometryBuffer;
+    readonly geometryBuffer?: GeometryBuffer;
     readonly material: RenderMaterial;
     readonly primitiveKind: DrawPrimitiveKind;
+    readonly vertices?: readonly MarkerVertex[];
 }
 
 export class RenderObjectBuilder {
@@ -59,6 +61,20 @@ export class RenderObjectBuilder {
             geometryBuffer: this.context.geometry.segments(segments),
             material: this.context.materials.edge(style),
             primitiveKind: input.primitiveKind ?? 'edge',
+        });
+    }
+
+    public markers(markers: readonly MarkerDisplayItem[], style: MarkerStyle): void {
+        this.setPrimitive({
+            drawMode: 'points',
+            material: this.context.materials.marker(style),
+            primitiveKind: 'marker',
+            vertices: markers.map((marker) => ({
+                alpha: 1,
+                color: marker.color,
+                position: marker.position,
+                sizePixels: marker.sizePixels,
+            })),
         });
     }
 
@@ -117,12 +133,23 @@ export abstract class RenderableObject<TGeometry, TStyle> extends RenderObject {
         const builder = new RenderObjectBuilder(context);
         const primitive = this.resolveRenderablePrimitive(builder);
 
-        return {
+        const result: RenderablePrimitive = {
             cacheKey: this.createRenderCacheKey(),
             drawMode: primitive.drawMode,
-            geometryBuffer: primitive.geometryBuffer,
             material: primitive.material,
             primitiveKind: primitive.primitiveKind,
+        };
+
+        if (primitive.geometryBuffer) {
+            return {
+                ...result,
+                geometryBuffer: primitive.geometryBuffer,
+            };
+        }
+
+        return {
+            ...result,
+            vertices: primitive.vertices ?? [],
         };
     }
 
@@ -170,7 +197,7 @@ export abstract class RenderableObject<TGeometry, TStyle> extends RenderObject {
         const primitive = builder.build();
 
         this.cachedGeometry = this.currentGeometry;
-        this.cachedGeometryBuffer = primitive.geometryBuffer;
+        this.cachedGeometryBuffer = primitive.geometryBuffer ?? null;
 
         return primitive;
     }

@@ -57,44 +57,17 @@ export class PointSet extends RenderableObject<PointGeometry, PointStyle> {
     }
 }
 
-export class MarkerSet extends RenderObject {
-    private currentGeometry: MarkerGeometry;
-    private currentStyle: MarkerStyle;
-
+export class MarkerSet extends RenderableObject<MarkerGeometry, MarkerStyle> {
     constructor(geometry: MarkerGeometry, style: MarkerStyle, options: RenderObjectOptions = {}) {
-        super('marker-set', options);
-        this.currentGeometry = geometry;
-        this.currentStyle = style;
+        super('marker-set', geometry, style, options);
     }
 
-    public get bounds(): GeometryBounds {
+    protected computeBounds(): GeometryBounds {
         return boundsFromPoints(this.geometry.markers.map((marker) => marker.position));
     }
 
-    public get geometry(): MarkerGeometry {
-        return this.currentGeometry;
-    }
-
-    public get style(): MarkerStyle {
-        return this.currentStyle;
-    }
-
-    public setGeometry(geometry: MarkerGeometry): void {
-        if (this.currentGeometry === geometry) {
-            return;
-        }
-
-        this.currentGeometry = geometry;
-        this.markDirty({ bounds: true, geometry: true });
-    }
-
-    public setStyle(style: MarkerStyle): void {
-        if (this.currentStyle === style) {
-            return;
-        }
-
-        this.currentStyle = style;
-        this.markDirty({ style: true });
+    protected build(builder: RenderObjectBuilder): void {
+        builder.markers(this.geometry.markers, this.style);
     }
 }
 

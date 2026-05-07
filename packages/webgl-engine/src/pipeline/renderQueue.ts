@@ -4,16 +4,11 @@ import { GeometryBufferBuilder, type GeometryBuffer } from '../geometry';
 import type { RenderGraphObjectEntry } from '../graphTraversal';
 import { collectSceneGraphObjects } from '../graphTraversal';
 import { createLabelGlyphKey, DEFAULT_LABEL_FONT_WEIGHT, type LabelAtlas } from '../labelAtlas';
-import { MarkerSet, TextLabelSet } from '../scene';
+import { TextLabelSet } from '../scene';
 import { RenderableObject } from '../renderableObject';
 import type { CameraState, LabelVertex, MarkerVertex, ViewportSize } from '../types';
 import type { RenderFrameContext } from './renderPass';
-import {
-    resolveMarkerMaterial,
-    resolveTextMaterial,
-    type RenderMaterial,
-    RenderMaterialResolver,
-} from './renderMaterial';
+import { resolveTextMaterial, type RenderMaterial, RenderMaterialResolver } from './renderMaterial';
 
 export type DrawPrimitiveKind = 'edge' | 'face' | 'label' | 'marker' | 'point' | (string & {});
 export type DrawMode = 'lines' | 'points' | 'triangles';
@@ -34,7 +29,7 @@ interface BaseDrawCommand<TObject, TVertex> {
     readonly vertices: readonly TVertex[];
 }
 
-interface BufferDrawCommand<TObject> {
+export interface BufferDrawCommand<TObject> {
     readonly geometryBuffer: GeometryBuffer;
     readonly cacheKey: string;
     readonly depthPolicy: 'scene';
@@ -50,16 +45,23 @@ interface BufferDrawCommand<TObject> {
     readonly style: TObject extends { readonly style: infer TStyle } ? TStyle : never;
 }
 
-export type DrawCommand =
-    | (BufferDrawCommand<RenderableObject<unknown, unknown>> & { readonly primitiveKind: string })
-    | (BaseDrawCommand<MarkerSet, MarkerVertex> & { readonly primitiveKind: 'marker' })
-    | (BaseDrawCommand<TextLabelSet, LabelVertex> & { readonly primitiveKind: 'label' });
+export type GeometryDrawCommand = BufferDrawCommand<RenderableObject<unknown, unknown>>;
+export type MarkerDrawCommand = BaseDrawCommand<
+    RenderableObject<unknown, unknown>,
+    MarkerVertex
+> & {
+    readonly primitiveKind: 'marker';
+};
+export type LabelDrawCommand = BaseDrawCommand<TextLabelSet, LabelVertex> & {
+    readonly primitiveKind: 'label';
+};
+export type DrawCommand = GeometryDrawCommand | LabelDrawCommand | MarkerDrawCommand;
 
 export class RenderQueue {
     public readonly edges: BufferDrawCommand<RenderableObject<unknown, unknown>>[] = [];
     public readonly faces: BufferDrawCommand<RenderableObject<unknown, unknown>>[] = [];
-    public readonly labels: Extract<DrawCommand, { readonly primitiveKind: 'label' }>[] = [];
-    public readonly markers: Extract<DrawCommand, { readonly primitiveKind: 'marker' }>[] = [];
+    public readonly labels: LabelDrawCommand[] = [];
+    public readonly markers: MarkerDrawCommand[] = [];
     public readonly points: BufferDrawCommand<RenderableObject<unknown, unknown>>[] = [];
 }
 
@@ -88,18 +90,6 @@ export class RenderQueueBuilder {
 
         if (object instanceof RenderableObject) {
             this.appendRenderableObject(queue, object);
-        } else if (object instanceof MarkerSet) {
-            queue.markers.push({
-                cacheKey: `color:marker:${object.id}`,
-                depthPolicy: 'scene',
-                dirtyFlags: object.dirtyFlags,
-                drawMode: 'points',
-                material: resolveMarkerMaterial(object.style),
-                object,
-                primitiveKind: 'marker',
-                style: object.style,
-                vertices: createMarkerVertices(object),
-            });
         } else if (object instanceof TextLabelSet) {
             queue.labels.push({
                 cacheKey: `color:label:${object.id}`,
@@ -123,7 +113,26 @@ export class RenderQueueBuilder {
             geometry: this.geometryBuffers,
             materials: this.materials,
         });
-        const command: BufferDrawCommand<RenderableObject<unknown, unknown>> = {
+        if (primitive.vertices) {
+            queue.markers.push({
+                cacheKey: primitive.cacheKey,
+                depthPolicy: 'scene',
+                dirtyFlags: object.dirtyFlags,
+                drawMode: primitive.drawMode,
+                material: primitive.material,
+                object,
+                primitiveKind: 'marker',
+                style: object.style,
+                vertices: primitive.vertices,
+            });
+            return;
+        }
+
+        if (!primitive.geometryBuffer) {
+            return;
+        }
+
+        const command: GeometryDrawCommand = {
             cacheKey: primitive.cacheKey,
             depthPolicy: 'scene',
             dirtyFlags: object.dirtyFlags,
@@ -143,15 +152,6 @@ export class RenderQueueBuilder {
             queue.points.push(command);
         }
     }
-}
-
-function createMarkerVertices(object: MarkerSet): readonly MarkerVertex[] {
-    return object.geometry.markers.map((marker) => ({
-        alpha: 1,
-        color: marker.color,
-        position: marker.position,
-        sizePixels: marker.sizePixels,
-    }));
 }
 
 interface LabelQuad {

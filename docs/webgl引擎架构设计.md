@@ -154,7 +154,7 @@ CAD 视口样式。这里不以通用 PBR material 为核心，而是表达工�
 - backend immediate draw：已作为内部能力落地，用于 highlight、overlay、widget 等非 graph queue 的临时绘制。
 - `WebGLImmediateRenderer`：已作为内部 helper 落地，承接 immediate primitive / label 绘制和对应 WebGL state。
 - `RenderMaterial / RenderState / ShaderVariantKey`：已作为内部 style-to-backend 语义落地，由公开 `Style` 解析生成。
-- `RenderableObject`：已作为可扩展渲染对象基类落地，内置 face、edge、point 和外部自定义图元走同一套对象协议。
+- `RenderableObject`：已作为可扩展渲染对象基类落地，内置 face、edge、point、marker 和外部自定义图元走同一套对象协议。
 - `GeometryBuffer / GeometryBufferBuilder / VertexAttributeLayout / BufferIndex / dirty range`：已作为 geometry-to-GPU buffer 基础落地，统一维护 position attribute layout、bounds 和 vertex count。
 - `RenderBufferCache`：WebGL buffer 缓存，避免 clean geometry 重复上传。
 - `RenderPipelineResources`：已收窄为迁移期内部过渡上下文，仅保留 backend 和 label atlas glyphs，不是使用者 API。
@@ -280,7 +280,7 @@ RenderObject
 
 使用者不需要直接创建或管理 `GeometryBuffer`。它是引擎内部 GPU-ready buffer 数据，只表达几何数据到 GPU buffer 的结构，用来集中管理 position attribute layout、可选 index buffer、dirty range 和 bounds cache。颜色、透明度、点大小等显示语义不进入 `GeometryBuffer`，而是由 `Style -> RenderMaterial` 解析后交给 backend。
 
-当前 face、edge、point 都继承 `RenderableObject`，对象自己描述 geometry 如何变成 `GeometryBuffer`，以及 style 如何变成 `RenderMaterial`。`RenderQueueBuilder` 不再通过 `instanceof FaceSet / EdgeSet / PointSet` 中心化识别这三类对象。`TextGeometry` 继续走 label atlas 专用路径，`MarkerGeometry` 继续保留固定像素 marker 路径。
+当前 face、edge、point、marker 都继承 `RenderableObject`，对象自己描述 geometry 如何变成渲染 primitive，以及 style 如何变成 `RenderMaterial`。`RenderQueueBuilder` 不再通过 `instanceof FaceSet / EdgeSet / PointSet / MarkerSet` 中心化识别这些对象。`TextGeometry` 继续走 label atlas 专用路径。
 
 ### 最小接入示例
 
@@ -562,7 +562,7 @@ const targetId = viewCube.hitTest({
 
 - `RenderViewport`
 - `Camera / OrthographicCamera / PerspectiveCamera`
-- `GeometryBuffer` 的 indexed draw、dirty range 局部更新和 marker / label 专用 buffer 收口
+- `GeometryBuffer` 的 indexed draw、dirty range 局部更新和 label 专用 buffer 收口
 - `PickIdPass`
 - `NavigationDepthPass`
 - `AxesHelper / GridHelper / BoundsHelper`
