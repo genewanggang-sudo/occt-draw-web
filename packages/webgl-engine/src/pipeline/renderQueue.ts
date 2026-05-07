@@ -4,11 +4,16 @@ import { GeometryBufferBuilder, type GeometryBuffer } from '../geometry';
 import type { RenderGraphObjectEntry } from '../graphTraversal';
 import { collectSceneGraphObjects } from '../graphTraversal';
 import { createLabelGlyphKey, DEFAULT_LABEL_FONT_WEIGHT, type LabelAtlas } from '../labelAtlas';
-import { TextLabelSet } from '../scene';
 import { RenderableObject } from '../renderableObject';
-import type { CameraState, LabelVertex, MarkerVertex, ViewportSize } from '../types';
+import type {
+    CameraState,
+    LabelDisplayItem,
+    LabelVertex,
+    MarkerVertex,
+    ViewportSize,
+} from '../types';
 import type { RenderFrameContext } from './renderPass';
-import { resolveTextMaterial, type RenderMaterial, RenderMaterialResolver } from './renderMaterial';
+import { type RenderMaterial, RenderMaterialResolver } from './renderMaterial';
 
 export type DrawPrimitiveKind = 'edge' | 'face' | 'label' | 'marker' | 'point' | (string & {});
 export type DrawMode = 'lines' | 'points' | 'triangles';
@@ -52,7 +57,7 @@ export type MarkerDrawCommand = BaseDrawCommand<
 > & {
     readonly primitiveKind: 'marker';
 };
-export type LabelDrawCommand = BaseDrawCommand<TextLabelSet, LabelVertex> & {
+export type LabelDrawCommand = BaseDrawCommand<RenderableObject<unknown, unknown>, LabelVertex> & {
     readonly primitiveKind: 'label';
 };
 export type DrawCommand = GeometryDrawCommand | LabelDrawCommand | MarkerDrawCommand;
@@ -89,31 +94,37 @@ export class RenderQueueBuilder {
         const { object } = entry;
 
         if (object instanceof RenderableObject) {
-            this.appendRenderableObject(queue, object);
-        } else if (object instanceof TextLabelSet) {
-            queue.labels.push({
-                cacheKey: `color:label:${object.id}`,
-                depthPolicy: 'scene',
-                dirtyFlags: object.dirtyFlags,
-                drawMode: 'triangles',
-                material: resolveTextMaterial(object.style),
-                object,
-                primitiveKind: 'label',
-                style: object.style,
-                vertices: createLabelVertices(object, atlas, worldUnitsPerPixel),
-            });
+            this.appendRenderableObject(queue, object, atlas, worldUnitsPerPixel);
         }
     }
 
     private appendRenderableObject(
         queue: RenderQueue,
         object: RenderableObject<unknown, unknown>,
+        atlas: Pick<LabelAtlas, 'glyphs'>,
+        worldUnitsPerPixel: number,
     ): void {
         const primitive = object.createRenderablePrimitive({
             geometry: this.geometryBuffers,
             materials: this.materials,
         });
-        if (primitive.vertices) {
+
+        if (primitive.labelItems) {
+            queue.labels.push({
+                cacheKey: primitive.cacheKey,
+                depthPolicy: 'scene',
+                dirtyFlags: object.dirtyFlags,
+                drawMode: primitive.drawMode,
+                material: primitive.material,
+                object,
+                primitiveKind: 'label',
+                style: object.style,
+                vertices: createLabelVertices(primitive.labelItems, atlas, worldUnitsPerPixel),
+            });
+            return;
+        }
+
+        if (primitive.markerVertices) {
             queue.markers.push({
                 cacheKey: primitive.cacheKey,
                 depthPolicy: 'scene',
@@ -123,7 +134,7 @@ export class RenderQueueBuilder {
                 object,
                 primitiveKind: 'marker',
                 style: object.style,
-                vertices: primitive.vertices,
+                vertices: primitive.markerVertices,
             });
             return;
         }
@@ -162,13 +173,13 @@ interface LabelQuad {
 }
 
 function createLabelVertices(
-    object: TextLabelSet,
+    labels: readonly LabelDisplayItem[],
     atlas: Pick<LabelAtlas, 'glyphs'>,
     worldUnitsPerPixel: number,
 ): readonly LabelVertex[] {
     const vertices: LabelVertex[] = [];
 
-    for (const label of object.geometry.labels) {
+    for (const label of labels) {
         const glyph = atlas.glyphs.get(
             createLabelGlyphKey(label.text, label.fontWeight ?? DEFAULT_LABEL_FONT_WEIGHT),
         );

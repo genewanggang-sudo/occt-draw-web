@@ -9,7 +9,6 @@ import type {
 import { RenderableObject, type RenderObjectBuilder } from '../renderableObject';
 import type { EdgeStyle, FaceStyle, MarkerStyle, PointStyle, TextStyle } from '../style';
 import type { GeometryBounds, RenderObjectOptions } from '../core';
-import { RenderObject } from '../core';
 
 export class FaceSet extends RenderableObject<FaceGeometry, FaceStyle> {
     constructor(geometry: FaceGeometry, style: FaceStyle, options: RenderObjectOptions = {}) {
@@ -71,17 +70,12 @@ export class MarkerSet extends RenderableObject<MarkerGeometry, MarkerStyle> {
     }
 }
 
-export class TextLabelSet extends RenderObject {
-    private currentGeometry: TextGeometry;
-    private currentStyle: TextStyle;
-
+export class TextLabelSet extends RenderableObject<TextGeometry, TextStyle> {
     constructor(geometry: TextGeometry, style: TextStyle, options: RenderObjectOptions = {}) {
-        super('text-label-set', { pickable: false, ...options });
-        this.currentGeometry = geometry;
-        this.currentStyle = style;
+        super('text-label-set', geometry, style, { pickable: false, ...options });
     }
 
-    public get bounds(): GeometryBounds {
+    protected computeBounds(): GeometryBounds {
         return boundsFromPoints(
             this.geometry.labels.map((label) =>
                 Vec3.add(
@@ -92,30 +86,8 @@ export class TextLabelSet extends RenderObject {
         );
     }
 
-    public get geometry(): TextGeometry {
-        return this.currentGeometry;
-    }
-
-    public get style(): TextStyle {
-        return this.currentStyle;
-    }
-
-    public setGeometry(geometry: TextGeometry): void {
-        if (this.currentGeometry === geometry) {
-            return;
-        }
-
-        this.currentGeometry = geometry;
-        this.markDirty({ bounds: true, geometry: true });
-    }
-
-    public setStyle(style: TextStyle): void {
-        if (this.currentStyle === style) {
-            return;
-        }
-
-        this.currentStyle = style;
-        this.markDirty({ style: true });
+    protected build(builder: RenderObjectBuilder): void {
+        builder.labels(this.geometry.labels, this.style);
     }
 }
 

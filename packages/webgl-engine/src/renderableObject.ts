@@ -2,17 +2,18 @@ import type { GeometryBuffer, GeometryBufferBuilder } from './geometry';
 import { type GeometryBounds, RenderObject, type RenderObjectOptions } from './core';
 import type { DrawMode, DrawPrimitiveKind } from './pipeline/renderQueue';
 import type { RenderMaterial, RenderMaterialResolver } from './pipeline/renderMaterial';
-import type { EdgeStyle, FaceStyle, MarkerStyle, PointStyle } from './style';
+import type { EdgeStyle, FaceStyle, MarkerStyle, PointStyle, TextStyle } from './style';
 import type { LineSegment3, Vector3 } from '@occt-draw/math';
-import type { MarkerDisplayItem, MarkerVertex, SurfaceTriangle } from './types';
+import type { LabelDisplayItem, MarkerDisplayItem, MarkerVertex, SurfaceTriangle } from './types';
 
 export interface RenderablePrimitive {
     readonly cacheKey: string;
     readonly drawMode: DrawMode;
     readonly geometryBuffer?: GeometryBuffer;
+    readonly labelItems?: readonly LabelDisplayItem[];
     readonly material: RenderMaterial;
+    readonly markerVertices?: readonly MarkerVertex[];
     readonly primitiveKind: DrawPrimitiveKind;
-    readonly vertices?: readonly MarkerVertex[];
 }
 
 export interface RenderableObjectBuildContext {
@@ -23,9 +24,10 @@ export interface RenderableObjectBuildContext {
 interface RenderablePrimitiveDraft {
     readonly drawMode: DrawMode;
     readonly geometryBuffer?: GeometryBuffer;
+    readonly labelItems?: readonly LabelDisplayItem[];
     readonly material: RenderMaterial;
+    readonly markerVertices?: readonly MarkerVertex[];
     readonly primitiveKind: DrawPrimitiveKind;
-    readonly vertices?: readonly MarkerVertex[];
 }
 
 export class RenderObjectBuilder {
@@ -64,17 +66,26 @@ export class RenderObjectBuilder {
         });
     }
 
+    public labels(labels: readonly LabelDisplayItem[], style: TextStyle): void {
+        this.setPrimitive({
+            drawMode: 'triangles',
+            labelItems: labels,
+            material: this.context.materials.text(style),
+            primitiveKind: 'label',
+        });
+    }
+
     public markers(markers: readonly MarkerDisplayItem[], style: MarkerStyle): void {
         this.setPrimitive({
             drawMode: 'points',
             material: this.context.materials.marker(style),
-            primitiveKind: 'marker',
-            vertices: markers.map((marker) => ({
+            markerVertices: markers.map((marker) => ({
                 alpha: 1,
                 color: marker.color,
                 position: marker.position,
                 sizePixels: marker.sizePixels,
             })),
+            primitiveKind: 'marker',
         });
     }
 
@@ -147,10 +158,21 @@ export abstract class RenderableObject<TGeometry, TStyle> extends RenderObject {
             };
         }
 
-        return {
-            ...result,
-            vertices: primitive.vertices ?? [],
-        };
+        if (primitive.labelItems) {
+            return {
+                ...result,
+                labelItems: primitive.labelItems,
+            };
+        }
+
+        if (primitive.markerVertices) {
+            return {
+                ...result,
+                markerVertices: primitive.markerVertices,
+            };
+        }
+
+        return result;
     }
 
     public setGeometry(geometry: TGeometry): void {
