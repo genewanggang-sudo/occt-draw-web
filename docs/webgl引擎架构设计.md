@@ -71,6 +71,8 @@ App --> Core
 
 CAD 视口渲染 primitive。这里不表达 `CadDocument / Sketch / Feature`，只表达引擎可渲染对象。
 
+- `RenderableObject`：自定义渲染对象基类，扩展方继承它并通过 `RenderObjectBuilder` 提交 primitive。
+- `RenderObjectBuilder`：对象扩展时使用的受控提交器，提供 `faces / edges / points / lines / markers / labels` 等入口，隐藏 queue、buffer 和 material resolver。
 - `FaceSet`：面片集合。
 - `EdgeSet`：边线集合。
 - `PointSet`：点集合。
@@ -495,7 +497,7 @@ const targetId = viewCube.hitTest({
 
 - engine：`RenderEngine`
 - graph：`RenderGraph / RenderLayer / RenderObject / RenderGroup`
-- object：`FaceSet / EdgeSet / PointSet / MarkerSet / TextLabelSet`
+- object：`RenderableObject / RenderObjectBuilder / FaceSet / EdgeSet / PointSet / MarkerSet / TextLabelSet`
 - geometry：`FaceGeometry / EdgeGeometry / PointGeometry / MarkerGeometry / TextGeometry`
 - style：`FaceStyle / EdgeStyle / PointStyle / MarkerStyle / TextStyle`
 - pipeline：`RenderPipeline / ColorPass / HighlightPass / OverlayPass`
@@ -508,11 +510,11 @@ const targetId = viewCube.hitTest({
 
 内部 API：
 
-- WebGL resource、ResourceRegistry、backend immediate draw、GeometryBuffer、buffer cache、render queue、RenderPipelineResources、shader、label atlas、legacy adapter。
+- WebGL resource、ResourceRegistry、backend immediate draw、GeometryBuffer、GeometryBufferBuilder、RenderMaterialResolver、RenderMaterial、RenderState、buffer cache、render queue、RenderPipelineResources、shader、label atlas、legacy adapter。
 
 ## 扩展放置规则
 
-- 新图元：新增 `RenderableObject` 子类，例如后续 `CurveSet`、`MeshSet`。图元负责 geometry、style、bounds、dirty flags 和 pick metadata，并通过引擎提供的 builder/resolver 接入渲染管线。
+- 新图元：新增 `RenderableObject` 子类，例如后续 `CurveSet`、`MeshSet`。图元负责 geometry、style、bounds、dirty flags 和 pick metadata，并通过 `RenderObjectBuilder` 接入渲染管线。扩展方不直接创建 `GeometryBuffer`，也不直接调用 `RenderMaterialResolver`。
 - 新辅助控件：新增 `ViewportWidget` / addon 类，例如 `AxesHelper / GridHelper / BoundsHelper`。应用层决定是否实例化、加入哪个 layer，以及如何处理事件。
 - 新渲染阶段：新增 `RenderPass`，例如 hidden-line、xray、section。pass 只表达阶段意图，通过 backend 绘制，不直接访问 WebGL。
 - 新 WebGL 细节：放到 backend 内部，例如 shader、buffer、state、atlas、resource registry，不进入应用层或 pass。

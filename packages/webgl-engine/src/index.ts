@@ -19,42 +19,23 @@ export {
     type RenderObjectOptions,
 } from './core';
 export {
-    BufferIndexType,
     EdgeGeometry,
     FaceGeometry,
-    GeometryBuffer,
-    GeometryBufferBuilder,
     MarkerGeometry,
-    PositionVertexAttributeLayout,
     PointGeometry,
     TextGeometry,
-    type BufferAttributeLayout,
-    type BufferAttributeSemantic,
-    type BufferIndex,
-    type BufferIndexData,
-    type GeometryBufferInput,
-    type GeometryDirtyRange,
-    type VertexAttributeLayout,
 } from './geometry';
-export {
-    RenderableObject,
-    RenderObjectBuilder,
-    type RenderableObjectBuildContext,
-    type RenderablePrimitive,
-} from './renderableObject';
+export { RenderableObject, RenderObjectBuilder } from './renderableObject';
 export { EdgeSet, FaceSet, MarkerSet, PointSet, TextLabelSet } from './scene';
 export { EdgeStyle, FaceStyle, MarkerStyle, PointStyle, TextStyle } from './style';
 export {
     ColorPass,
     HighlightPass,
     OverlayPass,
-    RenderMaterialResolver,
     RenderPipeline,
-    type RenderMaterial,
     type RenderFrameContext,
     type RenderPass,
     type RenderPassContext,
-    type RenderState,
 } from './pipeline';
 export {
     HoverHighlight,
