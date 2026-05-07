@@ -10,7 +10,6 @@ export interface RenderFrameContext {
 }
 
 export interface RenderPassContext {
-    readonly context: WebGL2RenderingContext;
     readonly input: RenderFrameContext;
     readonly resources: RenderPipelineResources;
 }

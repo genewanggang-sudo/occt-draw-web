@@ -130,6 +130,7 @@ CAD 视口样式。这里不以通用 PBR material 为核心，而是表达工�
 - `WebGLRenderer`：已作为当前 WebGL2 后端实现落地，管理 context、shader、buffer、label atlas 和 GPU 资源。
 - `ResourceRegistry`：已作为 WebGL 后端内部资源生命周期管理模块落地，集中释放 program、buffer、VAO、label atlas、buffer cache 和 navigation depth 资源。
 - backend immediate draw：已作为内部能力落地，用于 highlight、overlay、widget 等非 graph queue 的临时绘制。
+- `WebGLImmediateRenderer`：已作为内部 helper 落地，承接 immediate primitive / label 绘制和对应 WebGL state。
 - `RenderMaterial / RenderState / ShaderVariantKey`：已作为内部 style-to-backend 语义落地，由公开 `Style` 解析生成。
 - `RenderBufferCache`：WebGL buffer 缓存，避免 clean geometry 重复上传。
 - `RenderPipelineResources`：已收窄为迁移期内部过渡上下文，仅保留 backend 和 label atlas glyphs，不是使用者 API。
@@ -530,6 +531,7 @@ interface RenderPass {
 - `RenderGraph` 已经是主渲染链路输入，`webglRenderer.render(camera)` 不再转回 `RenderScene`。
 - `RenderObject` 当前落地为 `FaceSet / EdgeSet / PointSet / MarkerSet / TextLabelSet / ViewCube`，CAD 业务类型不进入 `webgl-engine`。
 - `RenderPass` 是管线阶段，不承载 CAD 业务语义。当前顺序为 `ColorPass -> HighlightPass -> OverlayPass`。
+- `RenderPassContext` 已不再暴露 `WebGL2RenderingContext`，pass 只通过 backend 访问绘制能力。
 - `ColorPass` 绘制主场景：face、edge、point、marker 和 label。
 - `HighlightPass` 绘制 hover、preselect、select 高亮，直接遍历 `RenderGraph`，跳过 overlay、不可见和不可 pick 对象，并通过 backend immediate draw 执行底层绘制。
 - `OverlayPass` 绘制 ViewCube 等 overlay object，ViewCube 命中由 `ViewCube.hitTest(...)` 提供，overlay 绘制通过 ViewCube overlay model 和 backend immediate draw 执行。
@@ -538,8 +540,7 @@ interface RenderPass {
 
 下一阶段不在本轮实现：
 
-- 删除或继续收窄 `RenderPassContext.context`。
-- 将 backend immediate draw 进一步模块化为 highlight renderer / overlay renderer。
+- 将 backend immediate draw 进一步细分为 highlight renderer / overlay renderer。
 - `sortPolicy` 驱动的完整渲染排序策略。
 - indexed geometry、instancing、hidden-line、xray 等高级显示。
 

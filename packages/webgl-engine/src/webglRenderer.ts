@@ -74,7 +74,6 @@ export class RenderEngine implements RenderEngineApi {
         this.backend.beginFrame(frameInput);
         try {
             this.pipeline.execute({
-                context: this.context,
                 input: frameInput,
                 resources: this.backend.resources,
             });

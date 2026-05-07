@@ -14,37 +14,19 @@ import type { RenderPipelineResources } from '../renderPipeline';
 import { LabelAtlasManager } from './labelAtlasManager';
 import { RenderBufferCache } from './renderBufferCache';
 import type {
-    ImmediateCullFace,
-    ImmediateDepthFunc,
-    ImmediateDrawMode,
     ImmediateLabelDrawInput,
-    ImmediatePointShape,
     ImmediatePrimitiveDrawInput,
-    ImmediateRenderState,
     RenderBackend,
     RenderBackendFrameInput,
 } from './renderBackend';
 import { WebGLResourceRegistry } from './resourceRegistry';
+import { WebGLImmediateRenderer, type WebGLRendererBindings } from './webglImmediateRenderer';
 import { createLabelVertexArray, createRenderVertexArray } from './vertexArrayFactory';
-
-interface WebGLRendererBindings {
-    readonly alphaLocation: number;
-    readonly colorLocation: number;
-    readonly labelAlphaLocation: number;
-    readonly labelColorLocation: number;
-    readonly labelMatrixLocation: WebGLUniformLocation;
-    readonly labelPositionLocation: number;
-    readonly labelTextureLocation: WebGLUniformLocation;
-    readonly labelUvLocation: number;
-    readonly matrixLocation: WebGLUniformLocation;
-    readonly pointShapeLocation: WebGLUniformLocation;
-    readonly pointSizeLocation: WebGLUniformLocation;
-    readonly positionLocation: number;
-}
 
 export class WebGLRenderer implements RenderBackend {
     private readonly buffer: WebGLBuffer;
     private readonly context: WebGL2RenderingContext;
+    private readonly immediateRenderer: WebGLImmediateRenderer;
     private readonly labelAtlasManager: LabelAtlasManager;
     private readonly labelBuffer: WebGLBuffer;
     private readonly labelProgram: WebGLProgram;
@@ -139,6 +121,15 @@ export class WebGLRenderer implements RenderBackend {
             pointSizeLocation,
             positionLocation,
         };
+        this.immediateRenderer = new WebGLImmediateRenderer(context, {
+            bindings: this.bindings,
+            buffer,
+            getFrameMatrix: () => this.frameMatrix,
+            getLabelTexture: () => this.labelAtlasManager.atlas.texture,
+            labelBuffer,
+            labelProgram: this.labelProgram,
+            program: this.program,
+        });
         this.resources = {
             backend: this,
             labelAtlasGlyphs: labelAtlasManager.atlas.glyphs,
@@ -205,54 +196,11 @@ export class WebGLRenderer implements RenderBackend {
     }
 
     public drawImmediateLabels(input: ImmediateLabelDrawInput): void {
-        if (input.vertices.length === 0) {
-            return;
-        }
-
-        this.applyImmediateRenderState(input.state);
-        this.context.useProgram(this.labelProgram);
-        this.context.uniformMatrix4fv(this.bindings.labelMatrixLocation, false, input.matrix);
-        this.context.activeTexture(this.context.TEXTURE0);
-        this.context.bindTexture(this.context.TEXTURE_2D, this.labelAtlasManager.atlas.texture);
-        this.context.uniform1i(this.bindings.labelTextureLocation, 0);
-        this.bindLabelVertexBuffer(this.labelBuffer);
-        this.context.bufferData(
-            this.context.ARRAY_BUFFER,
-            toLabelVertexBuffer(input.vertices),
-            this.context.STATIC_DRAW,
-        );
-        this.context.drawArrays(this.context.TRIANGLES, 0, input.vertices.length);
-        this.context.useProgram(this.program);
+        this.immediateRenderer.drawLabels(input);
     }
 
     public drawImmediatePrimitives(input: ImmediatePrimitiveDrawInput): void {
-        if (input.vertices.length === 0) {
-            return;
-        }
-
-        this.applyImmediateRenderState(input.state);
-        this.context.useProgram(this.program);
-        this.context.uniformMatrix4fv(
-            this.bindings.matrixLocation,
-            false,
-            input.matrix ?? this.frameMatrix,
-        );
-        this.bindRenderVertexBuffer(this.buffer);
-        this.context.bufferData(
-            this.context.ARRAY_BUFFER,
-            toVertexBuffer(input.vertices),
-            this.context.STATIC_DRAW,
-        );
-        this.context.uniform1f(this.bindings.pointSizeLocation, input.pointSize ?? 1);
-        this.context.uniform1f(
-            this.bindings.pointShapeLocation,
-            resolveImmediatePointShape(input.pointShape ?? 'none'),
-        );
-        this.context.drawArrays(
-            resolveImmediateDrawMode(this.context, input.drawMode),
-            0,
-            input.vertices.length,
-        );
+        this.immediateRenderer.drawPrimitives(input);
     }
 
     public drawLabels(command: Extract<DrawCommand, { readonly primitiveKind: 'label' }>): void {
@@ -302,29 +250,6 @@ export class WebGLRenderer implements RenderBackend {
 
     public getContext(): WebGL2RenderingContext {
         return this.context;
-    }
-
-    private applyImmediateRenderState(state: ImmediateRenderState = {}): void {
-        if (state.clearDepthBuffer) {
-            this.context.clear(this.context.DEPTH_BUFFER_BIT);
-        }
-
-        if (state.blend) {
-            this.context.enable(this.context.BLEND);
-            this.context.blendFunc(this.context.SRC_ALPHA, this.context.ONE_MINUS_SRC_ALPHA);
-        } else {
-            this.context.disable(this.context.BLEND);
-        }
-
-        if (state.depthTest ?? true) {
-            this.context.enable(this.context.DEPTH_TEST);
-        } else {
-            this.context.disable(this.context.DEPTH_TEST);
-        }
-
-        this.context.depthMask(state.depthWrite ?? true);
-        this.context.depthFunc(resolveImmediateDepthFunc(this.context, state.depthFunc ?? 'less'));
-        applyImmediateCullFace(this.context, state.cullFace ?? 'none');
     }
 
     private applyRenderState(command: DrawCommand): void {
@@ -499,52 +424,4 @@ function resolveDrawMode(context: WebGL2RenderingContext, mode: DrawMode): numbe
     }
 
     return context.TRIANGLES;
-}
-
-function applyImmediateCullFace(
-    context: WebGL2RenderingContext,
-    cullFace: ImmediateCullFace,
-): void {
-    if (cullFace === 'none') {
-        context.disable(context.CULL_FACE);
-        return;
-    }
-
-    context.enable(context.CULL_FACE);
-    context.frontFace(context.CCW);
-    context.cullFace(cullFace === 'front' ? context.FRONT : context.BACK);
-}
-
-function resolveImmediateDepthFunc(
-    context: WebGL2RenderingContext,
-    depthFunc: ImmediateDepthFunc,
-): number {
-    return depthFunc === 'lequal' ? context.LEQUAL : context.LESS;
-}
-
-function resolveImmediateDrawMode(
-    context: WebGL2RenderingContext,
-    mode: ImmediateDrawMode,
-): number {
-    if (mode === 'lines') {
-        return context.LINES;
-    }
-
-    if (mode === 'points') {
-        return context.POINTS;
-    }
-
-    return context.TRIANGLES;
-}
-
-function resolveImmediatePointShape(pointShape: ImmediatePointShape): number {
-    if (pointShape === 'circle') {
-        return 1;
-    }
-
-    if (pointShape === 'marker') {
-        return 2;
-    }
-
-    return 0;
 }
