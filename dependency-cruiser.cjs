@@ -120,6 +120,16 @@ module.exports = {
             },
         },
         {
+            name: 'webgl-engine-no-deep-imports',
+            severity: 'error',
+            from: {
+                path: '^(apps|packages)/(?!.*node_modules/)(?!webgl-engine/)',
+            },
+            to: {
+                path: '^packages/webgl-engine/src/(?!index\\.ts$)',
+            },
+        },
+        {
             name: 'editor-only-sketch-core-display-renderer-math-shared',
             severity: 'error',
             from: {

@@ -1,8 +1,8 @@
 import type {
     CameraState,
-    RenderEngine,
     NavigationDepthSample,
     NavigationDepthSampleInput,
+    RenderEngineApi,
     RenderHighlightState,
     ViewportSize,
 } from './types';
@@ -17,7 +17,12 @@ import { NavigationDepthSampler } from './interaction';
 import { createRenderPipeline, type RenderPipelineResources } from './renderPipeline';
 import { createProgram } from './shaderProgram';
 import type { RenderPipeline } from './pipeline';
-import { createLabelVertexArray, createRenderVertexArray, LabelAtlasManager } from './webgl';
+import {
+    createLabelVertexArray,
+    createRenderVertexArray,
+    LabelAtlasManager,
+    RenderBufferCache,
+} from './webgl';
 
 const EMPTY_RENDER_HIGHLIGHT_STATE: RenderHighlightState = {
     hoveredObjectId: null,
@@ -27,7 +32,14 @@ const EMPTY_RENDER_HIGHLIGHT_STATE: RenderHighlightState = {
     selectedPrimitiveId: null,
 };
 
+/**
+ * @deprecated Use `new RenderEngine(canvas)` from the package entry instead.
+ */
 export function createWebglRenderer(canvas: HTMLCanvasElement): RenderEngine {
+    return new RenderEngine(canvas);
+}
+
+function createWebglContext(canvas: HTMLCanvasElement): WebGL2RenderingContext {
     const context = canvas.getContext('webgl2', {
         alpha: false,
         antialias: true,
@@ -38,10 +50,10 @@ export function createWebglRenderer(canvas: HTMLCanvasElement): RenderEngine {
         throw new Error('当前浏览器不支持 WebGL2');
     }
 
-    return new WebglRenderEngine(canvas, context);
+    return context;
 }
 
-class WebglRenderEngine implements RenderEngine {
+export class RenderEngine implements RenderEngineApi {
     private readonly buffer: WebGLBuffer;
     private readonly canvas: HTMLCanvasElement;
     private readonly context: WebGL2RenderingContext;
@@ -54,12 +66,15 @@ class WebglRenderEngine implements RenderEngine {
     private readonly navigationDepthResources: NavigationDepthResources;
     private readonly pipeline: RenderPipeline;
     private readonly program: WebGLProgram;
+    private readonly renderBufferCache: RenderBufferCache;
     private renderPipelineResources: RenderPipelineResources;
     private readonly vertexArray: WebGLVertexArrayObject;
     private viewportSize: ViewportSize = { width: 1, height: 1 };
 
-    constructor(canvas: HTMLCanvasElement, context: WebGL2RenderingContext) {
+    constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
+        const context = createWebglContext(canvas);
+
         this.context = context;
         this.program = createProgram(context);
         this.labelProgram = createLabelProgram(context);
@@ -89,6 +104,7 @@ class WebglRenderEngine implements RenderEngine {
         const buffer = context.createBuffer();
         const labelBuffer = context.createBuffer();
         const labelAtlasManager = new LabelAtlasManager(context);
+        const renderBufferCache = new RenderBufferCache(context);
         const vertexArray = createRenderVertexArray(context, {
             alphaLocation,
             buffer,
@@ -108,6 +124,7 @@ class WebglRenderEngine implements RenderEngine {
         this.labelVertexArray = labelVertexArray;
         this.labelAtlasManager = labelAtlasManager;
         this.pipeline = createRenderPipeline();
+        this.renderBufferCache = renderBufferCache;
         this.vertexArray = vertexArray;
         this.renderPipelineResources = {
             alphaLocation,
@@ -123,6 +140,7 @@ class WebglRenderEngine implements RenderEngine {
             labelAtlasGlyphs: labelAtlasManager.atlas.glyphs,
             labelAtlasTexture: labelAtlasManager.atlas.texture,
             labelBuffer,
+            bufferCache: renderBufferCache,
             labelColorLocation,
             labelVertexArray,
             labelMatrixLocation,
@@ -145,6 +163,7 @@ class WebglRenderEngine implements RenderEngine {
         this.context.deleteProgram(this.labelProgram);
         this.labelAtlasManager.dispose();
         disposeNavigationDepthResources(this.context, this.navigationDepthResources);
+        this.renderBufferCache.dispose();
     }
 
     public resize(viewportSize: ViewportSize): void {
@@ -186,15 +205,25 @@ class WebglRenderEngine implements RenderEngine {
         };
         this.resize(this.viewportSize);
         this.context.bindFramebuffer(this.context.FRAMEBUFFER, null);
-        this.pipeline.execute({
-            context: this.context,
-            resources: this.renderPipelineResources,
-            input: {
-                camera,
-                graph: this.graph,
-                highlight: this.highlight,
-                viewportSize: this.viewportSize,
-            },
+        this.renderBufferCache.beginFrame();
+        try {
+            this.pipeline.execute({
+                context: this.context,
+                resources: this.renderPipelineResources,
+                input: {
+                    camera,
+                    graph: this.graph,
+                    highlight: this.highlight,
+                    viewportSize: this.viewportSize,
+                },
+            });
+        } finally {
+            this.renderBufferCache.endFrame();
+        }
+        this.graph.layers.forEach((layer) => {
+            layer.objects.forEach((object) => {
+                object.clearDirty();
+            });
         });
     }
 

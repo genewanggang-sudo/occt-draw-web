@@ -141,7 +141,7 @@ export interface NavigationDepthSample {
     readonly worldPoint: Vector3;
 }
 
-export interface RenderEngine {
+export interface RenderEngineApi {
     dispose(): void;
     render(camera: CameraState): void;
     resize(viewportSize: ViewportSize): void;

@@ -1,5 +1,6 @@
 import type { LabelAtlas } from './labelAtlas';
 import { ColorPass, HighlightPass, OverlayPass, RenderPipeline } from './pipeline';
+import type { RenderBufferCache } from './webgl';
 
 export interface RenderPipelineResources {
     readonly alphaLocation: number;
@@ -15,6 +16,7 @@ export interface RenderPipelineResources {
     readonly labelAtlasGlyphs: LabelAtlas['glyphs'];
     readonly labelAtlasTexture: WebGLTexture;
     readonly labelBuffer: WebGLBuffer;
+    readonly bufferCache: RenderBufferCache;
     readonly labelColorLocation: number;
     readonly labelVertexArray: WebGLVertexArrayObject;
     readonly labelMatrixLocation: WebGLUniformLocation;

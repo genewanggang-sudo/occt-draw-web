@@ -21,8 +21,8 @@ import {
 import {
     calculateBoundingSphere,
     createStandardCameraState,
+    RenderEngine,
     RenderLayer,
-    type RenderEngine,
     type RenderGraph,
     type RenderHighlightState,
     type StandardCameraView,
@@ -30,7 +30,6 @@ import {
     type ViewCubeArrowCommand,
     type ViewCubeTargetId,
 } from '@occt-draw/webgl-engine';
-import { createWebglRenderer } from '@occt-draw/webgl-engine';
 import { Measurement } from '@occt-draw/math';
 import { APP_NAME } from '@occt-draw/shared';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -368,7 +367,7 @@ export function App() {
         }
 
         try {
-            rendererRef.current = createWebglRenderer(canvas);
+            rendererRef.current = new RenderEngine(canvas);
             setEditorState((current) => {
                 const navigation = new ViewNavigationController(current.navigation).updateViewport(
                     getCanvasViewportSize(canvas),

@@ -72,11 +72,12 @@ export {
     type CameraBasis,
 } from './cameraGeometry';
 export { createRenderPrimitiveId, type RenderPrimitiveKind } from './primitiveId';
-export { createWebglRenderer } from './webglRenderer';
+// eslint-disable-next-line @typescript-eslint/no-deprecated -- Legacy facade remains exported for compatibility.
+export { RenderEngine, createWebglRenderer } from './webglRenderer';
 export type {
     BoundingBox3,
     BoundingSphere,
-    RenderEngine,
+    RenderEngineApi,
     CameraProjection,
     CameraState,
     RenderDepthRole,
