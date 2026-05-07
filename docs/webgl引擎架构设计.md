@@ -184,6 +184,185 @@ WebGL2 后端。该层负责 shader、buffer、texture、framebuffer 和 GPU 资
 - 新能力优先通过 `RenderObject / RenderPass / ViewportWidget` 扩展。
 - 当前产品的业务约定不得进入公共 API。
 
+## 使用者视角
+
+使用者只依赖包入口：
+
+```ts
+import {
+    EdgeGeometry,
+    EdgeSet,
+    EdgeStyle,
+    FaceGeometry,
+    FaceSet,
+    FaceStyle,
+    RenderEngine,
+    RenderGraph,
+    RenderLayer,
+    ViewCube,
+    createStandardCameraState,
+} from '@occt-draw/webgl-engine';
+```
+
+推荐使用流程：
+
+1. 应用层创建 `RenderEngine`，传入目标 `HTMLCanvasElement`。
+2. 应用层创建 `RenderGraph`。
+3. 应用层创建 scene layer 和 overlay layer。
+4. 应用层创建 `FaceSet / EdgeSet / PointSet / MarkerSet / TextLabelSet` 等对象。
+5. 应用层按需创建 `ViewCube` 等 addon，并加入 overlay layer。
+6. 应用层调用 `engine.setGraph(graph)`、`engine.setHighlight(highlight)`、`engine.resize(viewportSize)`、`engine.render(camera)`。
+
+不推荐使用：
+
+- `createWebglRenderer`：仅保留为 legacy / deprecated facade，新代码使用 `new RenderEngine(canvas)`。
+- `packages/webgl-engine/src/**` deep import：上层只能从 `@occt-draw/webgl-engine` 包入口导入。
+- `RenderBufferCache / renderQueue / shader / label atlas / legacy adapter`：这些是内部实现，不是使用者 API。
+
+### 最小接入示例
+
+```ts
+import {
+    EdgeGeometry,
+    EdgeSet,
+    EdgeStyle,
+    FaceGeometry,
+    FaceSet,
+    FaceStyle,
+    RenderEngine,
+    RenderGraph,
+    RenderLayer,
+    ViewCube,
+    createStandardCameraState,
+} from '@occt-draw/webgl-engine';
+import { LineSegment3, Vec3 } from '@occt-draw/math';
+
+const canvas = document.querySelector('canvas');
+
+if (!(canvas instanceof HTMLCanvasElement)) {
+    throw new Error('Canvas is required.');
+}
+
+const viewportSize = { width: canvas.clientWidth, height: canvas.clientHeight };
+const engine = new RenderEngine(canvas);
+const graph = new RenderGraph();
+const modelLayer = new RenderLayer('model');
+const overlayLayer = new RenderLayer('overlay', {
+    depthPolicy: 'overlay',
+    navigationRole: 'excluded',
+    pickable: false,
+});
+
+const a = Vec3.of(0, 0, 0);
+const b = Vec3.of(1, 0, 0);
+const c = Vec3.of(0, 1, 0);
+
+modelLayer.add(
+    new FaceSet(
+        new FaceGeometry([{ a, b, c }]),
+        new FaceStyle({ color: Vec3.of(0.45, 0.62, 0.95), opacity: 0.35 }),
+        { id: 'example-face', interactionId: 'example-triangle' },
+    ),
+);
+modelLayer.add(
+    new EdgeSet(
+        new EdgeGeometry([new LineSegment3(a, b), new LineSegment3(b, c), new LineSegment3(c, a)]),
+        new EdgeStyle({ color: Vec3.of(0.9, 0.95, 1) }),
+        { id: 'example-edge', interactionId: 'example-triangle' },
+    ),
+);
+overlayLayer.add(new ViewCube());
+
+graph.addLayer(modelLayer);
+graph.addLayer(overlayLayer);
+
+const camera = createStandardCameraState(graph.navigationBounds, 'trimetric', viewportSize);
+
+engine.resize(viewportSize);
+engine.setGraph(graph);
+engine.setHighlight({
+    hoveredObjectId: null,
+    preselectedObjectId: null,
+    preselectedPrimitiveId: null,
+    selectedObjectIds: [],
+    selectedPrimitiveId: null,
+});
+engine.render(camera);
+```
+
+### 对象更新约定
+
+业务代码不要直接修改 `object.geometry = ...`、`object.style = ...`、`object.visible = ...` 后再手动 `markDirty()`。
+
+推荐使用对象方法：
+
+```ts
+faceSet.setGeometry(new FaceGeometry(nextTriangles));
+faceSet.setStyle(new FaceStyle({ color: nextColor, opacity: 0.5 }));
+faceSet.setVisible(false);
+faceSet.setPickable(false);
+faceSet.setDepthRole('excluded');
+faceSet.setMetadata(new Map([['source', 'external-product']]));
+```
+
+dirty 行为：
+
+- `setGeometry(...)` 自动标记 `geometry / bounds` dirty。
+- `setStyle(...)` 自动标记 `style` dirty。
+- `setVisible(...) / setPickable(...) / setDepthRole(...) / setMetadata(...)` 自动标记 `object` dirty。
+- `markDirty(...)` 只作为低层逃生口，不作为业务层推荐 API。
+
+### ViewCube / Addon 接入
+
+`ViewCube` 是 addon 类，由应用层决定是否实例化、加入哪个 layer，以及如何处理命中结果。
+
+```ts
+const overlayLayer = new RenderLayer('overlay', {
+    depthPolicy: 'overlay',
+    navigationRole: 'excluded',
+    pickable: false,
+});
+const viewCube = new ViewCube({ hoveredTargetId });
+
+overlayLayer.add(viewCube);
+graph.addLayer(overlayLayer);
+```
+
+pointer move 时由应用层调用命中：
+
+```ts
+const targetId = viewCube.hitTest({
+    camera,
+    point,
+    viewportSize,
+});
+```
+
+应用层负责把 `targetId` 解释成标准视图、角视图或箭头旋转命令。`OverlayPass` 只负责 overlay 绘制，不处理应用业务交互。
+
+后续 helper 应以 addon 类扩展，例如 `AxesHelper / GridHelper / BoundsHelper`。这些 helper 不塞进主 render pipeline，也不新增公开散落流程函数。
+
+### API 边界清单
+
+稳定公开 API：
+
+- engine：`RenderEngine`
+- graph：`RenderGraph / RenderLayer / RenderObject / RenderGroup`
+- object：`FaceSet / EdgeSet / PointSet / MarkerSet / TextLabelSet`
+- geometry：`FaceGeometry / EdgeGeometry / PointGeometry / MarkerGeometry / TextGeometry`
+- style：`FaceStyle / EdgeStyle / PointStyle / MarkerStyle / TextStyle`
+- pipeline：`RenderPipeline / ColorPass / HighlightPass / OverlayPass`
+- interaction：`RenderObjectPicker / NavigationDepthSampler`
+- addon：`ViewCube / ViewportWidget`
+
+兼容 API：
+
+- `createWebglRenderer`：legacy / deprecated facade。
+
+内部 API：
+
+- WebGL resource、buffer cache、render queue、shader、label atlas、legacy adapter。
+
 ## 生命周期约定
 
 - 应用层负责创建 graph、layer、object 和 addon。
@@ -271,16 +450,13 @@ WebGL2 后端。该层负责 shader、buffer、texture、framebuffer 和 GPU 资
 
 ```ts
 class RenderEngine {
-    constructor(options: RenderEngineOptions);
-
-    readonly viewport: RenderViewport;
-    readonly renderer: WebGLRenderer;
-    readonly pipeline: RenderPipeline;
+    constructor(canvas: HTMLCanvasElement);
 
     setGraph(graph: RenderGraph): void;
     setHighlight(highlight: RenderHighlightState): void;
-    render(camera: Camera): void;
-    resize(size: ViewportSize): void;
+    render(camera: CameraState): void;
+    resize(viewportSize: ViewportSize): void;
+    sampleNavigationDepths(input: NavigationDepthSampleInput): readonly NavigationDepthSample[];
     dispose(): void;
 }
 ```
@@ -290,7 +466,8 @@ class RenderEngine {
 ```ts
 class RenderGraph {
     readonly layers: readonly RenderLayer[];
-    readonly bounds: GeometryBounds;
+    readonly bounds: BoundingBox3;
+    readonly navigationBounds: BoundingBox3;
 
     addLayer(layer: RenderLayer): void;
     removeLayer(layer: RenderLayer): void;
@@ -307,6 +484,9 @@ class RenderLayer {
     readonly name: string;
     readonly objects: readonly RenderObject[];
     visible: boolean;
+    readonly depthPolicy: 'scene' | 'overlay';
+    readonly navigationRole: RenderDepthRole | 'inherit';
+    readonly pickable: boolean;
 
     add(object: RenderObject): void;
     remove(object: RenderObject): void;
@@ -319,15 +499,21 @@ class RenderLayer {
 ```ts
 abstract class RenderObject {
     readonly id: string;
-    name: string;
-    visible: boolean;
-    pickable: boolean;
-    metadata: ReadonlyMap<string, unknown>;
+    readonly interactionId: string;
+    readonly name: string;
+    readonly visible: boolean;
+    readonly pickable: boolean;
+    readonly depthRole: RenderDepthRole;
+    readonly metadata: ReadonlyMap<string, unknown>;
 
-    abstract readonly bounds: GeometryBounds;
-    abstract readonly dirtyFlags: RenderDirtyFlags;
+    readonly bounds: GeometryBounds;
+    readonly dirtyFlags: RenderDirtyFlags;
 
-    markDirty(flags: RenderDirtyFlags): void;
+    setVisible(visible: boolean): void;
+    setPickable(pickable: boolean): void;
+    setDepthRole(depthRole: RenderDepthRole): void;
+    setMetadata(metadata: ReadonlyMap<string, unknown>): void;
+    markDirty(flags: RenderDirtyFlags | RenderDirtyFlagInput): void;
     clearDirty(): void;
 }
 ```
@@ -338,22 +524,31 @@ abstract class RenderObject {
 class EdgeSet extends RenderObject {
     constructor(geometry: EdgeGeometry, style: EdgeStyle, options?: RenderObjectOptions);
 
-    geometry: EdgeGeometry;
-    style: EdgeStyle;
+    readonly geometry: EdgeGeometry;
+    readonly style: EdgeStyle;
+
+    setGeometry(geometry: EdgeGeometry): void;
+    setStyle(style: EdgeStyle): void;
 }
 
 class FaceSet extends RenderObject {
     constructor(geometry: FaceGeometry, style: FaceStyle, options?: RenderObjectOptions);
 
-    geometry: FaceGeometry;
-    style: FaceStyle;
+    readonly geometry: FaceGeometry;
+    readonly style: FaceStyle;
+
+    setGeometry(geometry: FaceGeometry): void;
+    setStyle(style: FaceStyle): void;
 }
 
 class PointSet extends RenderObject {
     constructor(geometry: PointGeometry, style: PointStyle, options?: RenderObjectOptions);
 
-    geometry: PointGeometry;
-    style: PointStyle;
+    readonly geometry: PointGeometry;
+    readonly style: PointStyle;
+
+    setGeometry(geometry: PointGeometry): void;
+    setStyle(style: PointStyle): void;
 }
 ```
 
@@ -380,18 +575,20 @@ interface RenderPass {
 
 下一阶段不在本轮实现：
 
-- `dirtyFlags` 驱动的 GPU buffer cache 和增量上传。
-- `sortPolicy` 驱动的渲染排序。
+- `sortPolicy` 驱动的完整渲染排序策略。
 - indexed geometry、instancing、hidden-line、xray 等高级显示。
 
 ### Addon 使用方式
 
 ```ts
 const graph = new RenderGraph();
-const overlayLayer = new RenderLayer('overlay');
+const overlayLayer = new RenderLayer('overlay', {
+    depthPolicy: 'overlay',
+    navigationRole: 'excluded',
+    pickable: false,
+});
 const viewCube = new ViewCube({
-    sizePixels: 150,
-    placement: 'top-right',
+    hoveredTargetId,
 });
 
 overlayLayer.add(viewCube);
@@ -401,10 +598,14 @@ graph.addLayer(overlayLayer);
 应用层负责处理事件：
 
 ```ts
-const hit = viewCube.hitTest(viewportPoint, camera);
+const targetId = viewCube.hitTest({
+    camera,
+    point,
+    viewportSize,
+});
 
-if (hit) {
-    navigation.setStandardView(hit.view);
+if (targetId) {
+    handleViewCubeTarget(targetId);
 }
 ```
 
