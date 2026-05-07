@@ -1,3 +1,7 @@
+import type { RenderGraph } from './core';
+import { NavigationDepthSampler } from './interaction';
+import type { RenderPipeline } from './pipeline';
+import { createRenderPipeline } from './renderPipeline';
 import type {
     CameraState,
     NavigationDepthSample,
@@ -6,23 +10,7 @@ import type {
     RenderHighlightState,
     ViewportSize,
 } from './types';
-import type { RenderGraph } from './core';
-import { createLabelProgram } from './labelShaderProgram';
-import {
-    createNavigationDepthResources,
-    disposeNavigationDepthResources,
-    type NavigationDepthResources,
-} from './navigationDepth';
-import { NavigationDepthSampler } from './interaction';
-import { createRenderPipeline, type RenderPipelineResources } from './renderPipeline';
-import { createProgram } from './shaderProgram';
-import type { RenderPipeline } from './pipeline';
-import {
-    createLabelVertexArray,
-    createRenderVertexArray,
-    LabelAtlasManager,
-    RenderBufferCache,
-} from './webgl';
+import { WebGLRenderer } from './webgl/webglRenderer';
 
 const EMPTY_RENDER_HIGHLIGHT_STATE: RenderHighlightState = {
     hoveredObjectId: null,
@@ -54,130 +42,68 @@ function createWebglContext(canvas: HTMLCanvasElement): WebGL2RenderingContext {
 }
 
 export class RenderEngine implements RenderEngineApi {
-    private readonly buffer: WebGLBuffer;
-    private readonly canvas: HTMLCanvasElement;
+    private readonly backend: WebGLRenderer;
     private readonly context: WebGL2RenderingContext;
     private graph: RenderGraph | null = null;
     private highlight: RenderHighlightState = EMPTY_RENDER_HIGHLIGHT_STATE;
-    private readonly labelAtlasManager: LabelAtlasManager;
-    private readonly labelBuffer: WebGLBuffer;
-    private readonly labelProgram: WebGLProgram;
-    private readonly labelVertexArray: WebGLVertexArrayObject;
-    private readonly navigationDepthResources: NavigationDepthResources;
     private readonly pipeline: RenderPipeline;
-    private readonly program: WebGLProgram;
-    private readonly renderBufferCache: RenderBufferCache;
-    private renderPipelineResources: RenderPipelineResources;
-    private readonly vertexArray: WebGLVertexArrayObject;
     private viewportSize: ViewportSize = { width: 1, height: 1 };
 
-    constructor(canvas: HTMLCanvasElement) {
-        this.canvas = canvas;
-        const context = createWebglContext(canvas);
-
-        this.context = context;
-        this.program = createProgram(context);
-        this.labelProgram = createLabelProgram(context);
-        this.navigationDepthResources = createNavigationDepthResources(context);
-
-        const positionLocation = context.getAttribLocation(this.program, 'a_position');
-        const colorLocation = context.getAttribLocation(this.program, 'a_color');
-        const alphaLocation = context.getAttribLocation(this.program, 'a_alpha');
-        const matrixLocation = context.getUniformLocation(this.program, 'u_matrix');
-        const pointShapeLocation = context.getUniformLocation(this.program, 'u_point_shape');
-        const pointSizeLocation = context.getUniformLocation(this.program, 'u_point_size');
-        const labelPositionLocation = context.getAttribLocation(this.labelProgram, 'a_position');
-        const labelUvLocation = context.getAttribLocation(this.labelProgram, 'a_uv');
-        const labelColorLocation = context.getAttribLocation(this.labelProgram, 'a_color');
-        const labelAlphaLocation = context.getAttribLocation(this.labelProgram, 'a_alpha');
-        const labelMatrixLocation = context.getUniformLocation(this.labelProgram, 'u_matrix');
-        const labelTextureLocation = context.getUniformLocation(this.labelProgram, 'u_texture');
-
-        if (!matrixLocation || !pointShapeLocation || !pointSizeLocation) {
-            throw new Error('WebGL 渲染器初始化失败：缺少矩阵 uniform');
-        }
-
-        if (!labelMatrixLocation || !labelTextureLocation) {
-            throw new Error('WebGL 文字渲染器初始化失败：缺少文字 uniform');
-        }
-
-        const buffer = context.createBuffer();
-        const labelBuffer = context.createBuffer();
-        const labelAtlasManager = new LabelAtlasManager(context);
-        const renderBufferCache = new RenderBufferCache(context);
-        const vertexArray = createRenderVertexArray(context, {
-            alphaLocation,
-            buffer,
-            colorLocation,
-            positionLocation,
-        });
-        const labelVertexArray = createLabelVertexArray(context, {
-            labelAlphaLocation,
-            labelBuffer,
-            labelColorLocation,
-            labelPositionLocation,
-            labelUvLocation,
-        });
-
-        this.buffer = buffer;
-        this.labelBuffer = labelBuffer;
-        this.labelVertexArray = labelVertexArray;
-        this.labelAtlasManager = labelAtlasManager;
+    constructor(private readonly canvas: HTMLCanvasElement) {
+        this.context = createWebglContext(canvas);
+        this.backend = new WebGLRenderer(canvas, this.context);
         this.pipeline = createRenderPipeline();
-        this.renderBufferCache = renderBufferCache;
-        this.vertexArray = vertexArray;
-        this.renderPipelineResources = {
-            alphaLocation,
-            buffer,
-            colorLocation,
-            vertexArray,
-            matrixLocation,
-            pointShapeLocation,
-            pointSizeLocation,
-            positionLocation,
-            program: this.program,
-            labelAlphaLocation,
-            labelAtlasGlyphs: labelAtlasManager.atlas.glyphs,
-            labelAtlasTexture: labelAtlasManager.atlas.texture,
-            labelBuffer,
-            bufferCache: renderBufferCache,
-            labelColorLocation,
-            labelVertexArray,
-            labelMatrixLocation,
-            labelPositionLocation,
-            labelProgram: this.labelProgram,
-            labelTextureLocation,
-            labelUvLocation,
-        };
-
-        context.enable(context.DEPTH_TEST);
-        context.clearColor(0.035, 0.043, 0.055, 1);
     }
 
     public dispose(): void {
-        this.context.deleteVertexArray(this.vertexArray);
-        this.context.deleteVertexArray(this.labelVertexArray);
-        this.context.deleteBuffer(this.buffer);
-        this.context.deleteBuffer(this.labelBuffer);
-        this.context.deleteProgram(this.program);
-        this.context.deleteProgram(this.labelProgram);
-        this.labelAtlasManager.dispose();
-        disposeNavigationDepthResources(this.context, this.navigationDepthResources);
-        this.renderBufferCache.dispose();
+        this.backend.dispose();
+    }
+
+    public render(camera: CameraState): void {
+        if (!this.graph) {
+            throw new Error('RenderEngine.render(camera) requires setGraph(graph) first.');
+        }
+
+        const frameInput = {
+            camera,
+            graph: this.graph,
+            highlight: this.highlight,
+            viewportSize: this.viewportSize,
+        };
+
+        this.backend.beginFrame(frameInput);
+        try {
+            this.pipeline.execute({
+                context: this.context,
+                input: frameInput,
+                resources: this.backend.resources,
+            });
+        } finally {
+            this.backend.endFrame();
+        }
+
+        this.graph.layers.forEach((layer) => {
+            layer.objects.forEach((object) => {
+                object.clearDirty();
+            });
+        });
     }
 
     public resize(viewportSize: ViewportSize): void {
         this.viewportSize = viewportSize;
-        const pixelRatio = window.devicePixelRatio || 1;
-        const nextWidth = Math.max(1, Math.floor(viewportSize.width * pixelRatio));
-        const nextHeight = Math.max(1, Math.floor(viewportSize.height * pixelRatio));
+        this.backend.resize(viewportSize);
+    }
 
-        if (this.canvas.width !== nextWidth || this.canvas.height !== nextHeight) {
-            this.canvas.width = nextWidth;
-            this.canvas.height = nextHeight;
-        }
+    public sampleNavigationDepths(
+        input: NavigationDepthSampleInput,
+    ): readonly NavigationDepthSample[] {
+        this.resize(input.viewportSize);
 
-        this.context.viewport(0, 0, nextWidth, nextHeight);
+        return new NavigationDepthSampler(
+            this.context,
+            this.canvas,
+            this.backend.navigationDepthResources,
+        ).sample(input);
     }
 
     public setGraph(graph: RenderGraph): void {
@@ -189,53 +115,5 @@ export class RenderEngine implements RenderEngineApi {
             ...highlight,
             selectedObjectIds: [...highlight.selectedObjectIds],
         };
-    }
-
-    public render(camera: CameraState): void {
-        if (!this.graph) {
-            throw new Error('RenderEngine.render(camera) requires setGraph(graph) first.');
-        }
-
-        const labelAtlas = this.labelAtlasManager.ensureForGraph(this.graph);
-
-        this.renderPipelineResources = {
-            ...this.renderPipelineResources,
-            labelAtlasGlyphs: labelAtlas.glyphs,
-            labelAtlasTexture: labelAtlas.texture,
-        };
-        this.resize(this.viewportSize);
-        this.context.bindFramebuffer(this.context.FRAMEBUFFER, null);
-        this.renderBufferCache.beginFrame();
-        try {
-            this.pipeline.execute({
-                context: this.context,
-                resources: this.renderPipelineResources,
-                input: {
-                    camera,
-                    graph: this.graph,
-                    highlight: this.highlight,
-                    viewportSize: this.viewportSize,
-                },
-            });
-        } finally {
-            this.renderBufferCache.endFrame();
-        }
-        this.graph.layers.forEach((layer) => {
-            layer.objects.forEach((object) => {
-                object.clearDirty();
-            });
-        });
-    }
-
-    public sampleNavigationDepths(
-        input: NavigationDepthSampleInput,
-    ): readonly NavigationDepthSample[] {
-        this.resize(input.viewportSize);
-
-        return new NavigationDepthSampler(
-            this.context,
-            this.canvas,
-            this.navigationDepthResources,
-        ).sample(input);
     }
 }

@@ -32,7 +32,7 @@ flowchart TB
     App --> Core
 ```
 
-## 模块和类
+## 当前稳定公开 API
 
 ### core
 
@@ -44,8 +44,6 @@ flowchart TB
 - `RenderObject`：场景对象基类，包含 `id / name / visible / transform / bounds / pickable / metadata`。
 - `RenderGroup`：场景对象分组。
 - `RenderDirtyFlags`：表达 object、geometry、style、bounds 等局部更新状态。
-- `RenderCapabilities`：运行时能力。
-- `RenderStats`：帧统计信息。
 
 ### scene
 
@@ -54,59 +52,45 @@ CAD 视口渲染 primitive。这里不表达 `CadDocument / Sketch / Feature`，
 - `FaceSet`：面片集合。
 - `EdgeSet`：边线集合。
 - `PointSet`：点集合。
-- `CurveSet`：曲线近似集合。
 - `TextLabelSet`：文字集合。
 - `MarkerSet`：固定像素 marker 集合。
-- `OverlayObject`：overlay 对象。
 - `ViewportWidget`：视口控件对象基类。
 
 ### geometry
 
-GPU 上传前的几何数据结构。geometry 只负责数据，不负责样式和业务语义。
+GPU 上传前的几何数据结构。当前 geometry 只负责数据，不负责样式和业务语义。
 
-- `Geometry`
 - `FaceGeometry`
 - `EdgeGeometry`
 - `PointGeometry`
-- `CurveGeometry`
 - `TextGeometry`
 - `MarkerGeometry`
-- `VertexBufferLayout`
-- `GeometryBuffer`
-- `IndexBuffer`
 - `GeometryBounds`
 
 ### style
 
 CAD 视口样式。这里不以通用 PBR material 为核心，而是表达工程视口需要的显示状态。
 
-- `RenderStyle`
 - `FaceStyle`
 - `EdgeStyle`
 - `PointStyle`
-- `CurveStyle`
 - `TextStyle`
 - `MarkerStyle`
-- `HighlightStyle`
-- `HiddenLineStyle`
-- `XRayStyle`
-- `StyleResolver`
 
 ### view
 
-视口和相机。该层负责屏幕尺寸、设备像素比、工程视图相机、fit 和 depth 反算。
+当前公开 view API 以 `CameraState` 和视图工具函数表达，不公开独立相机类。
 
-- `RenderViewport`
 - `ViewportSize`
-- `ViewportRect`
-- `Camera`
-- `OrthographicCamera`
-- `PerspectiveCamera`
-- `StandardViewFrame`
-- `CameraFitter`
-- `CameraClipping`
-- `CameraRay`
-- `DepthUnprojector`
+- `CameraState`
+- `StandardCameraFrame`
+- `createStandardCameraState`
+- `createCameraStateFromFrame`
+- `fitCameraToBounds`
+- `frameCameraClippingToBounds`
+- `screenPointToWorldRay`
+- `screenPointToWorldOnViewPlane`
+- `canvasDepthToWorld`
 
 ### pipeline
 
@@ -114,16 +98,9 @@ CAD 视口样式。这里不以通用 PBR material 为核心，而是表达工�
 
 - `RenderPipeline`
 - `RenderPass`：渲染管线中的一个执行阶段，例如颜色绘制、overlay、picking 或 depth sampling；不承载 CAD 业务语义。
-- `PassRegistry`
-- `RenderQueue`
-- `DrawCommand`
 - `ColorPass`
-- `DepthPrepass`
-- `PickIdPass`
-- `NavigationDepthPass`
 - `HighlightPass`
 - `OverlayPass`
-- `CompositePass`
 
 ### interaction
 
@@ -132,39 +109,40 @@ CAD 视口样式。这里不以通用 PBR material 为核心，而是表达工�
 - `PickKey`
 - `PickResult`
 - `RenderObjectPicker`
-- `PickBuffer`
-- `PickBufferReader`
 - `NavigationDepthSampler`
 - `SelectionHighlight`
 - `HoverHighlight`
 - `PreselectionHighlight`
-
-### webgl
-
-WebGL2 后端。该层负责 shader、buffer、texture、framebuffer 和 GPU 资源生命周期。
-
-- `WebGLRenderer`
-- `WebGLDevice`
-- `ShaderProgram`
-- `ShaderLibrary`
-- `BufferManager`
-- `TextureManager`
-- `FramebufferManager`
-- `VertexArrayManager`
-- `ResourceRegistry`
-- `ResourceCache`
 
 ### addon
 
 可选能力类。addon 类由引擎包导出，应用层决定是否实例化、加入哪个 layer，以及如何处理事件。
 
 - `ViewCube`：视口方向控件。
-- `AxesHelper`：坐标轴辅助对象。
-- `GridHelper`：网格辅助对象。
-- `PlaneHelper`：基准面辅助对象。
-- `OriginHelper`：原点辅助对象。
-- `BoundsHelper`：包围盒辅助对象。
-- `SectionPlaneWidget`：剖切平面控件。
+- `ViewportWidget`：视口控件对象基类。
+
+## 当前内部实现
+
+这些能力是引擎内部核心，不从主包入口公开，上层不能 deep import。
+
+- `RenderQueue / RenderQueueBuilder / DrawCommand`：已作为内部模块落地，把 `RenderGraph` 转换成本帧绘制计划。
+- `RenderBackend`：已作为内部后端接口落地，隔离 `RenderEngine` 和具体图形 API。
+- `WebGLRenderer`：已作为当前 WebGL2 后端实现落地，管理 context、shader、buffer、label atlas 和 GPU 资源。
+- `RenderMaterial / RenderState / ShaderVariantKey`：已作为内部 style-to-backend 语义落地，由公开 `Style` 解析生成。
+- `RenderBufferCache`：WebGL buffer 缓存，避免 clean geometry 重复上传。
+- shader、label atlas、VAO、WebGL state guard、legacy adapter：只属于 WebGL 后端或迁移层。
+
+## 目标架构和后续规划
+
+这些类是专业 CAD 渲染引擎目标，不表示当前已全部公开或完成。
+
+- backend：`RenderBackend / WebGLRenderer / ResourceRegistry`
+- queue：`RenderQueue / DrawCommand / RenderQueueBuilder`
+- material：`RenderMaterial / RenderState / ShaderVariantKey`
+- viewport：`RenderViewport / Camera / OrthographicCamera / PerspectiveCamera`
+- geometry：`BufferGeometry / VertexBufferLayout / GeometryBuffer / IndexBuffer / dirty range`
+- pass：`DepthPrepass / PickIdPass / NavigationDepthPass / HiddenLinePass / XRayPass / CompositePass`
+- addon：`AxesHelper / GridHelper / PlaneHelper / OriginHelper / BoundsHelper / SectionPlaneWidget`
 
 ## 导出约定
 
@@ -368,60 +346,43 @@ const targetId = viewCube.hitTest({
 - 应用层负责创建 graph、layer、object 和 addon。
 - `RenderEngine` 负责帧调度、pass 执行和后端资源生命周期。
 - `RenderObject` 负责维护自身 geometry、style、bounds 和 dirty 状态。
-- `WebGLRenderer` 只管理 GPU 资源，不持有业务状态。
+- 内部 `WebGLRenderer` 只管理 GPU 资源，不持有业务状态。
 - 旧 `RenderScene` 输入通过兼容适配器迁移到 `RenderGraph`，避免当前功能一次性重写。
-- `webglRenderer.ts` 只保留引擎生命周期和渲染协调；VAO、label atlas、legacy 兼容入口等细节放到独立模块。
+- `webglRenderer.ts` 只保留公开 `RenderEngine` 门面和 deprecated facade；VAO、label atlas、buffer cache、shader 等细节放到内部 WebGL 后端。
 - `legacy/` 目录只服务迁移期，不作为长期核心架构。
 
 ## 实现优先级
 
-### v1 引擎骨架
+### 已完成基础
 
-- `RenderEngine`
-- `RenderGraph`
-- `RenderLayer`
-- `RenderObject`
-- `RenderGroup`
+- `RenderEngine / RenderGraph / RenderLayer / RenderObject / RenderGroup`
+- `FaceSet / EdgeSet / PointSet / MarkerSet / TextLabelSet`
+- `FaceGeometry / EdgeGeometry / PointGeometry / MarkerGeometry / TextGeometry`
+- `FaceStyle / EdgeStyle / PointStyle / MarkerStyle / TextStyle`
+- `RenderPipeline / ColorPass / HighlightPass / OverlayPass`
+- `RenderObjectPicker / NavigationDepthSampler`
+- `ViewCube / ViewportWidget`
+- graph-native 渲染路径
+- dirty flags 和 GPU buffer cache 基础
+
+### 当前重构阶段
+
+- 内部 `RenderQueue / RenderQueueBuilder / DrawCommand`
+- 内部 `RenderBackend / WebGLRenderer`
+- 内部 `RenderMaterial / RenderState`
+- 文档中的当前 API、内部实现、目标架构分层
+
+### 下一阶段专业化
+
 - `RenderViewport`
-- `OrthographicCamera`
-- `CameraFitter`
-- `FaceSet`
-- `EdgeSet`
-- `PointSet`
-- `MarkerSet`
-- `FaceGeometry`
-- `EdgeGeometry`
-- `PointGeometry`
-- `FaceStyle`
-- `EdgeStyle`
-- `PointStyle`
-- `MarkerStyle`
-- `RenderPipeline`
-- `RenderPass`
-- `ColorPass`
-- `WebGLRenderer`
+- `Camera / OrthographicCamera / PerspectiveCamera`
 - `ResourceRegistry`
-
-### v2 CAD 视口基础
-
-- `TextLabelSet`
-- `ViewCube`
-- `AxesHelper`
-- `GridHelper`
-- `PlaneHelper`
-- `OriginHelper`
-- `PickKey`
-- `PickResult`
+- `BufferGeometry`
 - `PickIdPass`
 - `NavigationDepthPass`
-- `HighlightPass`
-- `SelectionHighlight`
-- `HoverHighlight`
-- `PreselectionHighlight`
-- layer depth policy
-- incremental dirty update
+- `AxesHelper / GridHelper / BoundsHelper`
 
-### v3 大模型和高级显示
+### 大模型和高级显示
 
 - indexed geometry
 - geometry range update

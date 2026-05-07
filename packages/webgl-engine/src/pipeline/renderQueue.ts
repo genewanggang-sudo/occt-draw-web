@@ -1,116 +1,135 @@
-import { createLabelGlyphKey, DEFAULT_LABEL_FONT_WEIGHT, type LabelAtlas } from '../labelAtlas';
+import { Vec3, type Vector3 } from '@occt-draw/math';
 import { getCameraViewHeight } from '../cameraGeometry';
 import type { RenderGraphObjectEntry } from '../graphTraversal';
 import { collectSceneGraphObjects } from '../graphTraversal';
+import { createLabelGlyphKey, DEFAULT_LABEL_FONT_WEIGHT, type LabelAtlas } from '../labelAtlas';
 import { EdgeSet, FaceSet, MarkerSet, PointSet, TextLabelSet } from '../scene';
 import type { CameraState, LabelVertex, MarkerVertex, RenderVertex, ViewportSize } from '../types';
 import type { RenderFrameContext } from './renderPass';
-import { Vec3, type Vector3 } from '@occt-draw/math';
+import {
+    resolveEdgeMaterial,
+    resolveFaceMaterial,
+    resolveMarkerMaterial,
+    resolvePointMaterial,
+    resolveTextMaterial,
+    type RenderMaterial,
+} from './renderMaterial';
 
-export type ColorRenderCommand =
-    | {
-          readonly kind: 'edge';
-          readonly object: EdgeSet;
-          readonly vertices: readonly RenderVertex[];
-      }
-    | {
-          readonly kind: 'face';
-          readonly object: FaceSet;
-          readonly vertices: readonly RenderVertex[];
-      }
-    | {
-          readonly kind: 'label';
-          readonly object: TextLabelSet;
-          readonly vertices: readonly LabelVertex[];
-      }
-    | {
-          readonly kind: 'marker';
-          readonly object: MarkerSet;
-          readonly vertices: readonly MarkerVertex[];
-      }
-    | {
-          readonly kind: 'point';
-          readonly object: PointSet;
-          readonly vertices: readonly RenderVertex[];
-      };
+export type DrawPrimitiveKind = 'edge' | 'face' | 'label' | 'marker' | 'point';
+export type DrawMode = 'lines' | 'points' | 'triangles';
 
-export interface ColorRenderQueue {
-    readonly edges: readonly Extract<ColorRenderCommand, { readonly kind: 'edge' }>[];
-    readonly faces: readonly Extract<ColorRenderCommand, { readonly kind: 'face' }>[];
-    readonly labels: readonly Extract<ColorRenderCommand, { readonly kind: 'label' }>[];
-    readonly markers: readonly Extract<ColorRenderCommand, { readonly kind: 'marker' }>[];
-    readonly points: readonly Extract<ColorRenderCommand, { readonly kind: 'point' }>[];
+interface BaseDrawCommand<TObject, TVertex> {
+    readonly cacheKey: string;
+    readonly depthPolicy: 'scene';
+    readonly dirtyFlags: {
+        readonly geometry: boolean;
+        readonly object: boolean;
+        readonly style: boolean;
+    };
+    readonly drawMode: DrawMode;
+    readonly material: RenderMaterial;
+    readonly object: TObject;
+    readonly primitiveKind: DrawPrimitiveKind;
+    readonly style: TObject extends { readonly style: infer TStyle } ? TStyle : never;
+    readonly vertices: readonly TVertex[];
 }
 
-export function buildColorRenderQueue(
-    input: RenderFrameContext,
-    atlas: Pick<LabelAtlas, 'glyphs'>,
-): ColorRenderQueue {
-    const edges: Extract<ColorRenderCommand, { readonly kind: 'edge' }>[] = [];
-    const faces: Extract<ColorRenderCommand, { readonly kind: 'face' }>[] = [];
-    const labels: Extract<ColorRenderCommand, { readonly kind: 'label' }>[] = [];
-    const markers: Extract<ColorRenderCommand, { readonly kind: 'marker' }>[] = [];
-    const points: Extract<ColorRenderCommand, { readonly kind: 'point' }>[] = [];
-    const worldUnitsPerPixel = calculateWorldUnitsPerPixel(input.camera, input.viewportSize);
+export type DrawCommand =
+    | (BaseDrawCommand<EdgeSet, RenderVertex> & { readonly primitiveKind: 'edge' })
+    | (BaseDrawCommand<FaceSet, RenderVertex> & { readonly primitiveKind: 'face' })
+    | (BaseDrawCommand<MarkerSet, MarkerVertex> & { readonly primitiveKind: 'marker' })
+    | (BaseDrawCommand<PointSet, RenderVertex> & { readonly primitiveKind: 'point' })
+    | (BaseDrawCommand<TextLabelSet, LabelVertex> & { readonly primitiveKind: 'label' });
 
-    for (const entry of collectSceneGraphObjects(input.graph)) {
-        appendQueueEntry({
-            atlas,
-            edges,
-            entry,
-            faces,
-            labels,
-            markers,
-            points,
-            worldUnitsPerPixel,
-        });
+export class RenderQueue {
+    public readonly edges: Extract<DrawCommand, { readonly primitiveKind: 'edge' }>[] = [];
+    public readonly faces: Extract<DrawCommand, { readonly primitiveKind: 'face' }>[] = [];
+    public readonly labels: Extract<DrawCommand, { readonly primitiveKind: 'label' }>[] = [];
+    public readonly markers: Extract<DrawCommand, { readonly primitiveKind: 'marker' }>[] = [];
+    public readonly points: Extract<DrawCommand, { readonly primitiveKind: 'point' }>[] = [];
+}
+
+export class RenderQueueBuilder {
+    public build(input: RenderFrameContext, atlas: Pick<LabelAtlas, 'glyphs'>): RenderQueue {
+        const queue = new RenderQueue();
+        const worldUnitsPerPixel = calculateWorldUnitsPerPixel(input.camera, input.viewportSize);
+
+        for (const entry of collectSceneGraphObjects(input.graph)) {
+            this.appendQueueEntry(queue, entry, atlas, worldUnitsPerPixel);
+        }
+
+        return queue;
     }
 
-    return { edges, faces, labels, markers, points };
-}
+    private appendQueueEntry(
+        queue: RenderQueue,
+        entry: RenderGraphObjectEntry,
+        atlas: Pick<LabelAtlas, 'glyphs'>,
+        worldUnitsPerPixel: number,
+    ): void {
+        const { object } = entry;
 
-function appendQueueEntry(input: {
-    readonly atlas: Pick<LabelAtlas, 'glyphs'>;
-    readonly edges: Extract<ColorRenderCommand, { readonly kind: 'edge' }>[];
-    readonly entry: RenderGraphObjectEntry;
-    readonly faces: Extract<ColorRenderCommand, { readonly kind: 'face' }>[];
-    readonly labels: Extract<ColorRenderCommand, { readonly kind: 'label' }>[];
-    readonly markers: Extract<ColorRenderCommand, { readonly kind: 'marker' }>[];
-    readonly points: Extract<ColorRenderCommand, { readonly kind: 'point' }>[];
-    readonly worldUnitsPerPixel: number;
-}): void {
-    const { object } = input.entry;
-
-    if (object instanceof FaceSet) {
-        input.faces.push({
-            kind: 'face',
-            object,
-            vertices: createFaceVertices(object),
-        });
-    } else if (object instanceof EdgeSet) {
-        input.edges.push({
-            kind: 'edge',
-            object,
-            vertices: createEdgeVertices(object),
-        });
-    } else if (object instanceof PointSet) {
-        input.points.push({
-            kind: 'point',
-            object,
-            vertices: createPointVertices(object),
-        });
-    } else if (object instanceof MarkerSet) {
-        input.markers.push({
-            kind: 'marker',
-            object,
-            vertices: createMarkerVertices(object),
-        });
-    } else if (object instanceof TextLabelSet) {
-        input.labels.push({
-            kind: 'label',
-            object,
-            vertices: createLabelVertices(object, input.atlas, input.worldUnitsPerPixel),
-        });
+        if (object instanceof FaceSet) {
+            queue.faces.push({
+                cacheKey: `color:face:${object.id}`,
+                depthPolicy: 'scene',
+                dirtyFlags: object.dirtyFlags,
+                drawMode: 'triangles',
+                material: resolveFaceMaterial(object.style),
+                object,
+                primitiveKind: 'face',
+                style: object.style,
+                vertices: createFaceVertices(object),
+            });
+        } else if (object instanceof EdgeSet) {
+            queue.edges.push({
+                cacheKey: `color:edge:${object.id}`,
+                depthPolicy: 'scene',
+                dirtyFlags: object.dirtyFlags,
+                drawMode: 'lines',
+                material: resolveEdgeMaterial(object.style),
+                object,
+                primitiveKind: 'edge',
+                style: object.style,
+                vertices: createEdgeVertices(object),
+            });
+        } else if (object instanceof PointSet) {
+            queue.points.push({
+                cacheKey: `color:point:${object.id}`,
+                depthPolicy: 'scene',
+                dirtyFlags: object.dirtyFlags,
+                drawMode: 'points',
+                material: resolvePointMaterial(object.style),
+                object,
+                primitiveKind: 'point',
+                style: object.style,
+                vertices: createPointVertices(object),
+            });
+        } else if (object instanceof MarkerSet) {
+            queue.markers.push({
+                cacheKey: `color:marker:${object.id}`,
+                depthPolicy: 'scene',
+                dirtyFlags: object.dirtyFlags,
+                drawMode: 'points',
+                material: resolveMarkerMaterial(object.style),
+                object,
+                primitiveKind: 'marker',
+                style: object.style,
+                vertices: createMarkerVertices(object),
+            });
+        } else if (object instanceof TextLabelSet) {
+            queue.labels.push({
+                cacheKey: `color:label:${object.id}`,
+                depthPolicy: 'scene',
+                dirtyFlags: object.dirtyFlags,
+                drawMode: 'triangles',
+                material: resolveTextMaterial(object.style),
+                object,
+                primitiveKind: 'label',
+                style: object.style,
+                vertices: createLabelVertices(object, atlas, worldUnitsPerPixel),
+            });
+        }
     }
 }
 
@@ -143,17 +162,17 @@ function createEdgeVertices(object: EdgeSet): readonly RenderVertex[] {
 
 function createPointVertices(object: PointSet): readonly RenderVertex[] {
     return object.geometry.points.map((point) => ({
-        position: point,
-        color: object.style.color,
         alpha: 1,
+        color: object.style.color,
+        position: point,
     }));
 }
 
 function createMarkerVertices(object: MarkerSet): readonly MarkerVertex[] {
     return object.geometry.markers.map((marker) => ({
-        position: marker.position,
-        color: marker.color,
         alpha: 1,
+        color: marker.color,
+        position: marker.position,
         sizePixels: marker.sizePixels,
     }));
 }
@@ -216,13 +235,13 @@ function createLabelVertices(
             Vec3.scale(yAxis, -verticalOffset + padding.y * worldUnitsPerPixel),
         );
         const quad: LabelQuad = {
-            topLeft,
-            topRight: Vec3.add(topLeft, Vec3.scale(xAxis, width)),
             bottomLeft: Vec3.add(topLeft, Vec3.scale(yAxis, height)),
             bottomRight: Vec3.add(
                 Vec3.add(topLeft, Vec3.scale(xAxis, width)),
                 Vec3.scale(yAxis, height),
             ),
+            topLeft,
+            topRight: Vec3.add(topLeft, Vec3.scale(xAxis, width)),
         };
 
         vertices.push(
@@ -240,10 +259,10 @@ function createLabelVertices(
 
 function createLabelVertex(position: Vector3, u: number, v: number, color: Vector3): LabelVertex {
     return {
+        alpha: 1,
+        color,
         position,
         uv: { x: u, y: v },
-        color,
-        alpha: 1,
     };
 }
 
