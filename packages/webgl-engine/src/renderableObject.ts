@@ -30,7 +30,20 @@ interface RenderablePrimitiveDraft {
     readonly primitiveKind: DrawPrimitiveKind;
 }
 
-export class RenderObjectBuilder {
+export interface RenderObjectBuilder {
+    edges(segments: readonly LineSegment3[], style: EdgeStyle): void;
+    faces(triangles: readonly SurfaceTriangle[], style: FaceStyle): void;
+    labels(labels: readonly LabelDisplayItem[], style: TextStyle): void;
+    lines(
+        segments: readonly LineSegment3[],
+        style: EdgeStyle,
+        input?: { readonly primitiveKind?: DrawPrimitiveKind },
+    ): void;
+    markers(markers: readonly MarkerDisplayItem[], style: MarkerStyle): void;
+    points(points: readonly Vector3[], style: PointStyle): void;
+}
+
+class RenderObjectPrimitiveBuilder implements RenderObjectBuilder {
     private primitive: RenderablePrimitiveDraft | null = null;
 
     constructor(private readonly context: RenderableObjectBuildContext) {}
@@ -98,7 +111,7 @@ export class RenderObjectBuilder {
         });
     }
 
-    public build(): RenderablePrimitiveDraft {
+    public toPrimitive(): RenderablePrimitiveDraft {
         if (!this.primitive) {
             throw new Error('RenderableObject.build(builder) did not submit a primitive.');
         }
@@ -141,7 +154,7 @@ export abstract class RenderableObject<TGeometry, TStyle> extends RenderObject {
     }
 
     public createRenderablePrimitive(context: RenderableObjectBuildContext): RenderablePrimitive {
-        const builder = new RenderObjectBuilder(context);
+        const builder = new RenderObjectPrimitiveBuilder(context);
         const primitive = this.resolveRenderablePrimitive(builder);
 
         const result: RenderablePrimitive = {
@@ -200,14 +213,16 @@ export abstract class RenderableObject<TGeometry, TStyle> extends RenderObject {
     protected abstract build(builder: RenderObjectBuilder): void;
     protected abstract computeBounds(): GeometryBounds;
 
-    private resolveRenderablePrimitive(builder: RenderObjectBuilder): RenderablePrimitiveDraft {
+    private resolveRenderablePrimitive(
+        builder: RenderObjectPrimitiveBuilder,
+    ): RenderablePrimitiveDraft {
         if (
             this.cachedGeometryBuffer &&
             this.cachedGeometry === this.currentGeometry &&
             !this.dirtyFlags.geometry
         ) {
             this.build(builder);
-            const primitive = builder.build();
+            const primitive = builder.toPrimitive();
 
             return {
                 ...primitive,
@@ -216,7 +231,7 @@ export abstract class RenderableObject<TGeometry, TStyle> extends RenderObject {
         }
 
         this.build(builder);
-        const primitive = builder.build();
+        const primitive = builder.toPrimitive();
 
         this.cachedGeometry = this.currentGeometry;
         this.cachedGeometryBuffer = primitive.geometryBuffer ?? null;

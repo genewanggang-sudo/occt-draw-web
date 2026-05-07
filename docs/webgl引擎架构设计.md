@@ -399,6 +399,19 @@ engine.render(camera);
 新增图元时优先按对象模型扩展，而不是新增公开散落流程函数，也不要求修改 `RenderQueueBuilder` 或 `WebGLRenderer`。
 
 ```ts
+import {
+    EdgeStyle,
+    RenderableObject,
+    RenderObjectBuilder,
+    type GeometryBounds,
+    type RenderObjectOptions,
+} from '@occt-draw/webgl-engine';
+import { BBox3, Vec3, type LineSegment3, type Vector3 } from '@occt-draw/math';
+
+interface CurveData {
+    readonly points: readonly Vector3[];
+}
+
 class CurveGeometry {
     constructor(public readonly curves: readonly CurveData[]) {}
 }
@@ -425,9 +438,47 @@ class CurveSet extends RenderableObject<CurveGeometry, CurveStyle> {
     }
 
     protected computeBounds(): GeometryBounds {
-        return boundsFromPoints(this.geometry.curves.flat());
+        return boundsFromPoints(this.geometry.curves.flatMap((curve) => curve.points));
     }
 }
+
+function sampleCurvesToSegments(curves: readonly CurveData[]): readonly LineSegment3[] {
+    const segments: LineSegment3[] = [];
+
+    for (const curve of curves) {
+        for (let index = 1; index < curve.points.length; index += 1) {
+            const start = curve.points[index - 1];
+            const end = curve.points[index];
+
+            if (start && end) {
+                segments.push({ start, end });
+            }
+        }
+    }
+
+    return segments;
+}
+
+function boundsFromPoints(points: readonly Vector3[]): GeometryBounds {
+    let bounds: BBox3 | null = null;
+
+    for (const point of points) {
+        bounds = bounds ? bounds.expandByPoint(point) : new BBox3(point, point);
+    }
+
+    return bounds;
+}
+
+const curve = new CurveSet(
+    new CurveGeometry([
+        {
+            points: [Vec3.of(0, 0, 0), Vec3.of(1, 0.3, 0), Vec3.of(2, 0, 0)],
+        },
+    ]),
+    new CurveStyle(Vec3.of(0.2, 0.8, 1)),
+);
+
+modelLayer.add(curve);
 ```
 
 新增图元应包含：
@@ -437,6 +488,7 @@ class CurveSet extends RenderableObject<CurveGeometry, CurveStyle> {
 - 新增 `RenderableObject` 子类组合 geometry 和 style。
 - 在对象类中重写 `build(builder)`，通过 `RenderObjectBuilder` 提交 faces、edges、points 或 lines。
 - 在对象类中重写 `computeBounds()`，为 fit、navigation depth 和视口范围提供 bounds。
+- `RenderObjectBuilder` 由引擎传入，只在 `build(builder)` 中使用；扩展方不主动 new builder。
 - 不新增公开 `drawCurve(...) / renderCurve(...) / createCurveVertices(...)` 这类散落流程函数。
 
 ### 对象更新约定

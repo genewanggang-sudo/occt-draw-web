@@ -25,7 +25,8 @@ export {
     PointGeometry,
     TextGeometry,
 } from './geometry';
-export { RenderableObject, RenderObjectBuilder } from './renderableObject';
+export { RenderableObject } from './renderableObject';
+export type { RenderObjectBuilder } from './renderableObject';
 export { EdgeSet, FaceSet, MarkerSet, PointSet, TextLabelSet } from './scene';
 export { EdgeStyle, FaceStyle, MarkerStyle, PointStyle, TextStyle } from './style';
 export {
