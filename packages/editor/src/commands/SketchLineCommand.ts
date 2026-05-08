@@ -1,16 +1,20 @@
-import { createEditDraft, referencePlaneToPlane } from '@occt-draw/core';
-import { LineSegment3, Vec3, type Plane3 } from '@occt-draw/math';
 import {
-    addSketchEntity,
-    createSketchPoint,
-    findSketchPointById,
-    removeSketchEntity,
+    createEditDraft,
+    DocumentTransaction,
+    referencePlaneToPlane,
+    SetFeaturePayloadOperation,
+} from '@occt-draw/core';
+import { LineSegment3, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
+import {
+    AddLineSegmentRequest,
+    AddPointRequest,
+    DeleteSketchEntityRequest,
+    findSketchByFeatureId,
     sketchPointToWorldOnPlane,
-    SketchApplicationService,
     type Sketch,
-    type SketchEntityId,
+    type SketchVertexId,
 } from '@occt-draw/sketch';
-import type { EditorState, SketchDocumentStore } from '../state/editorState';
+import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
     CadCommand,
     createHandledCommandResult,
@@ -42,7 +46,7 @@ export class SketchLineCommand extends CadCommand {
             activeSketchSession: {
                 ...state.activeSketchSession,
                 activeTool: 'line',
-                pendingLineStartPointId: null,
+                pendingLineStartVertexId: null,
             },
             commandSession: {
                 id: 'sketch-line',
@@ -56,16 +60,33 @@ export class SketchLineCommand extends CadCommand {
 
     public override cancel(context: CommandContext): CommandResult {
         const state = context.getState();
+        const session = state.activeSketchSession;
 
-        if (state.activeSketchSession?.pendingLineStartPointId) {
-            const pendingPointId = state.activeSketchSession.pendingLineStartPointId;
-            const sketch = state.sketches.sketchesById[state.activeSketchSession.sketchId];
-            const nextSketch = sketch ? removeSketchEntity(sketch, pendingPointId) : null;
+        if (session?.pendingLineStartVertexId) {
+            const activeSketch = findActiveSketch(state, session);
+
+            if (!activeSketch) {
+                return createHandledCommandResult({
+                    draft: null,
+                });
+            }
+
+            const sketch = activeSketch.sketch.clone();
+            const request = new DeleteSketchEntityRequest({
+                entityRef: {
+                    kind: 'vertex',
+                    sketchId: sketch.id,
+                    vertexId: session.pendingLineStartVertexId,
+                },
+            });
+            const transaction = request.createTransaction();
+
+            transaction.commit(sketch);
 
             return createHandledCommandResult({
                 activeSketchSession: {
-                    ...state.activeSketchSession,
-                    pendingLineStartPointId: null,
+                    ...session,
+                    pendingLineStartVertexId: null,
                 },
                 commandSession: {
                     id: 'sketch-line',
@@ -73,8 +94,8 @@ export class SketchLineCommand extends CadCommand {
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
                 },
+                documentEdit: createSetSketchPayloadTransaction(state, sketch),
                 draft: null,
-                ...(nextSketch ? { sketches: replaceSketch(state, nextSketch) } : {}),
             });
         }
 
@@ -106,16 +127,16 @@ export class SketchLineCommand extends CadCommand {
 
         const state = context.getState();
         const session = state.activeSketchSession;
-        const sketch = session ? state.sketches.sketchesById[session.sketchId] : null;
+        const activeSketch = session ? findActiveSketch(state, session) : null;
 
-        if (!session || !sketch) {
+        if (!session || !activeSketch) {
             return createUnhandledCommandResult();
         }
 
         const point2 = projectScreenPointToSketch2({
             camera: state.navigation.camera,
             partStudio: state.document.getActivePartStudio(),
-            planeRef: sketch.planeRef,
+            planeRef: activeSketch.sketch.planeRef,
             point: event.point,
             viewportSize: state.navigation.viewportSize,
         });
@@ -126,11 +147,16 @@ export class SketchLineCommand extends CadCommand {
             });
         }
 
-        if (!session.pendingLineStartPointId) {
-            return this.createLineStartResult(context, sketch, point2);
+        if (!session.pendingLineStartVertexId) {
+            return this.createLineStartResult(context, activeSketch.sketch, point2);
         }
 
-        return this.createLineEndResult(context, sketch, session.pendingLineStartPointId, point2);
+        return this.createLineEndResult(
+            context,
+            activeSketch.sketch,
+            session.pendingLineStartVertexId,
+            point2,
+        );
     }
 
     public override pointerMove(
@@ -139,13 +165,14 @@ export class SketchLineCommand extends CadCommand {
     ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
-        const sketch = session ? state.sketches.sketchesById[session.sketchId] : null;
+        const activeSketch = session ? findActiveSketch(state, session) : null;
 
-        if (!session?.pendingLineStartPointId || !sketch) {
+        if (!session?.pendingLineStartVertexId || !activeSketch) {
             return createUnhandledCommandResult();
         }
 
-        const startPoint = findSketchPointById(sketch, session.pendingLineStartPointId);
+        const sketch = activeSketch.sketch;
+        const startPoint = sketch.findPointForVertex(session.pendingLineStartVertexId);
         const plane = findSketchPlane(state, sketch);
         const endPoint2 = projectScreenPointToSketch2({
             camera: state.navigation.camera,
@@ -159,12 +186,6 @@ export class SketchLineCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const temporaryEnd = createSketchPoint({
-            id: 'draft:line:end',
-            x: endPoint2.x,
-            y: endPoint2.y,
-        });
-
         return createHandledCommandResult({
             draft: createEditDraft({
                 id: 'draft:sketch-line',
@@ -176,8 +197,8 @@ export class SketchLineCommand extends CadCommand {
                     visible: true,
                     color: Vec3.of(0.1, 0.55, 1),
                     segment: new LineSegment3(
-                        sketchPointToWorldOnPlane(plane, startPoint),
-                        sketchPointToWorldOnPlane(plane, temporaryEnd),
+                        sketchPointToWorldOnPlane(plane, startPoint.position),
+                        sketchPointToWorldOnPlane(plane, endPoint2),
                     ),
                 },
             ]),
@@ -186,8 +207,8 @@ export class SketchLineCommand extends CadCommand {
 
     private createLineStartResult(
         context: CommandContext,
-        sketch: Sketch,
-        point: { readonly x: number; readonly y: number },
+        sourceSketch: Sketch,
+        point: Vector2,
     ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
@@ -196,18 +217,20 @@ export class SketchLineCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const pointId = createSketchEntityId(sketch, 'point');
-        const sketchPoint = createSketchPoint({
-            id: pointId,
-            x: point.x,
-            y: point.y,
-        });
-        const nextSketch = addSketchEntity(sketch, sketchPoint);
+        const sketch = sourceSketch.clone();
+        const request = new AddPointRequest({ position: point });
+        const transaction = request.createTransaction();
+
+        transaction.commit(sketch);
+
+        if (!request.createdVertexId) {
+            return createUnhandledCommandResult();
+        }
 
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingLineStartPointId: pointId,
+                pendingLineStartVertexId: request.createdVertexId,
             },
             commandSession: {
                 id: 'sketch-line',
@@ -215,15 +238,15 @@ export class SketchLineCommand extends CadCommand {
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
-            sketches: replaceSketch(state, nextSketch),
+            documentEdit: createSetSketchPayloadTransaction(state, sketch),
         });
     }
 
     private createLineEndResult(
         context: CommandContext,
-        sketch: Sketch,
-        startPointId: SketchEntityId,
-        point: { readonly x: number; readonly y: number },
+        sourceSketch: Sketch,
+        startVertexId: SketchVertexId,
+        point: Vector2,
     ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
@@ -232,23 +255,19 @@ export class SketchLineCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const startPoint = findSketchPointById(sketch, startPointId);
-
-        if (!startPoint) {
-            return createUnhandledCommandResult();
-        }
-
-        const change = new SketchApplicationService().addLineSegment({
+        const sketch = sourceSketch.clone();
+        const request = new AddLineSegmentRequest({
             endPosition: point,
-            sketch,
-            startPointId,
-            startPosition: startPoint,
+            startVertexId,
         });
+        const transaction = request.createTransaction();
+
+        transaction.commit(sketch);
 
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingLineStartPointId: null,
+                pendingLineStartVertexId: null,
             },
             commandSession: {
                 id: 'sketch-line',
@@ -256,29 +275,41 @@ export class SketchLineCommand extends CadCommand {
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
+            documentEdit: createSetSketchPayloadTransaction(state, sketch),
             draft: null,
-            sketches: replaceSketch(state, change.after),
         });
     }
 }
 
-function replaceSketch(state: EditorState, sketch: Sketch): SketchDocumentStore {
-    return {
-        sketchesById: {
-            ...state.sketches.sketchesById,
-            [sketch.id]: sketch,
-        },
-    };
+function createSetSketchPayloadTransaction(
+    state: EditorState,
+    sketch: Sketch,
+): DocumentTransaction {
+    return new DocumentTransaction({
+        label: `更新${sketch.name}`,
+        operations: [
+            new SetFeaturePayloadOperation({
+                label: `更新${sketch.name}数据`,
+                partStudioId: state.document.getActivePartStudio().id,
+                payload: sketch,
+                payloadId: sketch.id,
+            }),
+        ],
+    });
+}
+
+function findActiveSketch(
+    state: EditorState,
+    session: SketchEditSession,
+): { readonly sketch: Sketch } | null {
+    const partStudio = state.document.getActivePartStudio();
+    const sketch = findSketchByFeatureId(partStudio, session.sketchFeatureId);
+
+    return sketch ? { sketch } : null;
 }
 
 function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
     const object = state.document.getActivePartStudio().findObjectById(sketch.planeRef);
 
     return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
-}
-
-function createSketchEntityId(sketch: Sketch, kind: 'line' | 'point'): SketchEntityId {
-    const count = sketch.entities.filter((entity) => entity.kind === kind).length + 1;
-
-    return `${sketch.id}:${kind}:${String(count)}`;
 }

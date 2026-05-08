@@ -9,14 +9,7 @@ import {
     type ReferencePlaneObject,
 } from '@occt-draw/core';
 import { LineSegment3, Vec2, Vec3 } from '@occt-draw/math';
-import {
-    findSketchPointById,
-    listSketchLines,
-    listSketchPoints,
-    sketchPointToWorldOnPlane,
-    type Sketch,
-    type SketchId,
-} from '@occt-draw/sketch';
+import { getSketchForFeature, SketchDisplayBuilder } from '@occt-draw/sketch';
 import {
     EdgeGeometry,
     EdgeSet,
@@ -39,46 +32,29 @@ import {
     type RenderObject,
 } from '@occt-draw/webgl-engine';
 
-export interface DisplayProjectionContext {
-    readonly sketchesById?: Readonly<Record<SketchId, Sketch>>;
-}
-
-const EMPTY_DISPLAY_PROJECTION_CONTEXT: DisplayProjectionContext = {
-    sketchesById: {},
-};
 const MODEL_LAYER_NAME = 'model';
 const SKETCH_DRAFT_LAYER_NAME = 'sketch-draft';
 const LABEL_HELPER_LAYER_NAME = 'label-helper';
 
 export class DisplayProjector {
-    public projectDocument(
-        document: CadDocument,
-        draft: EditDraft | null = null,
-        context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
-    ): RenderGraph {
-        return this.projectDocumentToGraph(document, draft, context);
+    public projectDocument(document: CadDocument, draft: EditDraft | null = null): RenderGraph {
+        return this.projectDocumentToGraph(document, draft);
     }
 
     public projectDocumentToGraph(
         document: CadDocument,
         draft: EditDraft | null = null,
-        context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
     ): RenderGraph {
-        return this.projectPartStudioToGraph(document.getActivePartStudio(), draft, context);
+        return this.projectPartStudioToGraph(document.getActivePartStudio(), draft);
     }
 
-    public projectPartStudio(
-        partStudio: PartStudio,
-        draft: EditDraft | null = null,
-        context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
-    ): RenderGraph {
-        return this.projectPartStudioToGraph(partStudio, draft, context);
+    public projectPartStudio(partStudio: PartStudio, draft: EditDraft | null = null): RenderGraph {
+        return this.projectPartStudioToGraph(partStudio, draft);
     }
 
     public projectPartStudioToGraph(
         partStudio: PartStudio,
         draft: EditDraft | null = null,
-        context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
     ): RenderGraph {
         const graph = new RenderGraph();
         const modelLayer = new RenderLayer(MODEL_LAYER_NAME);
@@ -92,7 +68,7 @@ export class DisplayProjector {
             addObjectsToLayers(this.toRenderObjects(object), modelLayer, labelHelperLayer);
         }
 
-        for (const object of this.projectSketchFeatures(partStudio, context)) {
+        for (const object of this.projectSketchFeatures(partStudio)) {
             sketchDraftLayer.add(object);
         }
 
@@ -125,16 +101,13 @@ export class DisplayProjector {
         return projectReferencePlaneObject(object);
     }
 
-    private projectSketchFeatures(
-        partStudio: PartStudio,
-        context: DisplayProjectionContext,
-    ): readonly RenderObject[] {
+    private projectSketchFeatures(partStudio: PartStudio): readonly RenderObject[] {
         return partStudio.features.flatMap((feature) => {
             if (feature.type !== 'sketch' || !feature.payloadRef) {
                 return [];
             }
 
-            const sketch = context.sketchesById?.[feature.payloadRef];
+            const sketch = getSketchForFeature(partStudio, feature);
 
             if (!sketch) {
                 return [];
@@ -148,24 +121,9 @@ export class DisplayProjector {
 
             const plane = referencePlaneToPlane(sketchPlane);
             const objects: RenderObject[] = [];
-            const segments = listSketchLines(sketch).flatMap((line) => {
-                const startPoint = findSketchPointById(sketch, line.startPointId);
-                const endPoint = findSketchPointById(sketch, line.endPointId);
-
-                if (!startPoint || !endPoint) {
-                    return [];
-                }
-
-                return [
-                    new LineSegment3(
-                        sketchPointToWorldOnPlane(plane, startPoint),
-                        sketchPointToWorldOnPlane(plane, endPoint),
-                    ),
-                ];
-            });
-            const points = listSketchPoints(sketch).map((point) =>
-                sketchPointToWorldOnPlane(plane, point),
-            );
+            const display = new SketchDisplayBuilder().build(sketch, plane);
+            const segments = display.edges.map((edge) => edge.segment);
+            const points = display.vertices.map((vertex) => vertex.point);
 
             if (segments.length > 0) {
                 objects.push(
@@ -248,17 +206,15 @@ export class DisplayProjector {
 export function projectDocumentToRenderGraph(
     document: CadDocument,
     draft: EditDraft | null = null,
-    context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
 ): RenderGraph {
-    return new DisplayProjector().projectDocumentToGraph(document, draft, context);
+    return new DisplayProjector().projectDocumentToGraph(document, draft);
 }
 
 export function projectPartStudioToRenderGraph(
     partStudio: PartStudio,
     draft: EditDraft | null = null,
-    context: DisplayProjectionContext = EMPTY_DISPLAY_PROJECTION_CONTEXT,
 ): RenderGraph {
-    return new DisplayProjector().projectPartStudioToGraph(partStudio, draft, context);
+    return new DisplayProjector().projectPartStudioToGraph(partStudio, draft);
 }
 
 function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerSet {

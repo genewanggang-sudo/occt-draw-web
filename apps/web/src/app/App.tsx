@@ -102,9 +102,7 @@ export function App() {
         [editorState.document],
     );
     const renderGraph = useMemo(() => {
-        const graph = projectPartStudioToRenderGraph(activePartStudio, editorState.draft, {
-            sketchesById: editorState.sketches.sketchesById,
-        });
+        const graph = projectPartStudioToRenderGraph(activePartStudio, editorState.draft);
         const overlayLayer = new RenderLayer('overlay', {
             depthPolicy: 'overlay',
             navigationRole: 'excluded',
@@ -115,12 +113,7 @@ export function App() {
         graph.addLayer(overlayLayer);
 
         return graph;
-    }, [
-        activePartStudio,
-        editorState.draft,
-        editorState.sketches.sketchesById,
-        hoveredViewCubeTargetId,
-    ]);
+    }, [activePartStudio, editorState.draft, hoveredViewCubeTargetId]);
     const displayBounds = useMemo(() => renderGraph.navigationBounds, [renderGraph]);
     const displaySphere = useMemo(() => calculateBoundingSphere(displayBounds), [displayBounds]);
     const selectedObjectIds = editorState.selection.selection.objectIds;
@@ -601,7 +594,6 @@ export function App() {
                         }}
                         partStudio={activePartStudio}
                         selectedObjectIds={selectedObjectIds}
-                        sketchesById={editorState.sketches.sketchesById}
                     />
                 }
                 viewport={
@@ -618,9 +610,9 @@ export function App() {
                         activeCommandLabel={activeCommandLabel}
                         activeSketchSession={editorState.activeSketchSession}
                         commandSession={editorState.commandSession}
+                        partStudio={activePartStudio}
                         selectedObjects={selectedObjects}
                         selectedTarget={selectedTarget}
-                        sketchesById={editorState.sketches.sketchesById}
                     />
                 }
             />

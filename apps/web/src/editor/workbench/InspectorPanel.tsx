@@ -1,27 +1,28 @@
 import type { CadObject, SelectionTarget, SelectionTargetKind } from '@occt-draw/core';
 import type { CommandSession, CommandStatus, SketchEditSession } from '@occt-draw/editor';
-import type { Sketch, SketchId } from '@occt-draw/sketch';
+import { findSketchByFeatureId, type Sketch } from '@occt-draw/sketch';
+import type { PartStudio } from '@occt-draw/core';
 
 interface InspectorPanelProps {
     readonly activeCommandLabel: string;
     readonly activeSketchSession: SketchEditSession | null;
     readonly commandSession: CommandSession;
+    readonly partStudio: PartStudio;
     readonly selectedObjects: readonly CadObject[];
     readonly selectedTarget: SelectionTarget | null;
-    readonly sketchesById: Readonly<Record<SketchId, Sketch>>;
 }
 
 export function InspectorPanel({
     activeCommandLabel,
     activeSketchSession,
     commandSession,
+    partStudio,
     selectedObjects,
     selectedTarget,
-    sketchesById,
 }: InspectorPanelProps) {
     const selectedObject = selectedObjects[0] ?? null;
     const activeSketch = activeSketchSession
-        ? (sketchesById[activeSketchSession.sketchId] ?? null)
+        ? findSketchByFeatureId(partStudio, activeSketchSession.sketchFeatureId)
         : null;
 
     return (
@@ -86,7 +87,10 @@ function SketchSessionInspector({
             </div>
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">元素数量</span>
-                <strong>{sketch.entities.length}</strong>
+                <strong>
+                    {sketch.entities.geometry.points.list().length +
+                        sketch.entities.topology.edges.list().length}
+                </strong>
             </div>
         </>
     );

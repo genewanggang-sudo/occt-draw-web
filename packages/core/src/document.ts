@@ -2,7 +2,32 @@ import type { Feature } from './features';
 import type { CadObjectId, DocumentId, FeatureId, PartStudioId } from './ids';
 import type { CadObject } from './objects';
 
+export type FeaturePayload = object;
+export type FeaturePayloadId = string;
+
+export class FeaturePayloadStore {
+    private readonly payloads: Readonly<Record<FeaturePayloadId, FeaturePayload>>;
+
+    constructor(payloads: Readonly<Record<FeaturePayloadId, FeaturePayload>> = {}) {
+        this.payloads = { ...payloads };
+    }
+
+    public find(payloadId: FeaturePayloadId): FeaturePayload | null {
+        const payload = this.payloads[payloadId];
+
+        return payload ?? null;
+    }
+
+    public set(payloadId: FeaturePayloadId, payload: FeaturePayload): FeaturePayloadStore {
+        return new FeaturePayloadStore({
+            ...this.payloads,
+            [payloadId]: payload,
+        });
+    }
+}
+
 export class PartStudio {
+    public readonly featurePayloads: FeaturePayloadStore;
     public readonly features: readonly Feature[];
     public readonly id: PartStudioId;
     public readonly name: string;
@@ -10,15 +35,18 @@ export class PartStudio {
 
     constructor({
         features,
+        featurePayloads,
         id,
         name,
         objects,
     }: {
+        readonly featurePayloads?: FeaturePayloadStore;
         readonly features: readonly Feature[];
         readonly id: PartStudioId;
         readonly name: string;
         readonly objects: readonly CadObject[];
     }) {
+        this.featurePayloads = featurePayloads ?? new FeaturePayloadStore();
         this.features = [...features];
         this.id = id;
         this.name = name;
@@ -33,6 +61,10 @@ export class PartStudio {
         return this.features.find((feature) => feature.id === featureId) ?? null;
     }
 
+    public findFeaturePayload(payloadId: FeaturePayloadId): FeaturePayload | null {
+        return this.featurePayloads.find(payloadId);
+    }
+
     public listFeatures(): readonly Feature[] {
         return this.features;
     }
@@ -43,6 +75,7 @@ export class PartStudio {
 
     public appendFeature(feature: Feature): PartStudio {
         return new PartStudio({
+            featurePayloads: this.featurePayloads,
             id: this.id,
             name: this.name,
             features: [...this.features, feature],
@@ -52,6 +85,7 @@ export class PartStudio {
 
     public replaceFeature(feature: Feature): PartStudio {
         return new PartStudio({
+            featurePayloads: this.featurePayloads,
             id: this.id,
             name: this.name,
             features: this.features.map((current) =>
@@ -63,9 +97,20 @@ export class PartStudio {
 
     public removeFeature(featureId: FeatureId): PartStudio {
         return new PartStudio({
+            featurePayloads: this.featurePayloads,
             id: this.id,
             name: this.name,
             features: this.features.filter((feature) => feature.id !== featureId),
+            objects: this.objects,
+        });
+    }
+
+    public setFeaturePayload(payloadId: FeaturePayloadId, payload: FeaturePayload): PartStudio {
+        return new PartStudio({
+            featurePayloads: this.featurePayloads.set(payloadId, payload),
+            features: this.features,
+            id: this.id,
+            name: this.name,
             objects: this.objects,
         });
     }

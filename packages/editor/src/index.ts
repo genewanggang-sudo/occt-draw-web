@@ -50,7 +50,7 @@ export { SketchLineCommand } from './commands/SketchLineCommand';
 export { clearSelection, replaceSelection, updatePreselection } from './selection/selectionReducer';
 export { createInitialSelectionState, type SelectionState } from './selection/selectionState';
 export { createInitialEditorState } from './state/createInitialEditorState';
-export type { EditorState, SketchDocumentStore, SketchEditSession } from './state/editorState';
+export type { EditorState, SketchEditSession } from './state/editorState';
 export {
     beginViewNavigation,
     createFramedStandardCamera,

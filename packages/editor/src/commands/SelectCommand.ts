@@ -30,7 +30,7 @@ export class SelectCommand extends CadCommand {
                 activeSketchSession: {
                     ...state.activeSketchSession,
                     activeTool: 'select',
-                    pendingLineStartPointId: null,
+                    pendingLineStartVertexId: null,
                 },
                 draft: null,
             });

@@ -20,8 +20,5 @@ export function createInitialEditorState({
         draft: null,
         navigation,
         selection: createInitialSelectionState(),
-        sketches: {
-            sketchesById: {},
-        },
     };
 }

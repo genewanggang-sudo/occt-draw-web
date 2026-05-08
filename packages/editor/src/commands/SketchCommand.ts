@@ -2,6 +2,7 @@ import {
     AppendFeatureOperation,
     DocumentTransaction,
     Feature,
+    SetFeaturePayloadOperation,
     type ReferencePlaneObject,
     referencePlaneToPlane,
 } from '@occt-draw/core';
@@ -57,8 +58,8 @@ export class SketchCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 activeTool: 'select',
-                pendingLineStartPointId: null,
-                sketchId: sketch.id,
+                pendingLineStartVertexId: null,
+                sketchFeatureId: feature.id,
             },
             commandSession: {
                 id: 'sketch',
@@ -74,6 +75,12 @@ export class SketchCommand extends CadCommand {
                         label: `创建${sketchName}`,
                         partStudioId: partStudio.id,
                     }),
+                    new SetFeaturePayloadOperation({
+                        label: `写入${sketchName}数据`,
+                        partStudioId: partStudio.id,
+                        payload: sketch,
+                        payloadId: sketch.id,
+                    }),
                 ],
             }),
             draft: null,
@@ -84,12 +91,6 @@ export class SketchCommand extends CadCommand {
                 orbitPivot: selectedPlane.origin,
                 sceneCenter: selectedPlane.origin,
                 sceneRadius: selectedPlane.size,
-            },
-            sketches: {
-                sketchesById: {
-                    ...state.sketches.sketchesById,
-                    [sketch.id]: sketch,
-                },
             },
         });
     }

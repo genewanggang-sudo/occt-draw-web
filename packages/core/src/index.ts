@@ -1,4 +1,10 @@
-export { CadDocument, PartStudio } from './document';
+export {
+    CadDocument,
+    FeaturePayloadStore,
+    PartStudio,
+    type FeaturePayload,
+    type FeaturePayloadId,
+} from './document';
 export {
     AppendFeatureOperation,
     DocumentEditor,
@@ -6,6 +12,7 @@ export {
     DocumentTransaction,
     ReplaceActivePartStudioOperation,
     ReplacePartStudioOperation,
+    SetFeaturePayloadOperation,
     TransactionGroup,
     editCadDocument,
     type DocumentEdit,

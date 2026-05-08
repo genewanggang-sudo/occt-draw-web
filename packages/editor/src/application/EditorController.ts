@@ -74,13 +74,6 @@ export class EditorController {
             };
         }
 
-        if (result.sketches) {
-            nextState = {
-                ...nextState,
-                sketches: result.sketches,
-            };
-        }
-
         if ('activeSketchSession' in result) {
             nextState = {
                 ...nextState,
@@ -208,5 +201,5 @@ function createCommandAvailabilityContext(state: EditorState) {
 }
 
 function shouldExitSketchSession(state: EditorState): boolean {
-    return state.activeSketchSession?.pendingLineStartPointId === null;
+    return state.activeSketchSession?.pendingLineStartVertexId === null;
 }

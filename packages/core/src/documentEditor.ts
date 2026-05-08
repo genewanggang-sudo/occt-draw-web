@@ -1,4 +1,9 @@
-import { CadDocument, PartStudio } from './document';
+import {
+    CadDocument,
+    type FeaturePayload,
+    type FeaturePayloadId,
+    type PartStudio,
+} from './document';
 import type { Feature } from './features';
 import type { PartStudioId } from './ids';
 
@@ -89,6 +94,39 @@ export class ReplacePartStudioOperation extends DocumentOperation {
     }
 }
 
+export class SetFeaturePayloadOperation extends DocumentOperation {
+    public readonly id: OperationId;
+    public readonly label: string;
+    public readonly partStudioId: PartStudioId;
+    public readonly payload: FeaturePayload;
+    public readonly payloadId: FeaturePayloadId;
+
+    constructor(input: {
+        readonly id?: OperationId;
+        readonly label?: string;
+        readonly partStudioId: PartStudioId;
+        readonly payload: FeaturePayload;
+        readonly payloadId: FeaturePayloadId;
+    }) {
+        super();
+        this.id = input.id ?? createOperationId('set-feature-payload', input.payloadId);
+        this.label = input.label ?? `更新特征数据：${input.payloadId}`;
+        this.partStudioId = input.partStudioId;
+        this.payload = input.payload;
+        this.payloadId = input.payloadId;
+    }
+
+    public apply(document: CadDocument): CadDocument {
+        return replacePartStudio(
+            document,
+            findPartStudioOrThrow(document, this.partStudioId).setFeaturePayload(
+                this.payloadId,
+                this.payload,
+            ),
+        );
+    }
+}
+
 export class DocumentTransaction {
     public readonly label: string;
     public readonly operations: readonly DocumentOperation[];
@@ -146,12 +184,7 @@ export function editCadDocument(document: CadDocument, edit: DocumentEdit): CadD
 }
 
 function appendFeatureToPartStudio(partStudio: PartStudio, feature: Feature): PartStudio {
-    return new PartStudio({
-        features: [...partStudio.features, feature],
-        id: partStudio.id,
-        name: partStudio.name,
-        objects: partStudio.objects,
-    });
+    return partStudio.appendFeature(feature);
 }
 
 function replacePartStudio(document: CadDocument, partStudio: PartStudio): CadDocument {

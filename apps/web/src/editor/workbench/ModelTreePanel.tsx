@@ -7,14 +7,13 @@ import type {
     ReferencePlaneKind,
     ReferencePlaneObject,
 } from '@occt-draw/core';
-import type { Sketch, SketchId } from '@occt-draw/sketch';
+import { getSketchForFeature } from '@occt-draw/sketch';
 
 interface ModelTreePanelProps {
     readonly document: CadDocument;
     readonly onSelectObject: (objectId: string) => void;
     readonly partStudio: PartStudio;
     readonly selectedObjectIds: readonly string[];
-    readonly sketchesById: Readonly<Record<SketchId, Sketch>>;
 }
 
 interface DefaultGeometryItem {
@@ -28,7 +27,6 @@ export function ModelTreePanel({
     onSelectObject,
     partStudio,
     selectedObjectIds,
-    sketchesById,
 }: ModelTreePanelProps) {
     const [filterText, setFilterText] = useState('');
     const defaultGeometryItems = createDefaultGeometryItems(partStudio);
@@ -38,7 +36,7 @@ export function ModelTreePanel({
         matchesFilter([item.label, item.type === 'origin' ? '原点' : '基准面'], normalizedFilter),
     );
     const visibleFeatures = partStudio.features.filter((feature) => {
-        const sketch = feature.payloadRef ? (sketchesById[feature.payloadRef] ?? null) : null;
+        const sketch = getSketchForFeature(partStudio, feature);
 
         return matchesFilter([sketch?.name ?? feature.name, feature.type], normalizedFilter);
     });
@@ -89,9 +87,7 @@ export function ModelTreePanel({
                         </div>
                     </div>
                     {visibleFeatures.map((feature) => {
-                        const sketch = feature.payloadRef
-                            ? (sketchesById[feature.payloadRef] ?? null)
-                            : null;
+                        const sketch = getSketchForFeature(partStudio, feature);
 
                         return (
                             <div key={feature.id} className="cad-feature-tree__node">
