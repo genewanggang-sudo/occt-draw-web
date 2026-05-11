@@ -9,6 +9,7 @@ import {
     type Vector3,
 } from '@occt-draw/math';
 import type { RenderGraph, RenderObject } from '../core';
+import type { RenderPrimitiveMetadata } from '../geometry';
 import { collectPickableGraphObjects } from '../graphTraversal';
 import { createRenderPrimitiveId } from '../primitiveId';
 import { EdgeSet, FaceSet, MarkerSet, PointSet } from '../scene';
@@ -42,6 +43,7 @@ export interface PickResult {
     readonly depth01?: number;
     readonly distancePixels?: number;
     readonly key: PickKey;
+    readonly metadata?: RenderPrimitiveMetadata;
     readonly worldPoint?: unknown;
 }
 
@@ -50,6 +52,7 @@ interface PickRenderObjectHit {
     readonly distancePixels: number;
     readonly objectId: string;
     readonly primitiveId: string | null;
+    readonly metadata?: RenderPrimitiveMetadata;
     readonly targetKind: PickTargetKind;
     readonly worldPoint: Vector3;
 }
@@ -64,7 +67,7 @@ export class RenderObjectPicker {
             return null;
         }
 
-        return {
+        const result = {
             canvasPoint: input.point,
             distancePixels: hit.distancePixels,
             key:
@@ -80,6 +83,8 @@ export class RenderObjectPicker {
                       },
             worldPoint: hit.worldPoint,
         };
+
+        return hit.metadata ? { ...result, metadata: hit.metadata } : result;
     }
 }
 
@@ -109,9 +114,26 @@ function pickDisplayHit(input: PickRenderObjectInput): PickRenderObjectHit | nul
         const betterScreenHit = result.distancePixels < nearestScreenDistance - DEPTH_EPSILON;
         const equalScreenCloserDepth =
             Math.abs(result.distancePixels - nearestScreenDistance) <= DEPTH_EPSILON &&
-            (!nearestResult || result.depth < nearestResult.depth);
+            (!nearestResult || result.depth < nearestResult.depth - DEPTH_EPSILON);
+        const equalScreenAndDepthBetterTarget =
+            nearestResult !== null &&
+            Math.abs(result.distancePixels - nearestScreenDistance) <= DEPTH_EPSILON &&
+            Math.abs(result.depth - nearestResult.depth) <= DEPTH_EPSILON &&
+            getPickTargetPriority(displayResult.targetKind) >
+                getPickTargetPriority(nearestResult.targetKind);
+        const higherPriorityNearSameDepth =
+            nearestResult !== null &&
+            result.distancePixels <= input.thresholdPixels &&
+            result.depth <= nearestResult.depth + DEPTH_EPSILON &&
+            getPickTargetPriority(displayResult.targetKind) >
+                getPickTargetPriority(nearestResult.targetKind);
 
-        if (betterScreenHit || equalScreenCloserDepth) {
+        if (
+            betterScreenHit ||
+            equalScreenCloserDepth ||
+            equalScreenAndDepthBetterTarget ||
+            higherPriorityNearSameDepth
+        ) {
             nearestScreenDistance = result.distancePixels;
             nearestResult = displayResult;
         }
@@ -127,6 +149,22 @@ function toInteractionHit(hit: PickRenderObjectHit, object: RenderObject): PickR
         primitiveId: object.pickGranularity === 'object' ? null : hit.primitiveId,
         targetKind: object.pickGranularity === 'object' ? 'object' : hit.targetKind,
     };
+}
+
+function getPickTargetPriority(kind: PickTargetKind): number {
+    if (kind === 'vertex') {
+        return 3;
+    }
+
+    if (kind === 'edge') {
+        return 2;
+    }
+
+    if (kind === 'face') {
+        return 1;
+    }
+
+    return 0;
 }
 
 function pickEdgeSet(
@@ -156,15 +194,20 @@ function pickEdgeSet(
         }
 
         const worldPoint = segment.pointAt(closest.parameter);
+        const metadata = object.geometry.metadata[index];
         nearestDistance = closest.distance;
         nearestResult = {
             depth: calculateViewDepth(input.camera, basis, worldPoint),
             distancePixels: closest.distance,
             objectId: object.id,
             primitiveId: createRenderPrimitiveId(object.id, 'edge', index),
-            targetKind: 'object',
+            targetKind: 'edge',
             worldPoint,
         };
+
+        if (metadata) {
+            nearestResult = { ...nearestResult, metadata };
+        }
     }
 
     return nearestResult;
@@ -235,6 +278,7 @@ function pickPointSet(
             continue;
         }
 
+        const metadata = object.geometry.metadata[index];
         nearestDistance = hitDistance;
         nearestResult = {
             depth: calculateViewDepth(input.camera, basis, point),
@@ -244,6 +288,10 @@ function pickPointSet(
             targetKind: 'vertex',
             worldPoint: point,
         };
+
+        if (metadata) {
+            nearestResult = { ...nearestResult, metadata };
+        }
     }
 
     return nearestResult;

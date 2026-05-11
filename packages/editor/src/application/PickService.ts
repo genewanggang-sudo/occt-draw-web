@@ -25,10 +25,12 @@ export class PickService {
             return null;
         }
 
-        return {
+        const target = {
             objectId: pickResult.key.objectId,
             primitiveId: pickResult.key.primitiveId ?? null,
             targetKind: pickResult.key.kind,
         };
+
+        return pickResult.metadata ? { ...target, metadata: pickResult.metadata } : target;
     }
 }

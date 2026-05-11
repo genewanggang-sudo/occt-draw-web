@@ -1,6 +1,7 @@
 export { CommandManager } from './application/CommandManager';
 export { EditorController } from './application/EditorController';
 export { PickService, type PickSelectionTargetInput } from './application/PickService';
+export { getSketchEntityRefFromSelectionTarget } from './selection/sketchSelection';
 export { SelectionManager } from './application/SelectionManager';
 export { ViewNavigationController } from './application/ViewNavigationController';
 export {

@@ -4,6 +4,7 @@ export {
     MarkerGeometry,
     PointGeometry,
     TextGeometry,
+    type RenderPrimitiveMetadata,
 } from './renderGeometry';
 export {
     BufferIndexType,

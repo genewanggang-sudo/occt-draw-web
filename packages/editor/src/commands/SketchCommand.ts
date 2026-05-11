@@ -15,6 +15,7 @@ import {
     type CommandContext,
     type CommandResult,
 } from './CadCommand';
+import { clearSelection } from '../selection/selectionReducer';
 
 export class SketchCommand extends CadCommand {
     public readonly id = 'sketch';
@@ -84,6 +85,7 @@ export class SketchCommand extends CadCommand {
                 ],
             }),
             draft: null,
+            selection: clearSelection(state.selection),
             navigation: {
                 ...state.navigation,
                 camera: createSketchPlaneCamera(selectedPlane, state.navigation.camera),

@@ -24,6 +24,7 @@ export {
     MarkerGeometry,
     PointGeometry,
     TextGeometry,
+    type RenderPrimitiveMetadata,
 } from './geometry';
 export { RenderableObject } from './renderableObject';
 export type { RenderObjectBuilder } from './renderableObject';

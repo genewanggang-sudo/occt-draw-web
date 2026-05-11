@@ -2,6 +2,7 @@ export {
     DisplayProjector,
     projectDocumentToRenderGraph,
     projectPartStudioToRenderGraph,
+    type DisplayProjectorOptions,
 } from './displayProjector';
 export {
     DISPLAY_MODULE_MANIFEST,

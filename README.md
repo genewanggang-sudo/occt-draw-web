@@ -10,7 +10,7 @@
 - 语言：TypeScript
 - 构建工具：Vite
 - 包管理：pnpm workspace
-- 项目级运行时管理：mise
+- 项目级 Node / npm / pnpm 管理：Volta
 - 渲染引擎：WebGL
 - 几何内核：`occt-draw-core` Wasm
 - 重计算调度：Web Worker
@@ -37,10 +37,11 @@
 
 ## 本地开发
 
-当前项目使用 `mise` 固定项目内工具版本：
+当前项目使用 `Volta` 固定项目内工具版本：
 
 - Node.js：`24.15.0`
-- pnpm：`10.33.2`
+- npm：`11.12.1`
+- pnpm：`11.0.9`
 
 进入本仓库后，终端会自动使用项目版本，不影响其它项目的全局 Node 和 pnpm。
 

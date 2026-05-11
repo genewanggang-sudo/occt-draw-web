@@ -102,7 +102,9 @@ export function App() {
         [editorState.document],
     );
     const renderGraph = useMemo(() => {
-        const graph = projectPartStudioToRenderGraph(activePartStudio, editorState.draft);
+        const graph = projectPartStudioToRenderGraph(activePartStudio, editorState.draft, {
+            activeSketchFeatureId: editorState.activeSketchSession?.sketchFeatureId ?? null,
+        });
         const overlayLayer = new RenderLayer('overlay', {
             depthPolicy: 'overlay',
             navigationRole: 'excluded',
@@ -113,7 +115,12 @@ export function App() {
         graph.addLayer(overlayLayer);
 
         return graph;
-    }, [activePartStudio, editorState.draft, hoveredViewCubeTargetId]);
+    }, [
+        activePartStudio,
+        editorState.activeSketchSession,
+        editorState.draft,
+        hoveredViewCubeTargetId,
+    ]);
     const displayBounds = useMemo(() => renderGraph.navigationBounds, [renderGraph]);
     const displaySphere = useMemo(() => calculateBoundingSphere(displayBounds), [displayBounds]);
     const selectedObjectIds = editorState.selection.selection.objectIds;

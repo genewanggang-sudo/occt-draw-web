@@ -20,7 +20,7 @@ function Resolve-NodePath {
     }
 
     $candidates += @(
-        'D:\tools\mise\data\installs\node\24.15.0\node.exe',
+        'D:\tools\Volta\tools\image\node\24.15.0\node.exe',
         "$env:USERPROFILE\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe",
         "$env:LOCALAPPDATA\OpenAI\Codex\bin\node.exe"
     )

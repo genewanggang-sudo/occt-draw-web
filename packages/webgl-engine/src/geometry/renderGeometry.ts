@@ -1,16 +1,32 @@
 import type { LineSegment3, Vector3 } from '@occt-draw/math';
 import type { LabelDisplayItem, MarkerDisplayItem, SurfaceTriangle } from '../types';
 
+export type RenderPrimitiveMetadata = ReadonlyMap<string, unknown>;
+
 export class FaceGeometry {
     constructor(public readonly triangles: readonly SurfaceTriangle[]) {}
 }
 
 export class EdgeGeometry {
-    constructor(public readonly segments: readonly LineSegment3[]) {}
+    public readonly metadata: readonly (RenderPrimitiveMetadata | undefined)[];
+
+    constructor(
+        public readonly segments: readonly LineSegment3[],
+        metadata: readonly (RenderPrimitiveMetadata | undefined)[] = [],
+    ) {
+        this.metadata = [...metadata];
+    }
 }
 
 export class PointGeometry {
-    constructor(public readonly points: readonly Vector3[]) {}
+    public readonly metadata: readonly (RenderPrimitiveMetadata | undefined)[];
+
+    constructor(
+        public readonly points: readonly Vector3[],
+        metadata: readonly (RenderPrimitiveMetadata | undefined)[] = [],
+    ) {
+        this.metadata = [...metadata];
+    }
 }
 
 export class MarkerGeometry {
