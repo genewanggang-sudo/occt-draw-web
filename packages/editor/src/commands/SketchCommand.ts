@@ -60,6 +60,7 @@ export class SketchCommand extends CadCommand {
             activeSketchSession: {
                 activeTool: 'select',
                 pendingLineStartVertexId: null,
+                pendingRectangleStart: null,
                 sketchFeatureId: feature.id,
             },
             commandSession: {

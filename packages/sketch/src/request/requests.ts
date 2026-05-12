@@ -107,6 +107,71 @@ export class AddLineSegmentRequest extends SketchRequest {
     }
 }
 
+export class AddCornerRectangleRequest extends SketchRequest {
+    public readonly label = '添加草图矩形';
+    public readonly createdEdgeIds: SketchEdgeId[] = [];
+    private readonly firstCorner: Vector2;
+    private readonly oppositeCorner: Vector2;
+
+    constructor(input: { readonly firstCorner: Vector2; readonly oppositeCorner: Vector2 }) {
+        super();
+        this.firstCorner = input.firstCorner;
+        this.oppositeCorner = input.oppositeCorner;
+    }
+
+    public apply(sketch: Sketch): void {
+        const corners = getCornerRectanglePoints(this.firstCorner, this.oppositeCorner);
+        const vertices = corners.map((position) => {
+            const pointId = sketch.state.allocatePointId();
+            const vertexId = sketch.state.allocateVertexId();
+            const point = new Point2D({
+                id: pointId,
+                position,
+                sketchId: sketch.id,
+            });
+            const vertex = new Vertex({
+                id: vertexId,
+                pointId,
+                sketchId: sketch.id,
+            });
+
+            sketch.entities.geometry.points.add(point);
+            sketch.entities.topology.vertices.add(vertex);
+
+            return { point, vertex };
+        });
+
+        for (let index = 0; index < vertices.length; index += 1) {
+            const start = vertices[index];
+            const end = vertices[(index + 1) % vertices.length];
+
+            if (!start || !end) {
+                continue;
+            }
+
+            const curveId = sketch.state.allocateCurveId();
+            const edgeId = sketch.state.allocateEdgeId();
+            const curve = Line2D.fromPoints({
+                end: end.point.position,
+                id: curveId,
+                sketchId: sketch.id,
+                start: start.point.position,
+            });
+            const edge = new Edge({
+                curveId,
+                endVertexId: end.vertex.id,
+                id: edgeId,
+                sketchId: sketch.id,
+                startVertexId: start.vertex.id,
+            });
+
+            sketch.entities.geometry.curves.add(curve);
+            sketch.entities.topology.edges.add(edge);
+            this.createdEdgeIds.push(edgeId);
+        }
+    }
+}
+
 export class DeleteSketchEntityRequest extends SketchRequest {
     public readonly label = '删除草图对象';
     private readonly entityRef: SketchEntityRef;
@@ -159,6 +224,18 @@ function deleteEdge(sketch: Sketch, edgeId: SketchEdgeId): void {
     sketch.entities.geometry.curves.remove(edge.curveId);
     deleteVertexIfOrphan(sketch, edge.startVertexId);
     deleteVertexIfOrphan(sketch, edge.endVertexId);
+}
+
+function getCornerRectanglePoints(
+    firstCorner: Vector2,
+    oppositeCorner: Vector2,
+): readonly Vector2[] {
+    return [
+        firstCorner,
+        { x: oppositeCorner.x, y: firstCorner.y },
+        oppositeCorner,
+        { x: firstCorner.x, y: oppositeCorner.y },
+    ];
 }
 
 function deleteVertex(sketch: Sketch, vertexId: SketchVertexId): void {

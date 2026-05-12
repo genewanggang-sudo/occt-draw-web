@@ -21,6 +21,7 @@ import type { CommandContext, CommandPointerEvent, CommandResult } from '../comm
 import { SelectCommand } from '../commands/SelectCommand';
 import { SketchCommand } from '../commands/SketchCommand';
 import { SketchLineCommand } from '../commands/SketchLineCommand';
+import { SketchRectangleCommand } from '../commands/SketchRectangleCommand';
 import type { CommandId } from '../commands/commandTypes';
 import type { EditorState } from '../state/editorState';
 import type { ScreenPoint } from '../view-navigation/viewNavigation';
@@ -71,7 +72,12 @@ export class ViewportInteractionController {
         this.context = context;
         this.commandManager = new CommandManager({
             activeCommandId: context.getActiveCommandId(),
-            commands: [new SelectCommand(), new SketchCommand(), new SketchLineCommand()],
+            commands: [
+                new SelectCommand(),
+                new SketchCommand(),
+                new SketchLineCommand(),
+                new SketchRectangleCommand(),
+            ],
         });
     }
 

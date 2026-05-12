@@ -28,6 +28,7 @@ export {
     SketchChangeSet,
 } from './changes/changeTracking';
 export {
+    AddCornerRectangleRequest,
     AddLineSegmentRequest,
     AddPointRequest,
     DeleteSketchEntityRequest,

@@ -120,6 +120,10 @@ function getCommandRunningMessage(commandId: CommandId): string {
         return '指定直线起点。';
     }
 
+    if (commandId === 'sketch-rectangle') {
+        return '指定矩形第一个角点。';
+    }
+
     if (commandId === 'extrude') {
         return '拉伸命令已进入。';
     }

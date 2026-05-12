@@ -48,6 +48,7 @@ export type {
 export { SelectCommand } from './commands/SelectCommand';
 export { SketchCommand } from './commands/SketchCommand';
 export { SketchLineCommand } from './commands/SketchLineCommand';
+export { SketchRectangleCommand } from './commands/SketchRectangleCommand';
 export { clearSelection, replaceSelection, updatePreselection } from './selection/selectionReducer';
 export { createInitialSelectionState, type SelectionState } from './selection/selectionState';
 export { createInitialEditorState } from './state/createInitialEditorState';

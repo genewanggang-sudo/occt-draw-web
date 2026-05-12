@@ -23,6 +23,11 @@ export const commandDefinitions: readonly CommandDefinition[] = [
         kind: 'modal',
     },
     {
+        id: 'sketch-rectangle',
+        label: '矩形',
+        kind: 'modal',
+    },
+    {
         id: 'extrude',
         label: '拉伸',
         kind: 'modal',
@@ -63,6 +68,13 @@ export function evaluateCommandAvailability(
         };
     }
 
+    if (commandId === 'sketch-rectangle') {
+        return {
+            enabled: context.isEditingSketch,
+            reason: context.isEditingSketch ? null : '进入草图后才能使用矩形。',
+        };
+    }
+
     if (!context.hasSketchProfile) {
         return {
             enabled: false,
@@ -83,6 +95,7 @@ export function evaluateCommandAvailabilityMap(
         select: evaluateCommandAvailability('select', context),
         sketch: evaluateCommandAvailability('sketch', context),
         'sketch-line': evaluateCommandAvailability('sketch-line', context),
+        'sketch-rectangle': evaluateCommandAvailability('sketch-rectangle', context),
         extrude: evaluateCommandAvailability('extrude', context),
     };
 }

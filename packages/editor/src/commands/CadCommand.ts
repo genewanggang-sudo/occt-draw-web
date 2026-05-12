@@ -11,11 +11,13 @@ import type { ScreenPoint } from '../view-navigation/viewNavigation';
 import type { CommandId, CommandSession } from './commandTypes';
 
 export interface CommandPointerEvent {
+    readonly altKey: boolean;
     readonly button: number;
     readonly buttons: number;
     readonly ctrlKey: boolean;
     readonly point: ScreenPoint;
     readonly pointerId: number;
+    readonly shiftKey: boolean;
 }
 
 export interface CommandKeyEvent {

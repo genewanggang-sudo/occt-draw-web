@@ -4,15 +4,12 @@ import {
     referencePlaneToPlane,
     SetFeaturePayloadOperation,
 } from '@occt-draw/core';
-import { LineSegment3, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
+import { LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
 import {
-    AddLineSegmentRequest,
-    AddPointRequest,
-    DeleteSketchEntityRequest,
+    AddCornerRectangleRequest,
     findSketchByFeatureId,
     sketchPointToWorldOnPlane,
     type Sketch,
-    type SketchVertexId,
 } from '@occt-draw/sketch';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
@@ -25,8 +22,10 @@ import {
 } from './CadCommand';
 import { projectScreenPointToSketch2 } from './sketchProjection';
 
-export class SketchLineCommand extends CadCommand {
-    public readonly id = 'sketch-line';
+const MIN_RECTANGLE_SIDE = 1e-6;
+
+export class SketchRectangleCommand extends CadCommand {
+    public readonly id = 'sketch-rectangle';
 
     public override enter(context: CommandContext): CommandResult {
         const state = context.getState();
@@ -34,8 +33,8 @@ export class SketchLineCommand extends CadCommand {
         if (!state.activeSketchSession) {
             return createHandledCommandResult({
                 commandSession: {
-                    id: 'sketch-line',
-                    message: '进入草图后才能使用直线。',
+                    id: 'sketch-rectangle',
+                    message: '进入草图后才能使用矩形。',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'blocked',
                 },
@@ -45,13 +44,13 @@ export class SketchLineCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...state.activeSketchSession,
-                activeTool: 'line',
+                activeTool: 'rectangle',
                 pendingLineStartVertexId: null,
                 pendingRectangleStart: null,
             },
             commandSession: {
-                id: 'sketch-line',
-                message: '指定直线起点。',
+                id: 'sketch-rectangle',
+                message: '指定矩形第一个角点。',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
@@ -63,39 +62,18 @@ export class SketchLineCommand extends CadCommand {
         const state = context.getState();
         const session = state.activeSketchSession;
 
-        if (session?.pendingLineStartVertexId) {
-            const activeSketch = findActiveSketch(state, session);
-
-            if (!activeSketch) {
-                return createHandledCommandResult({
-                    draft: null,
-                });
-            }
-
-            const sketch = activeSketch.sketch.clone();
-            const request = new DeleteSketchEntityRequest({
-                entityRef: {
-                    kind: 'vertex',
-                    sketchId: sketch.id,
-                    vertexId: session.pendingLineStartVertexId,
-                },
-            });
-            const transaction = request.createTransaction();
-
-            transaction.commit(sketch);
-
+        if (session?.pendingRectangleStart) {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingLineStartVertexId: null,
+                    pendingRectangleStart: null,
                 },
                 commandSession: {
-                    id: 'sketch-line',
-                    message: '已取消当前直线，继续指定直线起点。',
+                    id: 'sketch-rectangle',
+                    message: '已取消当前矩形，继续指定矩形第一个角点。',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
                 },
-                documentEdit: createSetSketchPayloadTransaction(state, sketch),
                 draft: null,
             });
         }
@@ -134,30 +112,31 @@ export class SketchLineCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const point2 = projectScreenPointToSketch2({
-            camera: state.navigation.camera,
-            partStudio: state.document.getActivePartStudio(),
-            planeRef: activeSketch.sketch.planeRef,
-            point: event.point,
-            viewportSize: state.navigation.viewportSize,
-        });
+        const point = projectPointerToSketch(state, activeSketch.sketch, event);
 
-        if (!point2) {
+        if (!point) {
             return createHandledCommandResult({
                 message: '当前视线与草图平面平行，无法取点。',
             });
         }
 
-        if (!session.pendingLineStartVertexId) {
-            return this.createLineStartResult(context, activeSketch.sketch, point2);
+        if (!session.pendingRectangleStart) {
+            return createHandledCommandResult({
+                activeSketchSession: {
+                    ...session,
+                    pendingRectangleStart: point,
+                },
+                commandSession: {
+                    id: 'sketch-rectangle',
+                    message: '指定矩形对角点。',
+                    selectionContext: state.commandSession.selectionContext,
+                    status: 'running',
+                },
+                draft: null,
+            });
         }
 
-        return this.createLineEndResult(
-            context,
-            activeSketch.sketch,
-            session.pendingLineStartVertexId,
-            point2,
-        );
+        return this.createRectangleResult(context, activeSketch.sketch, session, point, event);
     }
 
     public override pointerMove(
@@ -168,98 +147,72 @@ export class SketchLineCommand extends CadCommand {
         const session = state.activeSketchSession;
         const activeSketch = session ? findActiveSketch(state, session) : null;
 
-        if (!session?.pendingLineStartVertexId || !activeSketch) {
+        if (!session?.pendingRectangleStart || !activeSketch) {
             return createUnhandledCommandResult();
         }
 
-        const sketch = activeSketch.sketch;
-        const startPoint = sketch.findPointForVertex(session.pendingLineStartVertexId);
-        const plane = findSketchPlane(state, sketch);
-        const endPoint2 = projectScreenPointToSketch2({
-            camera: state.navigation.camera,
-            partStudio: state.document.getActivePartStudio(),
-            planeRef: sketch.planeRef,
-            point: event.point,
-            viewportSize: state.navigation.viewportSize,
-        });
+        const plane = findSketchPlane(state, activeSketch.sketch);
+        const point = projectPointerToSketch(state, activeSketch.sketch, event);
 
-        if (!startPoint || !plane || !endPoint2) {
+        if (!plane || !point) {
             return createUnhandledCommandResult();
         }
 
         return createHandledCommandResult({
-            draft: createEditDraft({
-                id: 'draft:sketch-line',
-                kind: 'sketch',
-            }).withTemporaryObjects([
-                {
-                    id: 'draft:sketch-line:segment',
-                    kind: 'line-segment',
-                    visible: true,
-                    color: Vec3.of(0.1, 0.55, 1),
-                    segment: new LineSegment3(
-                        sketchPointToWorldOnPlane(plane, startPoint.position),
-                        sketchPointToWorldOnPlane(plane, endPoint2),
-                    ),
-                },
-            ]),
+            draft: createRectangleDraft(
+                plane,
+                session.pendingRectangleStart,
+                event.altKey
+                    ? constrainOppositeCornerToSquare(session.pendingRectangleStart, point)
+                    : point,
+            ),
         });
     }
 
-    private createLineStartResult(
-        context: CommandContext,
-        sourceSketch: Sketch,
-        point: Vector2,
-    ): CommandResult {
+    public override pointerUp(event: CommandPointerEvent, context: CommandContext): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
+        const activeSketch = session ? findActiveSketch(state, session) : null;
 
-        if (!session) {
+        if (!session?.pendingRectangleStart || !activeSketch) {
             return createUnhandledCommandResult();
         }
 
-        const sketch = sourceSketch.clone();
-        const request = new AddPointRequest({ position: point });
-        const transaction = request.createTransaction();
+        const point = projectPointerToSketch(state, activeSketch.sketch, event);
 
-        transaction.commit(sketch);
-
-        if (!request.createdVertexId) {
-            return createUnhandledCommandResult();
+        if (!point || !isValidRectangle(session.pendingRectangleStart, point)) {
+            return createHandledCommandResult();
         }
 
-        return createHandledCommandResult({
-            activeSketchSession: {
-                ...session,
-                pendingLineStartVertexId: request.createdVertexId,
-            },
-            commandSession: {
-                id: 'sketch-line',
-                message: '指定直线终点。',
-                selectionContext: state.commandSession.selectionContext,
-                status: 'running',
-            },
-            documentEdit: createSetSketchPayloadTransaction(state, sketch),
-        });
+        return this.createRectangleResult(context, activeSketch.sketch, session, point, event);
     }
 
-    private createLineEndResult(
+    private createRectangleResult(
         context: CommandContext,
         sourceSketch: Sketch,
-        startVertexId: SketchVertexId,
+        session: SketchEditSession,
         point: Vector2,
+        event: CommandPointerEvent,
     ): CommandResult {
         const state = context.getState();
-        const session = state.activeSketchSession;
+        const firstCorner = session.pendingRectangleStart;
 
-        if (!session) {
+        if (!firstCorner) {
             return createUnhandledCommandResult();
         }
 
+        const oppositeCorner = event.altKey
+            ? constrainOppositeCornerToSquare(firstCorner, point)
+            : point;
+
+        if (!isValidRectangle(firstCorner, oppositeCorner)) {
+            return createHandledCommandResult();
+        }
+
         const sketch = sourceSketch.clone();
-        const request = new AddLineSegmentRequest({
-            endPosition: point,
-            startVertexId,
+        const request = new AddCornerRectangleRequest({
+            firstCorner,
+            oppositeCorner,
         });
         const transaction = request.createTransaction();
 
@@ -268,11 +221,11 @@ export class SketchLineCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingLineStartVertexId: null,
+                pendingRectangleStart: null,
             },
             commandSession: {
-                id: 'sketch-line',
-                message: '直线已创建，继续指定下一条直线起点。',
+                id: 'sketch-rectangle',
+                message: '矩形已创建，继续指定矩形第一个角点。',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
@@ -280,6 +233,81 @@ export class SketchLineCommand extends CadCommand {
             draft: null,
         });
     }
+}
+
+function createRectangleDraft(plane: Plane3, firstCorner: Vector2, oppositeCorner: Vector2) {
+    const segments = getRectangleSegments(plane, firstCorner, oppositeCorner);
+
+    return createEditDraft({
+        id: 'draft:sketch-rectangle',
+        kind: 'sketch',
+    }).withTemporaryObjects(
+        segments.map((segment, index) => ({
+            color: Vec3.of(0.1, 0.55, 1),
+            id: `draft:sketch-rectangle:segment:${String(index)}`,
+            kind: 'line-segment',
+            segment,
+            visible: true,
+        })),
+    );
+}
+
+function getRectangleSegments(
+    plane: Plane3,
+    firstCorner: Vector2,
+    oppositeCorner: Vector2,
+): readonly LineSegment3[] {
+    const corners = getCornerRectanglePoints(firstCorner, oppositeCorner);
+
+    return corners.map((corner, index) => {
+        const next = corners[(index + 1) % corners.length] ?? corner;
+
+        return new LineSegment3(
+            sketchPointToWorldOnPlane(plane, corner),
+            sketchPointToWorldOnPlane(plane, next),
+        );
+    });
+}
+
+function getCornerRectanglePoints(
+    firstCorner: Vector2,
+    oppositeCorner: Vector2,
+): readonly Vector2[] {
+    return [
+        firstCorner,
+        Vec2.of(oppositeCorner.x, firstCorner.y),
+        oppositeCorner,
+        Vec2.of(firstCorner.x, oppositeCorner.y),
+    ];
+}
+
+function constrainOppositeCornerToSquare(start: Vector2, raw: Vector2): Vector2 {
+    const dx = raw.x - start.x;
+    const dy = raw.y - start.y;
+    const side = Math.min(Math.abs(dx), Math.abs(dy));
+
+    return Vec2.of(start.x + Math.sign(dx || 1) * side, start.y + Math.sign(dy || 1) * side);
+}
+
+function isValidRectangle(firstCorner: Vector2, oppositeCorner: Vector2): boolean {
+    return (
+        Math.abs(oppositeCorner.x - firstCorner.x) > MIN_RECTANGLE_SIDE &&
+        Math.abs(oppositeCorner.y - firstCorner.y) > MIN_RECTANGLE_SIDE
+    );
+}
+
+function projectPointerToSketch(
+    state: EditorState,
+    sketch: Sketch,
+    event: CommandPointerEvent,
+): Vector2 | null {
+    return projectScreenPointToSketch2({
+        camera: state.navigation.camera,
+        partStudio: state.document.getActivePartStudio(),
+        planeRef: sketch.planeRef,
+        point: event.point,
+        viewportSize: state.navigation.viewportSize,
+    });
 }
 
 function createSetSketchPayloadTransaction(

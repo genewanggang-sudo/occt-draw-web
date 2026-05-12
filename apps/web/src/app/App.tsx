@@ -695,11 +695,13 @@ function toEditorPointerInputFromPoint(
     point: ScreenPoint,
 ): EditorPointerInput {
     return {
+        altKey: event.altKey,
         button: event.button,
         buttons: event.buttons,
         ctrlKey: event.ctrlKey,
         pointerId: event.pointerId,
         point,
+        shiftKey: event.shiftKey,
     };
 }
 
