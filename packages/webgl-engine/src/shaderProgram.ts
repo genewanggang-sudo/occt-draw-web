@@ -20,6 +20,34 @@ in vec4 v_color;
 out vec4 out_color;
 
 void main() {
+    if (u_point_shape > 3.5) {
+        vec2 pointCoord = gl_PointCoord - vec2(0.5);
+        float distanceFromCenter = length(pointCoord);
+        float alpha = 1.0 - smoothstep(0.42, 0.5, distanceFromCenter);
+
+        if (alpha <= 0.0) {
+            discard;
+        }
+
+        out_color = vec4(v_color.rgb, v_color.a * alpha);
+        return;
+    }
+
+    if (u_point_shape > 2.5) {
+        vec2 pointCoord = gl_PointCoord - vec2(0.5);
+        float distanceFromCenter = length(pointCoord);
+        float outerEdge = 1.0 - smoothstep(0.44, 0.5, distanceFromCenter);
+        float innerEdge = smoothstep(0.26, 0.32, distanceFromCenter);
+        float alpha = outerEdge * innerEdge;
+
+        if (alpha <= 0.0) {
+            discard;
+        }
+
+        out_color = vec4(v_color.rgb, v_color.a * alpha);
+        return;
+    }
+
     if (u_point_shape > 1.5) {
         vec2 pointCoord = gl_PointCoord - vec2(0.5);
         float distanceFromCenter = length(pointCoord);

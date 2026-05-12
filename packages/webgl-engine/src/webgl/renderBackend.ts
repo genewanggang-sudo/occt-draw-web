@@ -10,7 +10,7 @@ export interface RenderBackendFrameInput {
 
 export type ImmediateDepthFunc = 'lequal' | 'less';
 export type ImmediateDrawMode = 'lines' | 'points' | 'triangles';
-export type ImmediatePointShape = 'circle' | 'marker' | 'none';
+export type ImmediatePointShape = 'circle' | 'halo' | 'marker' | 'none' | 'ring';
 export type ImmediateCullFace = 'back' | 'front' | 'none';
 
 export interface ImmediateRenderState {

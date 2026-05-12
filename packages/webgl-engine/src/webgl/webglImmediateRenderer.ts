@@ -251,6 +251,14 @@ function resolveImmediateDrawMode(
 }
 
 function resolveImmediatePointShape(pointShape: ImmediatePointShape): number {
+    if (pointShape === 'halo') {
+        return 4;
+    }
+
+    if (pointShape === 'ring') {
+        return 3;
+    }
+
     if (pointShape === 'circle') {
         return 1;
     }
