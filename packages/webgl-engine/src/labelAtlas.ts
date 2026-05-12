@@ -19,15 +19,19 @@ type LabelFontWeightText = '100' | '200' | '300' | '400' | '500' | '600' | '700'
 export interface LabelAtlas {
     readonly fontWeightSignature: string;
     readonly glyphs: ReadonlyMap<LabelGlyphKey, LabelGlyph>;
+    readonly textSignature: string;
     readonly texture: WebGLTexture;
 }
 
 export const DEFAULT_LABEL_FONT_WEIGHT: LabelFontWeight = 400;
 
-const LABEL_TEXTS = [
+const DEFAULT_LABEL_TEXTS = [
     'Top',
     'Front',
     'Right',
+    'Top 平面',
+    'Front 平面',
+    'Right 平面',
     '上',
     '下',
     '前',
@@ -41,9 +45,7 @@ const LABEL_TEXTS = [
 const GLYPH_SIZE_PIXELS = 24;
 const TEXTURE_SCALE = 4;
 const CELL_PADDING_PIXELS = 8;
-const CELL_WIDTH = 96 * TEXTURE_SCALE;
 const CELL_HEIGHT = (GLYPH_SIZE_PIXELS + CELL_PADDING_PIXELS * 2) * TEXTURE_SCALE;
-const TEXTURE_WIDTH = CELL_WIDTH * LABEL_TEXTS.length;
 
 export function createLabelGlyphKey(text: LabelText, fontWeight: LabelFontWeight): LabelGlyphKey {
     return `${text}:${formatLabelFontWeight(fontWeight)}`;
@@ -52,18 +54,32 @@ export function createLabelGlyphKey(text: LabelText, fontWeight: LabelFontWeight
 export function createLabelAtlas(
     context: WebGL2RenderingContext,
     fontWeights: readonly LabelFontWeight[] = [DEFAULT_LABEL_FONT_WEIGHT],
+    texts: readonly LabelText[] = DEFAULT_LABEL_TEXTS,
 ): LabelAtlas {
     const normalizedFontWeights = normalizeLabelFontWeights(fontWeights);
-    const textureHeight = CELL_HEIGHT * normalizedFontWeights.length;
+    const normalizedTexts = normalizeLabelTexts(texts);
     const canvas = document.createElement('canvas');
-    canvas.width = TEXTURE_WIDTH;
-    canvas.height = textureHeight;
     const canvasContext = canvas.getContext('2d');
 
     if (!canvasContext) {
         throw new Error('WebGL label atlas initialization failed: cannot create Canvas2D context.');
     }
 
+    const maxTextureSize = resolveMaxTextureSize(context);
+    const cellWidth = resolveCellWidth(canvasContext, normalizedFontWeights, normalizedTexts);
+    const columnCount = Math.max(1, Math.floor(maxTextureSize / cellWidth));
+    const rowCountPerWeight = Math.max(1, Math.ceil(normalizedTexts.length / columnCount));
+    const textureWidth = Math.max(
+        1,
+        Math.min(cellWidth * normalizedTexts.length, cellWidth * columnCount),
+    );
+    const textureHeight = Math.max(
+        1,
+        CELL_HEIGHT * rowCountPerWeight * normalizedFontWeights.length,
+    );
+
+    canvas.width = textureWidth;
+    canvas.height = textureHeight;
     canvasContext.clearRect(0, 0, canvas.width, canvas.height);
     canvasContext.fillStyle = '#ffffff';
     canvasContext.textAlign = 'left';
@@ -71,22 +87,23 @@ export function createLabelAtlas(
 
     const glyphs = new Map<LabelGlyphKey, LabelGlyph>();
 
-    normalizedFontWeights.forEach((fontWeight, rowIndex) => {
-        canvasContext.font = `${String(fontWeight)} ${String(
-            GLYPH_SIZE_PIXELS * TEXTURE_SCALE,
-        )}px "Microsoft YaHei UI", "PingFang SC", Arial, sans-serif`;
+    normalizedFontWeights.forEach((fontWeight, weightIndex) => {
+        canvasContext.font = createCanvasFont(fontWeight);
 
-        LABEL_TEXTS.forEach((text, columnIndex) => {
-            const cellX = columnIndex * CELL_WIDTH;
+        normalizedTexts.forEach((text, textIndex) => {
+            const columnIndex = textIndex % columnCount;
+            const rowIndex = weightIndex * rowCountPerWeight + Math.floor(textIndex / columnCount);
+            const cellX = columnIndex * cellWidth;
             const cellY = rowIndex * CELL_HEIGHT;
             const metrics = canvasContext.measureText(text);
             const padding = CELL_PADDING_PIXELS * TEXTURE_SCALE;
-            const leftBearing = metrics.actualBoundingBoxLeft;
-            const rightBearing = metrics.actualBoundingBoxRight;
-            const ascent = metrics.actualBoundingBoxAscent;
-            const descent = metrics.actualBoundingBoxDescent;
-            const glyphWidth = Math.ceil(leftBearing + rightBearing);
-            const glyphHeight = Math.ceil(ascent + descent);
+            const leftBearing = metrics.actualBoundingBoxLeft || 0;
+            const rightBearing = Math.max(metrics.actualBoundingBoxRight || 0, metrics.width);
+            const ascent = metrics.actualBoundingBoxAscent || GLYPH_SIZE_PIXELS * TEXTURE_SCALE;
+            const descent =
+                metrics.actualBoundingBoxDescent || GLYPH_SIZE_PIXELS * TEXTURE_SCALE * 0.25;
+            const glyphWidth = Math.max(1, Math.ceil(leftBearing + rightBearing));
+            const glyphHeight = Math.max(1, Math.ceil(ascent + descent));
             const drawX = cellX + padding + leftBearing;
             const drawBaselineY = cellY + padding + ascent;
             const minX = cellX + padding;
@@ -103,8 +120,8 @@ export function createLabelAtlas(
                 descentPixels: descent / TEXTURE_SCALE,
                 widthPixels: glyphWidth / TEXTURE_SCALE,
                 heightPixels: glyphHeight / TEXTURE_SCALE,
-                minU: minX / TEXTURE_WIDTH,
-                maxU: maxX / TEXTURE_WIDTH,
+                minU: minX / textureWidth,
+                maxU: maxX / textureWidth,
                 minV: minY / textureHeight,
                 maxV: maxY / textureHeight,
             });
@@ -130,6 +147,7 @@ export function createLabelAtlas(
 
     return {
         fontWeightSignature: createLabelAtlasFontWeightSignature(normalizedFontWeights),
+        textSignature: createLabelAtlasTextSignature(normalizedTexts),
         texture,
         glyphs,
     };
@@ -139,6 +157,10 @@ export function createLabelAtlasFontWeightSignature(
     fontWeights: readonly LabelFontWeight[],
 ): string {
     return normalizeLabelFontWeights(fontWeights).map(formatLabelFontWeight).join(',');
+}
+
+export function createLabelAtlasTextSignature(texts: readonly LabelText[]): string {
+    return normalizeLabelTexts(texts).join('\u0001');
 }
 
 export function normalizeLabelFontWeights(
@@ -159,6 +181,61 @@ export function normalizeLabelFontWeights(
     }
 
     return normalized.sort((left, right) => left - right);
+}
+
+export function normalizeLabelTexts(texts: readonly LabelText[]): readonly LabelText[] {
+    const seen = new Set<LabelText>();
+    const normalized: LabelText[] = [];
+
+    for (const text of [...DEFAULT_LABEL_TEXTS, ...texts]) {
+        if (seen.has(text)) {
+            continue;
+        }
+
+        seen.add(text);
+        normalized.push(text);
+    }
+
+    return normalized;
+}
+
+function resolveCellWidth(
+    context: CanvasRenderingContext2D,
+    fontWeights: readonly LabelFontWeight[],
+    texts: readonly LabelText[],
+): number {
+    const padding = CELL_PADDING_PIXELS * TEXTURE_SCALE;
+    let maxWidth = 1;
+
+    for (const fontWeight of fontWeights) {
+        context.font = createCanvasFont(fontWeight);
+
+        for (const text of texts) {
+            const metrics = context.measureText(text);
+            const leftBearing = metrics.actualBoundingBoxLeft || 0;
+            const rightBearing = Math.max(metrics.actualBoundingBoxRight || 0, metrics.width);
+
+            maxWidth = Math.max(maxWidth, Math.ceil(leftBearing + rightBearing));
+        }
+    }
+
+    return Math.max(1, maxWidth + padding * 2);
+}
+
+function resolveMaxTextureSize(context: WebGL2RenderingContext): number {
+    const maxTextureSize = Number(context.getParameter(context.MAX_TEXTURE_SIZE));
+
+    if (!Number.isFinite(maxTextureSize) || maxTextureSize <= 0) {
+        return 4096;
+    }
+
+    return maxTextureSize;
+}
+
+function createCanvasFont(fontWeight: LabelFontWeight): string {
+    return `${String(fontWeight)} ${String(
+        GLYPH_SIZE_PIXELS * TEXTURE_SCALE,
+    )}px "Microsoft YaHei UI", "PingFang SC", Arial, sans-serif`;
 }
 
 function formatLabelFontWeight(fontWeight: LabelFontWeight): LabelFontWeightText {

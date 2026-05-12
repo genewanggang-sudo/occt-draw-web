@@ -79,7 +79,7 @@ export class RenderQueueBuilder {
         const worldUnitsPerPixel = calculateWorldUnitsPerPixel(input.camera, input.viewportSize);
 
         for (const entry of collectSceneGraphObjects(input.graph)) {
-            this.appendQueueEntry(queue, entry, atlas, worldUnitsPerPixel);
+            this.appendQueueEntry(queue, entry, atlas, input.camera, worldUnitsPerPixel);
         }
 
         return queue;
@@ -89,12 +89,13 @@ export class RenderQueueBuilder {
         queue: RenderQueue,
         entry: RenderGraphObjectEntry,
         atlas: Pick<LabelAtlas, 'glyphs'>,
+        camera: CameraState,
         worldUnitsPerPixel: number,
     ): void {
         const { object } = entry;
 
         if (object instanceof RenderableObject) {
-            this.appendRenderableObject(queue, object, atlas, worldUnitsPerPixel);
+            this.appendRenderableObject(queue, object, atlas, camera, worldUnitsPerPixel);
         }
     }
 
@@ -102,6 +103,7 @@ export class RenderQueueBuilder {
         queue: RenderQueue,
         object: RenderableObject<unknown, unknown>,
         atlas: Pick<LabelAtlas, 'glyphs'>,
+        camera: CameraState,
         worldUnitsPerPixel: number,
     ): void {
         const primitive = object.createRenderablePrimitive({
@@ -119,7 +121,12 @@ export class RenderQueueBuilder {
                 object,
                 primitiveKind: 'label',
                 style: object.style,
-                vertices: createLabelVertices(primitive.labelItems, atlas, worldUnitsPerPixel),
+                vertices: createLabelVertices(
+                    primitive.labelItems,
+                    atlas,
+                    camera,
+                    worldUnitsPerPixel,
+                ),
             });
             return;
         }
@@ -175,6 +182,7 @@ interface LabelQuad {
 function createLabelVertices(
     labels: readonly LabelDisplayItem[],
     atlas: Pick<LabelAtlas, 'glyphs'>,
+    camera: CameraState,
     worldUnitsPerPixel: number,
 ): readonly LabelVertex[] {
     const vertices: LabelVertex[] = [];
@@ -185,11 +193,12 @@ function createLabelVertices(
         );
 
         if (!glyph) {
-            throw new Error(`WebGL label glyph not found: ${label.text}`);
+            continue;
         }
 
-        const xAxis = Vec3.normalize(label.frame.xAxis);
-        const yAxis = Vec3.normalize(label.frame.yAxis);
+        const frameBasis = resolveLabelFrameBasis(label, camera);
+        const xAxis = frameBasis.xAxis;
+        const yAxis = frameBasis.yAxis;
         const insertWorld = Vec3.add(
             Vec3.add(label.frame.origin, Vec3.scale(xAxis, label.insert.x)),
             Vec3.scale(yAxis, label.insert.y),
@@ -243,6 +252,26 @@ function createLabelVertices(
     }
 
     return vertices;
+}
+
+function resolveLabelFrameBasis(
+    label: LabelDisplayItem,
+    camera: CameraState,
+): { readonly xAxis: Vector3; readonly yAxis: Vector3 } {
+    if (label.orientation !== 'screen') {
+        return {
+            xAxis: Vec3.normalize(label.frame.xAxis),
+            yAxis: Vec3.normalize(label.frame.yAxis),
+        };
+    }
+
+    const forward = Vec3.normalize(Vec3.subtract(camera.target, camera.position));
+    const right = Vec3.normalize(Vec3.cross(forward, camera.up));
+
+    return {
+        xAxis: right,
+        yAxis: Vec3.scale(Vec3.normalize(camera.up), -1),
+    };
 }
 
 function createLabelVertex(position: Vector3, u: number, v: number, color: Vector3): LabelVertex {

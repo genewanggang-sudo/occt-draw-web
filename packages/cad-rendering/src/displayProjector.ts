@@ -84,7 +84,11 @@ export class DisplayProjector {
         }
 
         for (const object of this.projectActiveSketchPlane(partStudio, options)) {
-            sketchDraftLayer.add(object);
+            if (object instanceof TextLabelSet) {
+                labelHelperLayer.add(object);
+            } else {
+                sketchDraftLayer.add(object);
+            }
         }
 
         for (const object of this.projectSketchFeatures(partStudio)) {
@@ -405,6 +409,8 @@ function projectActiveSketchPlaneObject({
         plane.localToWorld(Vec2.of(halfSize, halfSize)),
         plane.localToWorld(Vec2.of(-halfSize, halfSize)),
     ] as const;
+    const labelFrameOrigin = plane.localToWorld(Vec2.of(-halfSize, halfSize));
+    const labelYAxis = Vec3.scale(plane.yAxis, -1);
     const outline = [
         new LineSegment3(corners[0], corners[1]),
         new LineSegment3(corners[1], corners[2]),
@@ -437,6 +443,42 @@ function projectActiveSketchPlaneObject({
             pickable: false,
             visible: planeObject.visible,
         }),
+        new TextLabelSet(
+            new TextGeometry([
+                {
+                    color: Vec3.of(0.35, 0.72, 1),
+                    fontWeight: 400,
+                    frame: {
+                        origin: labelFrameOrigin,
+                        xAxis: plane.xAxis,
+                        yAxis: labelYAxis,
+                    },
+                    heightPixels: 15,
+                    insert: {
+                        x: 0,
+                        y: 0,
+                    },
+                    paddingPixels: {
+                        x: 6,
+                        y: 6,
+                    },
+                    justify: {
+                        baseline: 'alphabetic',
+                        horizontal: 'left',
+                        vertical: 'top',
+                    },
+                    text: sketchName,
+                },
+            ]),
+            new TextStyle(),
+            {
+                depthRole: 'excluded',
+                id: `${sketchFeatureId}:sketch-plane-label`,
+                name: `${sketchName} sketch plane label`,
+                pickable: false,
+                visible: planeObject.visible,
+            },
+        ),
     ];
 }
 

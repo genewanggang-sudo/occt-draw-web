@@ -32,6 +32,13 @@ const TRANSPARENT_RENDER_STATE: RenderState = {
     polygonOffset: false,
 };
 
+const LABEL_RENDER_STATE: RenderState = {
+    blend: true,
+    depthTest: false,
+    depthWrite: false,
+    polygonOffset: false,
+};
+
 const DEFAULT_MATERIAL_COLOR = Vec3.of(1, 1, 1);
 
 export function resolveFaceMaterial(style: FaceStyle): RenderMaterial {
@@ -79,7 +86,7 @@ export function resolveTextMaterial(_style: TextStyle): RenderMaterial {
         alpha: 1,
         color: DEFAULT_MATERIAL_COLOR,
         pointSize: 1,
-        renderState: TRANSPARENT_RENDER_STATE,
+        renderState: LABEL_RENDER_STATE,
         shaderVariantKey: 'label',
     };
 }

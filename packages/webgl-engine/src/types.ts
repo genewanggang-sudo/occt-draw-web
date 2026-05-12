@@ -33,6 +33,7 @@ export type RenderDepthRole = 'excluded' | 'primary' | 'secondary';
 export type LabelBaseline = 'alphabetic' | 'hanging' | 'ideographic' | 'middle';
 export type LabelFontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
 export type LabelHorizontalJustify = 'center' | 'left' | 'right';
+export type LabelOrientation = 'screen' | 'world';
 export type LabelText = string;
 export type LabelVerticalJustify = 'baseline' | 'bottom' | 'middle' | 'top';
 export type MarkerShape = string;
@@ -66,6 +67,7 @@ export interface LabelDisplayItem {
     readonly heightPixels: number;
     readonly insert: LabelInsert;
     readonly justify: LabelJustify;
+    readonly orientation?: LabelOrientation;
     readonly paddingPixels?: LabelPaddingPixels;
     readonly text: LabelText;
 }

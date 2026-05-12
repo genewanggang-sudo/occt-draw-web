@@ -47,7 +47,7 @@ export function createDisplayLabelVertices({
 
     for (const { object } of collectSceneGraphObjects(graph)) {
         if (object instanceof TextLabelSet) {
-            appendLabelSet(vertices, object, atlas, worldUnitsPerPixel);
+            appendLabelSet(vertices, object, atlas, camera, worldUnitsPerPixel);
         }
     }
 
@@ -78,11 +78,16 @@ function appendLabelSet(
     vertices: LabelVertex[],
     object: TextLabelSet,
     atlas: Pick<LabelAtlas, 'glyphs'>,
+    camera: CameraState,
     worldUnitsPerPixel: number,
 ): void {
     for (const label of object.geometry.labels) {
         const glyph = resolveGlyph(label, atlas);
-        const frameBasis = resolveFrameBasis(label);
+
+        if (!glyph) {
+            continue;
+        }
+        const frameBasis = resolveFrameBasis(label, camera);
         const insertWorld = resolveInsertWorld(label, frameBasis);
         const metrics = resolveTextBoxMetrics(glyph, label.heightPixels, worldUnitsPerPixel);
         const topLeft = applyPaddingPixels(
@@ -104,19 +109,28 @@ function appendLabelSet(
     }
 }
 
-function resolveGlyph(label: LabelDisplayItem, atlas: Pick<LabelAtlas, 'glyphs'>): LabelGlyph {
+function resolveGlyph(
+    label: LabelDisplayItem,
+    atlas: Pick<LabelAtlas, 'glyphs'>,
+): LabelGlyph | null {
     const glyph = atlas.glyphs.get(
         createLabelGlyphKey(label.text, label.fontWeight ?? DEFAULT_LABEL_FONT_WEIGHT),
     );
 
-    if (!glyph) {
-        throw new Error(`WebGL label glyph not found: ${label.text}`);
-    }
-
-    return glyph;
+    return glyph ?? null;
 }
 
-function resolveFrameBasis(label: LabelDisplayItem): TextFrameBasis {
+function resolveFrameBasis(label: LabelDisplayItem, camera: CameraState): TextFrameBasis {
+    if (label.orientation === 'screen') {
+        const forward = Vec3.normalize(Vec3.subtract(camera.target, camera.position));
+        const right = Vec3.normalize(Vec3.cross(forward, camera.up));
+
+        return {
+            xAxis: right,
+            yAxis: Vec3.scale(Vec3.normalize(camera.up), -1),
+        };
+    }
+
     return {
         xAxis: Vec3.normalize(label.frame.xAxis),
         yAxis: Vec3.normalize(label.frame.yAxis),
