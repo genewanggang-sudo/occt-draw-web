@@ -35,7 +35,7 @@ import {
 const MODEL_LAYER_NAME = 'model';
 const SKETCH_DRAFT_LAYER_NAME = 'sketch-draft';
 const LABEL_HELPER_LAYER_NAME = 'label-helper';
-const SKETCH_PLANE_GRID_DIVISIONS = 10;
+const ACTIVE_SKETCH_PLANE_SCALE = 1.35;
 
 export interface DisplayProjectorOptions {
     readonly activeSketchFeatureId?: string | null;
@@ -217,7 +217,11 @@ export class DisplayProjector {
             return [];
         }
 
-        return projectActiveSketchPlaneObject(sketchPlane, feature.id);
+        return projectActiveSketchPlaneObject({
+            planeObject: sketchPlane,
+            sketchFeatureId: feature.id,
+            sketchName: feature.name,
+        });
     }
 
     private projectDraftObjects(draft: EditDraft | null): readonly RenderObject[] {
@@ -384,19 +388,29 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Ren
     ];
 }
 
-function projectActiveSketchPlaneObject(
-    object: ReferencePlaneObject,
-    sketchFeatureId: string,
-): readonly RenderObject[] {
-    const plane = referencePlaneToPlane(object);
-    const halfSize = object.size / 2;
+function projectActiveSketchPlaneObject({
+    planeObject,
+    sketchFeatureId,
+    sketchName,
+}: {
+    readonly planeObject: ReferencePlaneObject;
+    readonly sketchFeatureId: string;
+    readonly sketchName: string;
+}): readonly RenderObject[] {
+    const plane = referencePlaneToPlane(planeObject);
+    const halfSize = (planeObject.size * ACTIVE_SKETCH_PLANE_SCALE) / 2;
     const corners = [
         plane.localToWorld(Vec2.of(-halfSize, -halfSize)),
         plane.localToWorld(Vec2.of(halfSize, -halfSize)),
         plane.localToWorld(Vec2.of(halfSize, halfSize)),
         plane.localToWorld(Vec2.of(-halfSize, halfSize)),
     ] as const;
-    const gridSegments = createSketchPlaneGridSegments(plane, object.size);
+    const outline = [
+        new LineSegment3(corners[0], corners[1]),
+        new LineSegment3(corners[1], corners[2]),
+        new LineSegment3(corners[2], corners[3]),
+        new LineSegment3(corners[3], corners[0]),
+    ];
 
     return [
         new FaceSet(
@@ -405,83 +419,25 @@ function projectActiveSketchPlaneObject(
                 { a: corners[0], b: corners[2], c: corners[3] },
             ]),
             new FaceStyle({
-                color: Vec3.of(0.1, 0.16, 0.22),
-                opacity: 0.12,
+                color: Vec3.of(0.1, 0.24, 0.34),
+                opacity: 0.04,
             }),
             {
                 depthRole: 'primary',
-                id: `${sketchFeatureId}:work-plane`,
-                name: `${object.name} sketch work plane`,
+                id: `${sketchFeatureId}:sketch-plane-overlay`,
+                name: `${sketchName} sketch plane overlay`,
                 pickable: false,
-                visible: object.visible,
+                visible: planeObject.visible,
             },
         ),
-        new EdgeSet(
-            new EdgeGeometry(gridSegments.minor),
-            new EdgeStyle({ color: Vec3.of(0.2, 0.34, 0.44) }),
-            {
-                depthRole: 'primary',
-                id: `${sketchFeatureId}:work-plane:grid`,
-                name: `${object.name} sketch work plane grid`,
-                pickable: false,
-                visible: object.visible,
-            },
-        ),
-        new EdgeSet(
-            new EdgeGeometry(gridSegments.major),
-            new EdgeStyle({ color: Vec3.of(0.44, 0.66, 0.82) }),
-            {
-                depthRole: 'primary',
-                id: `${sketchFeatureId}:work-plane:axes`,
-                name: `${object.name} sketch work plane axes`,
-                pickable: false,
-                visible: object.visible,
-            },
-        ),
+        new EdgeSet(new EdgeGeometry(outline), new EdgeStyle({ color: Vec3.of(0.35, 0.72, 1) }), {
+            depthRole: 'primary',
+            id: `${sketchFeatureId}:sketch-plane-outline`,
+            name: `${sketchName} sketch plane outline`,
+            pickable: false,
+            visible: planeObject.visible,
+        }),
     ];
-}
-
-function createSketchPlaneGridSegments(
-    plane: ReturnType<typeof referencePlaneToPlane>,
-    size: number,
-): { readonly major: readonly LineSegment3[]; readonly minor: readonly LineSegment3[] } {
-    const halfSize = size / 2;
-    const minor: LineSegment3[] = [];
-    const major: LineSegment3[] = [
-        new LineSegment3(
-            plane.localToWorld(Vec2.of(-halfSize, 0)),
-            plane.localToWorld(Vec2.of(halfSize, 0)),
-        ),
-        new LineSegment3(
-            plane.localToWorld(Vec2.of(0, -halfSize)),
-            plane.localToWorld(Vec2.of(0, halfSize)),
-        ),
-    ];
-
-    for (
-        let index = -SKETCH_PLANE_GRID_DIVISIONS;
-        index <= SKETCH_PLANE_GRID_DIVISIONS;
-        index += 1
-    ) {
-        if (index === 0) {
-            continue;
-        }
-
-        const offset = (index / SKETCH_PLANE_GRID_DIVISIONS) * halfSize;
-
-        minor.push(
-            new LineSegment3(
-                plane.localToWorld(Vec2.of(offset, -halfSize)),
-                plane.localToWorld(Vec2.of(offset, halfSize)),
-            ),
-            new LineSegment3(
-                plane.localToWorld(Vec2.of(-halfSize, offset)),
-                plane.localToWorld(Vec2.of(halfSize, offset)),
-            ),
-        );
-    }
-
-    return { major, minor };
 }
 
 function addObjectsToLayers(
