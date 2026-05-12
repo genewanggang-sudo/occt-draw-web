@@ -113,6 +113,8 @@ export class ViewportInteractionController {
     }
 
     public handleKeyDown(event: EditorKeyInput): boolean {
+        this.commandManager.setActiveCommandId(this.context.getActiveCommandId());
+
         if (shouldIgnoreShortcut(event)) {
             return false;
         }
