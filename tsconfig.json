@@ -2,22 +2,16 @@
     "files": [],
     "references": [
         { "path": "./apps/web" },
-        { "path": "./packages/cloud-client" },
-        { "path": "./packages/config" },
         { "path": "./packages/constraints" },
         { "path": "./packages/core" },
         { "path": "./packages/cad-rendering" },
         { "path": "./packages/editor" },
         { "path": "./packages/math" },
         { "path": "./packages/parametrics" },
-        { "path": "./packages/protocol" },
         { "path": "./packages/webgl-engine" },
         { "path": "./packages/shared" },
         { "path": "./packages/sketch" },
         { "path": "./packages/sketch-snapping" },
-        { "path": "./packages/ui" },
-        { "path": "./packages/wasm-bridge" },
-        { "path": "./packages/worker-client" },
-        { "path": "./packages/worker-runtime" }
+        { "path": "./packages/ui" }
     ]
 }

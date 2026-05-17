@@ -139,15 +139,5 @@ module.exports = {
                 path: '^packages/(?!shared|math|core|sketch|sketch-snapping|display|renderer|editor)',
             },
         },
-        {
-            name: 'cloud-client-only-shared',
-            severity: 'error',
-            from: {
-                path: '^packages/cloud-client/src',
-            },
-            to: {
-                path: '^packages/(?!shared|cloud-client)',
-            },
-        },
     ],
 };

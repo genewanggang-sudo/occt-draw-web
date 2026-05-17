@@ -65,9 +65,6 @@ importers:
       '@occt-draw/cad-rendering':
         specifier: workspace:*
         version: link:../../packages/cad-rendering
-      '@occt-draw/cloud-client':
-        specifier: workspace:*
-        version: link:../../packages/cloud-client
       '@occt-draw/constraints':
         specifier: workspace:*
         version: link:../../packages/constraints
@@ -119,14 +116,6 @@ importers:
       '@occt-draw/webgl-engine':
         specifier: workspace:*
         version: link:../webgl-engine
-
-  packages/cloud-client:
-    dependencies:
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
-
-  packages/config: {}
 
   packages/constraints:
     dependencies:

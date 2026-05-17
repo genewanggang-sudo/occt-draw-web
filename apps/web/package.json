@@ -3,7 +3,6 @@
     "private": true,
     "version": "0.1.0",
     "dependencies": {
-        "@occt-draw/cloud-client": "workspace:*",
         "@occt-draw/constraints": "workspace:*",
         "@occt-draw/core": "workspace:*",
         "@occt-draw/cad-rendering": "workspace:*",
