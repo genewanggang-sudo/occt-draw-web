@@ -80,6 +80,16 @@ module.exports = {
             },
         },
         {
+            name: 'sketch-snapping-only-sketch-math-webgl-shared',
+            severity: 'error',
+            from: {
+                path: '^packages/sketch-snapping/src',
+            },
+            to: {
+                path: '^packages/(?!shared|math|sketch|webgl-engine|sketch-snapping)',
+            },
+        },
+        {
             name: 'parametrics-only-core-shared',
             severity: 'error',
             from: {
@@ -136,7 +146,7 @@ module.exports = {
                 path: '^packages/editor/src',
             },
             to: {
-                path: '^packages/(?!shared|math|core|sketch|display|renderer|editor)',
+                path: '^packages/(?!shared|math|core|sketch|sketch-snapping|display|renderer|editor)',
             },
         },
         {

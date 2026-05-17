@@ -172,6 +172,9 @@ importers:
       '@occt-draw/sketch':
         specifier: workspace:*
         version: link:../sketch
+      '@occt-draw/sketch-snapping':
+        specifier: workspace:*
+        version: link:../sketch-snapping
       '@occt-draw/webgl-engine':
         specifier: workspace:*
         version: link:../webgl-engine
@@ -206,6 +209,18 @@ importers:
       '@occt-draw/shared':
         specifier: workspace:*
         version: link:../shared
+
+  packages/sketch-snapping:
+    dependencies:
+      '@occt-draw/math':
+        specifier: workspace:*
+        version: link:../math
+      '@occt-draw/sketch':
+        specifier: workspace:*
+        version: link:../sketch
+      '@occt-draw/webgl-engine':
+        specifier: workspace:*
+        version: link:../webgl-engine
 
   packages/ui:
     dependencies:

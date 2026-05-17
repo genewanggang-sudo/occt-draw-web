@@ -14,7 +14,7 @@ import {
     type Sketch,
     type SketchVertexId,
 } from '@occt-draw/sketch';
-import { getSketchEntityRefFromSelectionTarget } from '../selection/sketchSelection';
+import { SketchSnapService, type SketchSnapResult } from '@occt-draw/sketch-snapping';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
     CadCommand,
@@ -27,9 +27,11 @@ import {
 import { projectScreenPointToSketch2 } from './sketchProjection';
 
 const MIN_LINE_LENGTH = 1e-6;
+const LINE_SNAP_THRESHOLD_PIXELS = 9;
 
 export class SketchLineCommand extends CadCommand {
     public readonly id = 'sketch-line';
+    private readonly snapService = new SketchSnapService();
 
     public override enter(context: CommandContext): CommandResult {
         const state = context.getState();
@@ -153,16 +155,9 @@ export class SketchLineCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const snap = resolveSketchVertexSnap(context, activeSketch.sketch, event);
-        const point2 =
-            snap?.point ??
-            projectScreenPointToSketch2({
-                camera: state.navigation.camera,
-                partStudio: state.document.getActivePartStudio(),
-                planeRef: activeSketch.sketch.planeRef,
-                point: event.point,
-                viewportSize: state.navigation.viewportSize,
-            });
+        const resolvedPoint = this.resolveLinePoint(context, activeSketch.sketch, event);
+        const point2 = resolvedPoint.snap?.point ?? resolvedPoint.rawPoint;
+        const snappedVertexId = getSnappedVertexId(resolvedPoint.snap);
 
         if (!point2) {
             return createHandledCommandResult({
@@ -171,8 +166,8 @@ export class SketchLineCommand extends CadCommand {
         }
 
         if (!session.pendingLineStartVertexId) {
-            if (snap) {
-                return this.createLineStartFromVertexResult(context, snap.vertexId);
+            if (snappedVertexId) {
+                return this.createLineStartFromVertexResult(context, snappedVertexId);
             }
 
             return this.createLineStartResult(context, activeSketch.sketch, point2);
@@ -183,7 +178,7 @@ export class SketchLineCommand extends CadCommand {
             activeSketch.sketch,
             session.pendingLineStartVertexId,
             point2,
-            snap?.vertexId ?? null,
+            snappedVertexId,
         );
     }
 
@@ -201,29 +196,22 @@ export class SketchLineCommand extends CadCommand {
 
         const sketch = activeSketch.sketch;
         const startPoint = sketch.findPointForVertex(session.pendingLineStartVertexId);
-        const plane = findSketchPlane(state, sketch);
-        const snap = resolveSketchVertexSnap(
+        const resolvedPoint = this.resolveLinePoint(
             context,
             sketch,
             event,
             session.pendingLineStartVertexId,
         );
-        const endPoint2 =
-            snap?.point ??
-            projectScreenPointToSketch2({
-                camera: state.navigation.camera,
-                partStudio: state.document.getActivePartStudio(),
-                planeRef: sketch.planeRef,
-                point: event.point,
-                viewportSize: state.navigation.viewportSize,
-            });
+        const endPoint2 = resolvedPoint.snap?.point ?? resolvedPoint.rawPoint;
 
-        if (!startPoint || !plane || !endPoint2) {
+        if (!startPoint || !resolvedPoint.plane || !endPoint2) {
             return createUnhandledCommandResult();
         }
 
-        const startWorld = sketchPointToWorldOnPlane(plane, startPoint.position);
-        const endWorld = sketchPointToWorldOnPlane(plane, endPoint2);
+        const startWorld = sketchPointToWorldOnPlane(resolvedPoint.plane, startPoint.position);
+        const endWorld =
+            resolvedPoint.snap?.worldPoint ??
+            sketchPointToWorldOnPlane(resolvedPoint.plane, endPoint2);
 
         return createHandledCommandResult({
             draft: createEditDraft({
@@ -237,7 +225,7 @@ export class SketchLineCommand extends CadCommand {
                     color: Vec3.of(0.1, 0.55, 1),
                     segment: new LineSegment3(startWorld, endWorld),
                 },
-                ...(snap
+                ...(resolvedPoint.snap
                     ? [
                           {
                               id: 'draft:sketch-line:snap-point',
@@ -250,6 +238,55 @@ export class SketchLineCommand extends CadCommand {
                     : []),
             ]),
         });
+    }
+
+    private resolveLinePoint(
+        context: CommandContext,
+        sketch: Sketch,
+        event: CommandPointerEvent,
+        excludedVertexId: SketchVertexId | null = null,
+    ): {
+        readonly plane: Plane3 | null;
+        readonly rawPoint: Vector2 | null;
+        readonly snap: SketchSnapResult | null;
+    } {
+        const state = context.getState();
+        const plane = findSketchPlane(state, sketch);
+        const rawPoint = projectScreenPointToSketch2({
+            camera: state.navigation.camera,
+            partStudio: state.document.getActivePartStudio(),
+            planeRef: sketch.planeRef,
+            point: event.point,
+            viewportSize: state.navigation.viewportSize,
+        });
+
+        if (!plane || !rawPoint) {
+            return { plane, rawPoint, snap: null };
+        }
+
+        return {
+            plane,
+            rawPoint,
+            snap: this.snapService.resolve({
+                camera: state.navigation.camera,
+                enabledKinds: ['vertex'],
+                excludedRefs: excludedVertexId
+                    ? [
+                          {
+                              kind: 'vertex',
+                              sketchId: sketch.id,
+                              vertexId: excludedVertexId,
+                          },
+                      ]
+                    : [],
+                plane,
+                pointerPoint: event.point,
+                rawSketchPoint: rawPoint,
+                sketch,
+                thresholdPixels: LINE_SNAP_THRESHOLD_PIXELS,
+                viewportSize: state.navigation.viewportSize,
+            }),
+        };
     }
 
     private createLineStartFromVertexResult(
@@ -410,25 +447,12 @@ function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
     return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
 }
 
-function resolveSketchVertexSnap(
-    context: CommandContext,
-    sketch: Sketch,
-    event: CommandPointerEvent,
-    excludedVertexId: SketchVertexId | null = null,
-): { readonly point: Vector2; readonly vertexId: SketchVertexId } | null {
-    const ref = getSketchEntityRefFromSelectionTarget(context.pick(event.point));
-
-    if (ref?.kind !== 'vertex' || ref.sketchId !== sketch.id || ref.vertexId === excludedVertexId) {
-        return null;
-    }
-
-    const point = sketch.findPointForVertex(ref.vertexId);
-
-    return point ? { point: point.position, vertexId: ref.vertexId } : null;
-}
-
 function isVertexUsedByEdge(sketch: Sketch, vertexId: SketchVertexId): boolean {
     return sketch.entities.topology.edges
         .list()
         .some((edge) => edge.startVertexId === vertexId || edge.endVertexId === vertexId);
+}
+
+function getSnappedVertexId(snap: SketchSnapResult | null): SketchVertexId | null {
+    return snap?.sourceRef?.kind === 'vertex' ? snap.sourceRef.vertexId : null;
 }
