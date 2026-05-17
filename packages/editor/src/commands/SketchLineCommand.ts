@@ -14,6 +14,7 @@ import {
     type Sketch,
     type SketchVertexId,
 } from '@occt-draw/sketch';
+import { getSketchEntityRefFromSelectionTarget } from '../selection/sketchSelection';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
     CadCommand,
@@ -152,13 +153,16 @@ export class SketchLineCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const point2 = projectScreenPointToSketch2({
-            camera: state.navigation.camera,
-            partStudio: state.document.getActivePartStudio(),
-            planeRef: activeSketch.sketch.planeRef,
-            point: event.point,
-            viewportSize: state.navigation.viewportSize,
-        });
+        const snap = resolveSketchVertexSnap(context, activeSketch.sketch, event);
+        const point2 =
+            snap?.point ??
+            projectScreenPointToSketch2({
+                camera: state.navigation.camera,
+                partStudio: state.document.getActivePartStudio(),
+                planeRef: activeSketch.sketch.planeRef,
+                point: event.point,
+                viewportSize: state.navigation.viewportSize,
+            });
 
         if (!point2) {
             return createHandledCommandResult({
@@ -167,6 +171,10 @@ export class SketchLineCommand extends CadCommand {
         }
 
         if (!session.pendingLineStartVertexId) {
+            if (snap) {
+                return this.createLineStartFromVertexResult(context, snap.vertexId);
+            }
+
             return this.createLineStartResult(context, activeSketch.sketch, point2);
         }
 
@@ -175,6 +183,7 @@ export class SketchLineCommand extends CadCommand {
             activeSketch.sketch,
             session.pendingLineStartVertexId,
             point2,
+            snap?.vertexId ?? null,
         );
     }
 
@@ -193,17 +202,28 @@ export class SketchLineCommand extends CadCommand {
         const sketch = activeSketch.sketch;
         const startPoint = sketch.findPointForVertex(session.pendingLineStartVertexId);
         const plane = findSketchPlane(state, sketch);
-        const endPoint2 = projectScreenPointToSketch2({
-            camera: state.navigation.camera,
-            partStudio: state.document.getActivePartStudio(),
-            planeRef: sketch.planeRef,
-            point: event.point,
-            viewportSize: state.navigation.viewportSize,
-        });
+        const snap = resolveSketchVertexSnap(
+            context,
+            sketch,
+            event,
+            session.pendingLineStartVertexId,
+        );
+        const endPoint2 =
+            snap?.point ??
+            projectScreenPointToSketch2({
+                camera: state.navigation.camera,
+                partStudio: state.document.getActivePartStudio(),
+                planeRef: sketch.planeRef,
+                point: event.point,
+                viewportSize: state.navigation.viewportSize,
+            });
 
         if (!startPoint || !plane || !endPoint2) {
             return createUnhandledCommandResult();
         }
+
+        const startWorld = sketchPointToWorldOnPlane(plane, startPoint.position);
+        const endWorld = sketchPointToWorldOnPlane(plane, endPoint2);
 
         return createHandledCommandResult({
             draft: createEditDraft({
@@ -215,12 +235,46 @@ export class SketchLineCommand extends CadCommand {
                     kind: 'line-segment',
                     visible: true,
                     color: Vec3.of(0.1, 0.55, 1),
-                    segment: new LineSegment3(
-                        sketchPointToWorldOnPlane(plane, startPoint.position),
-                        sketchPointToWorldOnPlane(plane, endPoint2),
-                    ),
+                    segment: new LineSegment3(startWorld, endWorld),
                 },
+                ...(snap
+                    ? [
+                          {
+                              id: 'draft:sketch-line:snap-point',
+                              kind: 'point' as const,
+                              visible: true,
+                              color: Vec3.of(1, 0.72, 0.18),
+                              point: endWorld,
+                          },
+                      ]
+                    : []),
             ]),
+        });
+    }
+
+    private createLineStartFromVertexResult(
+        context: CommandContext,
+        vertexId: SketchVertexId,
+    ): CommandResult {
+        const state = context.getState();
+        const session = state.activeSketchSession;
+
+        if (!session) {
+            return createUnhandledCommandResult();
+        }
+
+        return createHandledCommandResult({
+            activeSketchSession: {
+                ...session,
+                pendingLineStartVertexId: vertexId,
+            },
+            commandSession: {
+                id: 'sketch-line',
+                message: '已吸附端点，指定直线终点。',
+                selectionContext: state.commandSession.selectionContext,
+                status: 'running',
+            },
+            draft: null,
         });
     }
 
@@ -266,6 +320,7 @@ export class SketchLineCommand extends CadCommand {
         sourceSketch: Sketch,
         startVertexId: SketchVertexId,
         point: Vector2,
+        snappedEndVertexId: SketchVertexId | null,
     ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
@@ -288,10 +343,15 @@ export class SketchLineCommand extends CadCommand {
             });
         }
 
-        const request = new AddLineSegmentRequest({
-            endPosition: point,
-            startVertexId,
-        });
+        const request = snappedEndVertexId
+            ? new AddLineSegmentRequest({
+                  endVertexId: snappedEndVertexId,
+                  startVertexId,
+              })
+            : new AddLineSegmentRequest({
+                  endPosition: point,
+                  startVertexId,
+              });
         const transaction = request.createTransaction();
 
         transaction.commit(sketch);
@@ -348,6 +408,23 @@ function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
     const object = state.document.getActivePartStudio().findObjectById(sketch.planeRef);
 
     return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
+}
+
+function resolveSketchVertexSnap(
+    context: CommandContext,
+    sketch: Sketch,
+    event: CommandPointerEvent,
+    excludedVertexId: SketchVertexId | null = null,
+): { readonly point: Vector2; readonly vertexId: SketchVertexId } | null {
+    const ref = getSketchEntityRefFromSelectionTarget(context.pick(event.point));
+
+    if (ref?.kind !== 'vertex' || ref.sketchId !== sketch.id || ref.vertexId === excludedVertexId) {
+        return null;
+    }
+
+    const point = sketch.findPointForVertex(ref.vertexId);
+
+    return point ? { point: point.position, vertexId: ref.vertexId } : null;
 }
 
 function isVertexUsedByEdge(sketch: Sketch, vertexId: SketchVertexId): boolean {

@@ -54,12 +54,18 @@ export class AddLineSegmentRequest extends SketchRequest {
     public readonly label = '添加草图直线';
     public createdEdgeId: SketchEdgeId | null = null;
     public createdEndVertexId: SketchVertexId | null = null;
-    private readonly endPosition: Vector2;
+    private readonly endPosition: Vector2 | null;
+    private readonly endVertexId: SketchVertexId | null;
     private readonly startVertexId: SketchVertexId;
 
-    constructor(input: { readonly endPosition: Vector2; readonly startVertexId: SketchVertexId }) {
+    constructor(
+        input:
+            | { readonly endPosition: Vector2; readonly startVertexId: SketchVertexId }
+            | { readonly endVertexId: SketchVertexId; readonly startVertexId: SketchVertexId },
+    ) {
         super();
-        this.endPosition = input.endPosition;
+        this.endPosition = 'endPosition' in input ? input.endPosition : null;
+        this.endVertexId = 'endVertexId' in input ? input.endVertexId : null;
         this.startVertexId = input.startVertexId;
     }
 
@@ -70,13 +76,25 @@ export class AddLineSegmentRequest extends SketchRequest {
             return;
         }
 
-        const endPointId = sketch.state.allocatePointId();
-        const endVertexId = sketch.state.allocateVertexId();
+        const existingEndVertex = this.endVertexId
+            ? sketch.entities.topology.vertices.get(this.endVertexId)
+            : null;
+        const existingEndPoint = this.endVertexId
+            ? sketch.findPointForVertex(this.endVertexId)
+            : null;
+        const endPosition = existingEndPoint?.position ?? this.endPosition;
+
+        if (!endPosition) {
+            return;
+        }
+
+        const endVertexId = existingEndVertex?.id ?? sketch.state.allocateVertexId();
+        const endPointId = existingEndVertex?.pointId ?? sketch.state.allocatePointId();
         const curveId = sketch.state.allocateCurveId();
         const edgeId = sketch.state.allocateEdgeId();
         const endPoint = new Point2D({
             id: endPointId,
-            position: this.endPosition,
+            position: endPosition,
             sketchId: sketch.id,
         });
         const endVertex = new Vertex({
@@ -85,7 +103,7 @@ export class AddLineSegmentRequest extends SketchRequest {
             sketchId: sketch.id,
         });
         const curve = Line2D.fromPoints({
-            end: this.endPosition,
+            end: endPosition,
             id: curveId,
             sketchId: sketch.id,
             start: startPoint.position,
@@ -98,8 +116,10 @@ export class AddLineSegmentRequest extends SketchRequest {
             startVertexId: this.startVertexId,
         });
 
-        sketch.entities.geometry.points.add(endPoint);
-        sketch.entities.topology.vertices.add(endVertex);
+        if (!existingEndVertex) {
+            sketch.entities.geometry.points.add(endPoint);
+            sketch.entities.topology.vertices.add(endVertex);
+        }
         sketch.entities.geometry.curves.add(curve);
         sketch.entities.topology.edges.add(edge);
         this.createdEdgeId = edgeId;

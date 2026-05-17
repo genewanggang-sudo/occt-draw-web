@@ -3,6 +3,7 @@ import {
     type CadDocument,
     type CadObject,
     type DraftLineSegmentObject,
+    type DraftPointObject,
     type EditDraft,
     type PartStudio,
     type ReferenceOriginObject,
@@ -234,38 +235,71 @@ export class DisplayProjector {
         }
 
         const temporaryLineSegments = draft.temporaryObjects.filter(isDraftLineSegmentObject);
+        const temporaryPoints = draft.temporaryObjects.filter(isDraftPointObject);
 
-        if (temporaryLineSegments.length === 0) {
+        if (temporaryLineSegments.length === 0 && temporaryPoints.length === 0) {
             return [];
         }
 
         const segments = temporaryLineSegments.map((object) => object.segment);
+        const linePoints = segments.flatMap((segment) => [segment.start, segment.end]);
+        const objects: RenderObject[] = [];
 
-        return [
-            new EdgeSet(
-                new EdgeGeometry(segments),
-                new EdgeStyle({ color: Vec3.of(0.35, 0.72, 1) }),
-                {
-                    depthRole: 'primary',
-                    id: `${draft.id}:temporary-lines`,
-                    name: 'temporary lines',
-                    visible: true,
-                },
-            ),
-            new PointSet(
-                new PointGeometry(segments.flatMap((segment) => [segment.start, segment.end])),
-                new PointStyle({
-                    color: Vec3.of(0.35, 0.72, 1),
-                    sizePixels: 7,
-                }),
-                {
-                    depthRole: 'primary',
-                    id: `${draft.id}:temporary-points`,
-                    name: 'temporary points',
-                    visible: true,
-                },
-            ),
-        ];
+        if (segments.length > 0) {
+            objects.push(
+                new EdgeSet(
+                    new EdgeGeometry(segments),
+                    new EdgeStyle({ color: Vec3.of(0.35, 0.72, 1) }),
+                    {
+                        depthRole: 'primary',
+                        id: `${draft.id}:temporary-lines`,
+                        name: 'temporary lines',
+                        pickable: false,
+                        visible: true,
+                    },
+                ),
+            );
+        }
+
+        if (linePoints.length > 0) {
+            objects.push(
+                new PointSet(
+                    new PointGeometry(linePoints),
+                    new PointStyle({
+                        color: Vec3.of(0.35, 0.72, 1),
+                        sizePixels: 7,
+                    }),
+                    {
+                        depthRole: 'primary',
+                        id: `${draft.id}:temporary-points`,
+                        name: 'temporary points',
+                        pickable: false,
+                        visible: true,
+                    },
+                ),
+            );
+        }
+
+        for (const [index, point] of temporaryPoints.entries()) {
+            objects.push(
+                new PointSet(
+                    new PointGeometry([point.point]),
+                    new PointStyle({
+                        color: point.color ?? Vec3.of(0.35, 0.72, 1),
+                        sizePixels: 10,
+                    }),
+                    {
+                        depthRole: 'primary',
+                        id: `${draft.id}:temporary-point:${String(index)}`,
+                        name: 'temporary point',
+                        pickable: false,
+                        visible: true,
+                    },
+                ),
+            );
+        }
+
+        return objects;
     }
 }
 
@@ -521,6 +555,10 @@ function isDraftLineSegmentObject(object: {
     readonly kind: string;
 }): object is DraftLineSegmentObject {
     return object.kind === 'line-segment';
+}
+
+function isDraftPointObject(object: { readonly kind: string }): object is DraftPointObject {
+    return object.kind === 'point';
 }
 
 function createSketchPrimitiveMetadata(ref: SketchEntityRef): ReadonlyMap<string, unknown> {
