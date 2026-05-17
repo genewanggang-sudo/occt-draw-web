@@ -17,6 +17,8 @@ import {
 } from './CadCommand';
 import { clearSelection } from '../selection/selectionReducer';
 
+const SKETCH_WORKSPACE_CAMERA_HEIGHT_SCALE = 1.55;
+
 export class SketchCommand extends CadCommand {
     public readonly id = 'sketch';
 
@@ -143,6 +145,6 @@ function createSketchPlaneCamera(
         position: Vec3.add(workPlane.origin, Vec3.scale(workPlane.normal, distance)),
         target: workPlane.origin,
         up: workPlane.yAxis,
-        orthographicHeight: Math.max(plane.size * 1.15, 1),
+        orthographicHeight: Math.max(plane.size * SKETCH_WORKSPACE_CAMERA_HEIGHT_SCALE, 1),
     };
 }

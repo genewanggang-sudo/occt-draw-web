@@ -36,7 +36,8 @@ import {
 const MODEL_LAYER_NAME = 'model';
 const SKETCH_DRAFT_LAYER_NAME = 'sketch-draft';
 const LABEL_HELPER_LAYER_NAME = 'label-helper';
-const ACTIVE_SKETCH_PLANE_SCALE = 1.35;
+const ACTIVE_SKETCH_PLANE_WIDTH_SCALE = 1.72;
+const ACTIVE_SKETCH_PLANE_HEIGHT_SCALE = 1.28;
 
 export interface DisplayProjectorOptions {
     readonly activeSketchFeatureId?: string | null;
@@ -436,14 +437,15 @@ function projectActiveSketchPlaneObject({
     readonly sketchName: string;
 }): readonly RenderObject[] {
     const plane = referencePlaneToPlane(planeObject);
-    const halfSize = (planeObject.size * ACTIVE_SKETCH_PLANE_SCALE) / 2;
+    const halfWidth = (planeObject.size * ACTIVE_SKETCH_PLANE_WIDTH_SCALE) / 2;
+    const halfHeight = (planeObject.size * ACTIVE_SKETCH_PLANE_HEIGHT_SCALE) / 2;
     const corners = [
-        plane.localToWorld(Vec2.of(-halfSize, -halfSize)),
-        plane.localToWorld(Vec2.of(halfSize, -halfSize)),
-        plane.localToWorld(Vec2.of(halfSize, halfSize)),
-        plane.localToWorld(Vec2.of(-halfSize, halfSize)),
+        plane.localToWorld(Vec2.of(-halfWidth, -halfHeight)),
+        plane.localToWorld(Vec2.of(halfWidth, -halfHeight)),
+        plane.localToWorld(Vec2.of(halfWidth, halfHeight)),
+        plane.localToWorld(Vec2.of(-halfWidth, halfHeight)),
     ] as const;
-    const labelFrameOrigin = plane.localToWorld(Vec2.of(-halfSize, halfSize));
+    const labelFrameOrigin = plane.localToWorld(Vec2.of(-halfWidth, halfHeight));
     const labelYAxis = Vec3.scale(plane.yAxis, -1);
     const outline = [
         new LineSegment3(corners[0], corners[1]),
@@ -459,8 +461,8 @@ function projectActiveSketchPlaneObject({
                 { a: corners[0], b: corners[2], c: corners[3] },
             ]),
             new FaceStyle({
-                color: Vec3.of(0.1, 0.24, 0.34),
-                opacity: 0.04,
+                color: Vec3.of(0.22, 0.52, 0.78),
+                opacity: 0.06,
             }),
             {
                 depthRole: 'primary',
@@ -470,17 +472,21 @@ function projectActiveSketchPlaneObject({
                 visible: planeObject.visible,
             },
         ),
-        new EdgeSet(new EdgeGeometry(outline), new EdgeStyle({ color: Vec3.of(0.35, 0.72, 1) }), {
-            depthRole: 'primary',
-            id: `${sketchFeatureId}:sketch-plane-outline`,
-            name: `${sketchName} sketch plane outline`,
-            pickable: false,
-            visible: planeObject.visible,
-        }),
+        new EdgeSet(
+            new EdgeGeometry(outline),
+            new EdgeStyle({ color: Vec3.of(0.25, 0.68, 0.96) }),
+            {
+                depthRole: 'primary',
+                id: `${sketchFeatureId}:sketch-plane-outline`,
+                name: `${sketchName} sketch plane outline`,
+                pickable: false,
+                visible: planeObject.visible,
+            },
+        ),
         new TextLabelSet(
             new TextGeometry([
                 {
-                    color: Vec3.of(0.35, 0.72, 1),
+                    color: Vec3.of(0.25, 0.68, 0.96),
                     fontWeight: 400,
                     frame: {
                         origin: labelFrameOrigin,
