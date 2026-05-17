@@ -30,3 +30,10 @@
 - When necessary, use the Chrome plugin with the user's authenticated Chrome session to open a real Onshape project and verify the observable behavior directly.
 - Treat Onshape internals as unknowable unless directly inspectable. Report confirmed observable behavior separately from implementation inferences.
 - Prefer direct comparison evidence such as screenshots, pixel checks, DOM/canvas observations, and repeatable interaction steps before deciding that local behavior matches Onshape.
+
+## Chrome Plugin Recovery
+
+- If the user mentions `@Chrome` or `plugin://chrome@openai-bundled`, do not conclude that Chrome is unavailable only because the current available-plugin summary omits it.
+- For Chrome browser control, prefer the trusted plugin cache under `C:\Users\HP\.codex\plugins\cache\openai-bundled\chrome\0.1.7` after verifying it contains `.codex-plugin\plugin.json`.
+- The verified bootstrap entrypoint is `setupBrowserRuntime` from `scripts\browser-client.mjs`; `setupAtlasRuntime` is stale and should not be used.
+- If cache trust or metadata appears broken, compare it with `C:\Users\HP\.codex\.tmp\bundled-marketplaces\openai-bundled\plugins\chrome` before falling back to the in-app Browser.
