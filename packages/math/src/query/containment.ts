@@ -1,4 +1,5 @@
 import type { BBox2 } from '../geometry-2d/bbox2';
+import { Polygon2, type PolygonPointClassification } from '../geometry-2d/polygon2';
 import type { BBox3 } from '../geometry-3d/bbox3';
 import type { Vector2 } from '../linear/vec2';
 import type { Vector3 } from '../linear/vec3';
@@ -44,47 +45,11 @@ export const Containment = {
     },
 
     pointInPolygon2(point: Vector2, polygon: readonly Vector2[]): ContainmentResult {
-        if (polygon.length < 3) {
-            return containmentResult('outside');
-        }
-
-        let inside = false;
-
-        for (
-            let index = 0, previous = polygon.length - 1;
-            index < polygon.length;
-            previous = index++
-        ) {
-            const currentPoint = polygon[index];
-            const previousPoint = polygon[previous];
-
-            if (!currentPoint || !previousPoint) {
-                continue;
-            }
-
-            if (isPointOnSegment(point, previousPoint, currentPoint)) {
-                return containmentResult('on-boundary');
-            }
-
-            const crosses =
-                currentPoint.y > point.y !== previousPoint.y > point.y &&
-                point.x <
-                    ((previousPoint.x - currentPoint.x) * (point.y - currentPoint.y)) /
-                        (previousPoint.y - currentPoint.y) +
-                        currentPoint.x;
-
-            if (crosses) {
-                inside = !inside;
-            }
-        }
-
-        return containmentResult(inside ? 'inside' : 'outside');
+        return containmentResult(new Polygon2(polygon).classifyPoint(point));
     },
 } as const;
 
-type ContainmentStatus = 'inside' | 'on-boundary' | 'outside';
-
-function containmentResult(status: ContainmentStatus): ContainmentResult {
+function containmentResult(status: PolygonPointClassification): ContainmentResult {
     return {
         classification:
             status === 'inside'
@@ -94,29 +59,4 @@ function containmentResult(status: ContainmentStatus): ContainmentResult {
                   : Classification.outside(),
         contains: status !== 'outside',
     };
-}
-
-function isPointOnSegment(point: Vector2, start: Vector2, end: Vector2): boolean {
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const lengthSquared = dx * dx + dy * dy;
-
-    if (DEFAULT_TOLERANCE.isNearZeroSquared(lengthSquared)) {
-        const pointDx = point.x - start.x;
-        const pointDy = point.y - start.y;
-
-        return DEFAULT_TOLERANCE.isNearZeroSquared(pointDx * pointDx + pointDy * pointDy);
-    }
-
-    const cross = (point.x - start.x) * dy - (point.y - start.y) * dx;
-
-    if (cross * cross > DEFAULT_TOLERANCE.distanceSquared * lengthSquared) {
-        return false;
-    }
-
-    const parameter = ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared;
-
-    return (
-        parameter >= -DEFAULT_TOLERANCE.parameter && parameter <= 1 + DEFAULT_TOLERANCE.parameter
-    );
 }

@@ -9,4 +9,5 @@ export { Ellipse2, EllipticalArc2 } from './ellipse2';
 export { Line2 } from './line2';
 export { LineSegment2 } from './lineSegment2';
 export { CurveParameter, ParameterDomain } from './parameter';
-export { Polygon2, Polyline2 } from './polyline2';
+export { Polygon2, type PolygonOrientation, type PolygonPointClassification } from './polygon2';
+export { Polyline2 } from './polyline2';

@@ -44,6 +44,8 @@ export {
     Curve2,
     type BoundedCurve2,
     type CurveSamplingOptions,
+    type PolygonOrientation,
+    type PolygonPointClassification,
 } from './geometry-2d';
 export {
     BBox3,
