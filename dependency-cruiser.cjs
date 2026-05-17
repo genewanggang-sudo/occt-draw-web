@@ -20,83 +20,73 @@ module.exports = {
             },
         },
         {
-            name: 'shared-no-workspace-deps',
-            severity: 'error',
-            from: {
-                path: '^packages/shared/src',
-            },
-            to: {
-                path: '^packages/(?!shared)',
-            },
-        },
-        {
-            name: 'math-only-shared',
+            name: 'math-no-workspace-deps',
             severity: 'error',
             from: {
                 path: '^packages/math/src',
             },
             to: {
-                path: '^packages/(?!shared|math)',
+                path: '^packages/(?!math)',
             },
         },
         {
-            name: 'core-only-math-shared',
+            name: 'core-only-math',
             severity: 'error',
             from: {
                 path: '^packages/core/src',
             },
             to: {
-                path: '^packages/(?!shared|math|core)',
+                path: '^packages/(?!math|core)',
             },
         },
         {
-            name: 'cad-model-only-sketch-core-math-shared',
+            name: 'cad-model-only-sketch-core-math',
             severity: 'error',
             from: {
                 path: '^packages/cad-model/src',
             },
             to: {
-                path: '^packages/(?!shared|math|core|sketch|cad-model)',
+                path: '^packages/(?!math|core|sketch|cad-model)',
             },
         },
         {
-            name: 'sketch-only-core-math-shared',
+            name: 'sketch-only-core-math',
             severity: 'error',
             from: {
                 path: '^packages/sketch/src',
             },
             to: {
-                path: '^packages/(?!shared|math|core|sketch)',
+                path: '^packages/(?!math|core|sketch)',
             },
         },
         {
-            name: 'constraints-only-sketch-core-math-shared',
+            name: 'constraints-only-sketch-core-math',
             severity: 'error',
             from: {
                 path: '^packages/constraints/src',
             },
             to: {
-                path: '^packages/(?!shared|math|core|sketch|constraints)',
+                path: '^packages/(?!math|core|sketch|constraints)',
             },
         },
         {
-            name: 'sketch-snapping-only-sketch-math-webgl-shared',
+            name: 'sketch-snapping-only-sketch-math-webgl',
             severity: 'error',
             from: {
                 path: '^packages/sketch-snapping/src',
             },
             to: {
-                path: '^packages/(?!shared|math|sketch|webgl-engine|sketch-snapping)',
+                path: '^packages/(?!math|sketch|webgl-engine|sketch-snapping)',
             },
         },
         {
-            name: 'parametrics-only-core-shared',
+            name: 'parametrics-only-core',
             severity: 'error',
             from: {
                 path: '^packages/parametrics/src',
             },
             to: {
-                path: '^packages/(?!shared|core|parametrics)',
+                path: '^packages/(?!core|parametrics)',
             },
         },
         {
@@ -110,23 +100,23 @@ module.exports = {
             },
         },
         {
-            name: 'editor-only-cad-model-sketch-core-rendering-math-shared',
+            name: 'editor-only-cad-model-sketch-core-rendering-math',
             severity: 'error',
             from: {
                 path: '^packages/editor/src',
             },
             to: {
-                path: '^packages/(?!shared|math|core|cad-model|sketch|sketch-snapping|cad-rendering|webgl-engine|editor)',
+                path: '^packages/(?!math|core|cad-model|sketch|sketch-snapping|cad-rendering|webgl-engine|editor)',
             },
         },
         {
-            name: 'cad-rendering-only-cad-model-sketch-core-webgl-math-shared',
+            name: 'cad-rendering-only-cad-model-sketch-core-webgl-math',
             severity: 'error',
             from: {
                 path: '^packages/cad-rendering/src',
             },
             to: {
-                path: '^packages/(?!shared|math|core|cad-model|sketch|webgl-engine|cad-rendering)',
+                path: '^packages/(?!math|core|cad-model|sketch|webgl-engine|cad-rendering)',
             },
         },
     ],

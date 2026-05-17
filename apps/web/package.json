@@ -11,7 +11,6 @@
         "@occt-draw/math": "workspace:*",
         "@occt-draw/parametrics": "workspace:*",
         "@occt-draw/webgl-engine": "workspace:*",
-        "@occt-draw/shared": "workspace:*",
         "@occt-draw/sketch": "workspace:*",
         "@occt-draw/ui": "workspace:*",
         "react": "^19.2.0",

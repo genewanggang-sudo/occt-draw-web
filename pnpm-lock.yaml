@@ -83,9 +83,6 @@ importers:
       '@occt-draw/parametrics':
         specifier: workspace:*
         version: link:../../packages/parametrics
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@occt-draw/sketch':
         specifier: workspace:*
         version: link:../../packages/sketch
@@ -110,9 +107,6 @@ importers:
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
       '@occt-draw/sketch':
         specifier: workspace:*
         version: link:../sketch
@@ -128,9 +122,6 @@ importers:
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
       '@occt-draw/sketch':
         specifier: workspace:*
         version: link:../sketch
@@ -146,9 +137,6 @@ importers:
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
       '@occt-draw/sketch':
         specifier: workspace:*
         version: link:../sketch
@@ -158,9 +146,6 @@ importers:
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
 
   packages/editor:
     dependencies:
@@ -176,9 +161,6 @@ importers:
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
       '@occt-draw/sketch':
         specifier: workspace:*
         version: link:../sketch
@@ -189,22 +171,13 @@ importers:
         specifier: workspace:*
         version: link:../webgl-engine
 
-  packages/math:
-    dependencies:
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
+  packages/math: {}
 
   packages/parametrics:
     dependencies:
       '@occt-draw/core':
         specifier: workspace:*
         version: link:../core
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
-
-  packages/shared: {}
 
   packages/sketch:
     dependencies:
@@ -214,9 +187,6 @@ importers:
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
 
   packages/sketch-snapping:
     dependencies:
@@ -244,9 +214,6 @@ importers:
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math
-      '@occt-draw/shared':
-        specifier: workspace:*
-        version: link:../shared
 
 packages:
 

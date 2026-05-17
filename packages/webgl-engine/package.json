@@ -3,8 +3,7 @@
     "private": true,
     "version": "0.1.0",
     "dependencies": {
-        "@occt-draw/math": "workspace:*",
-        "@occt-draw/shared": "workspace:*"
+        "@occt-draw/math": "workspace:*"
     },
     "types": "./src/index.ts",
     "exports": {

@@ -7,8 +7,7 @@
         "@occt-draw/cad-model": "workspace:*",
         "@occt-draw/math": "workspace:*",
         "@occt-draw/webgl-engine": "workspace:*",
-        "@occt-draw/sketch": "workspace:*",
-        "@occt-draw/shared": "workspace:*"
+        "@occt-draw/sketch": "workspace:*"
     },
     "types": "./src/index.ts",
     "exports": {

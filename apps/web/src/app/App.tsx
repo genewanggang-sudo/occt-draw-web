@@ -31,7 +31,6 @@ import {
     type ViewCubeTargetId,
 } from '@occt-draw/webgl-engine';
 import { Measurement } from '@occt-draw/math';
-import { APP_NAME } from '@occt-draw/shared';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ViewportInputAdapter } from '../editor/application/ViewportInputAdapter';
 import { CommandToolbar } from '../editor/commands/CommandToolbar';
@@ -42,6 +41,7 @@ import { ModelTreePanel } from '../editor/workbench/ModelTreePanel';
 import { WorkbenchLayout } from '../editor/workbench/WorkbenchLayout';
 
 const INITIAL_VIEWPORT_SIZE = { width: 1, height: 1 } as const;
+const DEFAULT_APP_NAME = 'occt-draw-web';
 const VIEW_CUBE_CLICK_DISTANCE = 4;
 const VIEW_CUBE_STANDARD_VIEWS: Readonly<Partial<Record<ViewCubeTargetId, StandardCameraView>>> = {
     back: 'back',
@@ -69,7 +69,7 @@ const VIEW_CUBE_ARROW_TARGETS = new Set<ViewCubeTargetId>([
 ]);
 
 export function App() {
-    const appTitle = import.meta.env.VITE_APP_TITLE || APP_NAME;
+    const appTitle = import.meta.env.VITE_APP_TITLE || DEFAULT_APP_NAME;
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const rendererRef = useRef<RenderEngine | null>(null);
     const pickServiceRef = useRef(new PickService());
