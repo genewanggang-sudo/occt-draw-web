@@ -1,8 +1,15 @@
-import { DocumentTransaction, SetFeaturePayloadOperation } from '@occt-draw/core';
+import {
+    createEditDraft,
+    DocumentTransaction,
+    editCadDocument,
+    SetFeaturePayloadOperation,
+    type SelectionTarget,
+} from '@occt-draw/core';
 import { Measurement } from '@occt-draw/math';
 import {
     DeleteSketchEntityRequest,
     findSketchByFeatureId,
+    MoveVertexRequest,
     type Sketch,
     type SketchEntityRef,
 } from '@occt-draw/sketch';
@@ -24,11 +31,27 @@ import {
     replaceSelection,
     updatePreselection,
 } from '../selection/selectionReducer';
+import { projectScreenPointToSketch2 } from './sketchProjection';
 
-interface PendingSelectionPointer {
-    readonly pointerId: number;
-    readonly point: ScreenPoint;
-}
+type PendingSelectionPointer =
+    | {
+          readonly kind: 'selection-click';
+          readonly pointerId: number;
+          readonly point: ScreenPoint;
+      }
+    | {
+          readonly entityRef: Extract<SketchEntityRef, { readonly kind: 'vertex' }>;
+          readonly kind: 'vertex-drag-candidate';
+          readonly pointerId: number;
+          readonly point: ScreenPoint;
+          readonly target: SelectionTarget;
+      }
+    | {
+          readonly entityRef: Extract<SketchEntityRef, { readonly kind: 'vertex' }>;
+          readonly kind: 'vertex-dragging';
+          readonly pointerId: number;
+          readonly target: SelectionTarget;
+      };
 
 const CLICK_SELECTION_TOLERANCE_PIXELS = 4;
 
@@ -64,12 +87,36 @@ export class SelectCommand extends CadCommand {
         return createHandledCommandResult();
     }
 
-    public override pointerDown(event: CommandPointerEvent): CommandResult {
+    public override pointerDown(
+        event: CommandPointerEvent,
+        context: CommandContext,
+    ): CommandResult {
         if (event.button !== 0) {
             return createUnhandledCommandResult();
         }
 
+        const target = context.pick(event.point);
+        const entityRef = getSketchEntityRefFromSelectionTarget(target);
+        const activeSketch = findActiveSketch(context.getState());
+
+        if (
+            target &&
+            entityRef?.kind === 'vertex' &&
+            activeSketch?.sketch.id === entityRef.sketchId
+        ) {
+            this.pendingSelectionPointer = {
+                entityRef,
+                kind: 'vertex-drag-candidate',
+                pointerId: event.pointerId,
+                point: event.point,
+                target,
+            };
+
+            return createHandledCommandResult();
+        }
+
         this.pendingSelectionPointer = {
+            kind: 'selection-click',
             pointerId: event.pointerId,
             point: event.point,
         };
@@ -79,13 +126,17 @@ export class SelectCommand extends CadCommand {
 
     public override pointerCancel(): CommandResult {
         this.pendingSelectionPointer = null;
-        return createHandledCommandResult();
+        return createHandledCommandResult({ draft: null });
     }
 
     public override pointerMove(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
+        if (this.pendingSelectionPointer?.pointerId === event.pointerId) {
+            return this.pointerMoveWithPendingPointer(event, context);
+        }
+
         if (event.buttons !== 0) {
             return createUnhandledCommandResult();
         }
@@ -107,11 +158,15 @@ export class SelectCommand extends CadCommand {
 
         this.pendingSelectionPointer = null;
 
+        if (pendingSelectionPointer.kind === 'vertex-dragging') {
+            return this.commitVertexDrag(event, context, pendingSelectionPointer);
+        }
+
         if (
             Measurement.distance2(event.point, pendingSelectionPointer.point).value >
             CLICK_SELECTION_TOLERANCE_PIXELS
         ) {
-            return createHandledCommandResult();
+            return createHandledCommandResult({ draft: null });
         }
 
         const target = context.pick(event.point);
@@ -123,6 +178,72 @@ export class SelectCommand extends CadCommand {
                 currentState.commandSession,
                 selection.selection,
             ),
+            selection,
+        });
+    }
+
+    private pointerMoveWithPendingPointer(
+        event: CommandPointerEvent,
+        context: CommandContext,
+    ): CommandResult {
+        const pending = this.pendingSelectionPointer;
+
+        if (!pending) {
+            return createUnhandledCommandResult();
+        }
+
+        if (pending.kind === 'selection-click') {
+            return createHandledCommandResult();
+        }
+
+        if (
+            pending.kind === 'vertex-drag-candidate' &&
+            Measurement.distance2(event.point, pending.point).value <=
+                CLICK_SELECTION_TOLERANCE_PIXELS
+        ) {
+            return createHandledCommandResult();
+        }
+
+        const draft = createVertexMoveDraft(context.getState(), pending.entityRef, event);
+
+        if (!draft) {
+            return createHandledCommandResult();
+        }
+
+        this.pendingSelectionPointer = {
+            entityRef: pending.entityRef,
+            kind: 'vertex-dragging',
+            pointerId: pending.pointerId,
+            target: pending.target,
+        };
+
+        return createHandledCommandResult({
+            draft,
+            selection: replaceSelection(context.getState().selection, pending.target),
+        });
+    }
+
+    private commitVertexDrag(
+        event: CommandPointerEvent,
+        context: CommandContext,
+        pending: Extract<PendingSelectionPointer, { readonly kind: 'vertex-dragging' }>,
+    ): CommandResult {
+        const state = context.getState();
+        const transaction = createMoveVertexTransactionFromPointer(state, pending.entityRef, event);
+
+        if (!transaction) {
+            return createHandledCommandResult({ draft: null });
+        }
+
+        const selection = replaceSelection(state.selection, pending.target);
+
+        return createHandledCommandResult({
+            commandSession: consumeSelectionForCommandSession(
+                state.commandSession,
+                selection.selection,
+            ),
+            documentEdit: transaction,
+            draft: null,
             selection,
         });
     }
@@ -197,4 +318,56 @@ function createSetSketchPayloadTransaction(
             }),
         ],
     });
+}
+
+function createVertexMoveDraft(
+    state: EditorState,
+    entityRef: Extract<SketchEntityRef, { readonly kind: 'vertex' }>,
+    event: CommandPointerEvent,
+) {
+    const transaction = createMoveVertexTransactionFromPointer(state, entityRef, event);
+
+    if (!transaction) {
+        return null;
+    }
+
+    return createEditDraft({
+        id: 'draft:move-sketch-vertex',
+        kind: 'transform',
+    }).withWorkingDocument(editCadDocument(state.document, transaction));
+}
+
+function createMoveVertexTransactionFromPointer(
+    state: EditorState,
+    entityRef: Extract<SketchEntityRef, { readonly kind: 'vertex' }>,
+    event: CommandPointerEvent,
+): DocumentTransaction | null {
+    const activeSketch = findActiveSketch(state);
+
+    if (activeSketch?.sketch.id !== entityRef.sketchId) {
+        return null;
+    }
+
+    const target = projectScreenPointToSketch2({
+        camera: state.navigation.camera,
+        partStudio: state.document.getActivePartStudio(),
+        planeRef: activeSketch.sketch.planeRef,
+        point: event.point,
+        viewportSize: state.navigation.viewportSize,
+    });
+
+    if (!target) {
+        return null;
+    }
+
+    const sketch = activeSketch.sketch.clone();
+    const request = new MoveVertexRequest({
+        target,
+        vertexId: entityRef.vertexId,
+    });
+    const transaction = request.createTransaction();
+
+    transaction.commit(sketch);
+
+    return createSetSketchPayloadTransaction(state, sketch);
 }

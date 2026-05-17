@@ -97,10 +97,12 @@ export function App() {
         readonly targetId: ViewCubeTargetId;
     }>(null);
 
-    const activePartStudio = useMemo(
+    const documentPartStudio = useMemo(
         () => getActivePartStudio(editorState.document),
         [editorState.document],
     );
+    const displayDocument = editorState.draft?.workingDocument ?? editorState.document;
+    const activePartStudio = useMemo(() => getActivePartStudio(displayDocument), [displayDocument]);
     const renderGraph = useMemo(() => {
         const graph = projectPartStudioToRenderGraph(activePartStudio, editorState.draft, {
             activeSketchFeatureId: editorState.activeSketchSession?.sketchFeatureId ?? null,
@@ -141,8 +143,8 @@ export function App() {
         ],
     );
     const selectedObjects = useMemo(
-        () => activePartStudio.objects.filter((object) => selectedObjectIds.includes(object.id)),
-        [activePartStudio.objects, selectedObjectIds],
+        () => documentPartStudio.objects.filter((object) => selectedObjectIds.includes(object.id)),
+        [documentPartStudio.objects, selectedObjectIds],
     );
     const activeCommandId = editorState.commandSession.id;
     const activeCommandLabel = getCommandLabel(activeCommandId);
@@ -599,7 +601,7 @@ export function App() {
                                 }),
                             );
                         }}
-                        partStudio={activePartStudio}
+                        partStudio={documentPartStudio}
                         selectedObjectIds={selectedObjectIds}
                     />
                 }
@@ -617,7 +619,7 @@ export function App() {
                         activeCommandLabel={activeCommandLabel}
                         activeSketchSession={editorState.activeSketchSession}
                         commandSession={editorState.commandSession}
-                        partStudio={activePartStudio}
+                        partStudio={documentPartStudio}
                         selectedObjects={selectedObjects}
                         selectedTarget={selectedTarget}
                     />
