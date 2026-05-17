@@ -2,15 +2,16 @@ import { Vec2, type Vector2 } from '../linear/vec2';
 import { GeometryResult } from '../value/result';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
 import { BBox2 } from './bbox2';
-import type { BoundedCurve2 } from './curve';
+import { Curve2 } from './curve';
 import { ParameterDomain } from './parameter';
 
-export class Polyline2 implements BoundedCurve2 {
+export class Polyline2 extends Curve2 {
     public readonly points: readonly Vec2[];
     public readonly domain: ParameterDomain;
     protected readonly closed: boolean;
 
     constructor(points: readonly Vector2[], closed = false) {
+        super();
         this.points = points.map((point) => Vec2.from(point));
         this.closed = closed;
         this.domain = new ParameterDomain(0, this.segmentCount);
@@ -50,6 +51,12 @@ export class Polyline2 implements BoundedCurve2 {
 
     public isValid(): boolean {
         return this.points.length >= 2 && this.points.every((point) => point.isFinite());
+    }
+
+    public override bounds(): GeometryResult<BBox2> {
+        const bounds = this.isValid() ? BBox2.fromPoints(this.points) : undefined;
+
+        return bounds ? GeometryResult.success(bounds) : GeometryResult.empty();
     }
 
     protected get segmentCount(): number {
@@ -108,7 +115,7 @@ export class Polygon2 extends Polyline2 {
         return GeometryResult.success(Vec2.of(x / (6 * signedArea), y / (6 * signedArea)));
     }
 
-    public bounds(): GeometryResult<BBox2> {
+    public override bounds(): GeometryResult<BBox2> {
         const bounds = this.isValid() ? BBox2.fromPoints(this.points) : undefined;
 
         return bounds ? GeometryResult.success(bounds) : GeometryResult.empty();

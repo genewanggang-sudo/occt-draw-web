@@ -41,8 +41,9 @@ export {
     ParameterDomain,
     Polygon2,
     Polyline2,
+    Curve2,
     type BoundedCurve2,
-    type Curve2,
+    type CurveSamplingOptions,
 } from './geometry-2d';
 export {
     BBox3,

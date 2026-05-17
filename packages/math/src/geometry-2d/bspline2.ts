@@ -1,9 +1,9 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
-import type { BoundedCurve2 } from './curve';
+import { Curve2 } from './curve';
 import { ParameterDomain } from './parameter';
 
-export class BSpline2 implements BoundedCurve2 {
+export class BSpline2 extends Curve2 {
     public readonly controlPoints: readonly Vec2[];
     public readonly degree: number;
     public readonly domain: ParameterDomain;
@@ -14,6 +14,7 @@ export class BSpline2 implements BoundedCurve2 {
         readonly degree: number;
         readonly knots: readonly number[];
     }) {
+        super();
         this.controlPoints = input.controlPoints.map((point) => Vec2.from(point));
         this.degree = input.degree;
         this.knots = [...input.knots];
@@ -33,7 +34,7 @@ export class BSpline2 implements BoundedCurve2 {
     }
 
     public tangentAt(parameter: number): Vec2 {
-        return finiteDifferenceTangent(this, parameter);
+        return this.finiteDifferenceTangent(parameter);
     }
 
     public isValid(): boolean {
@@ -157,22 +158,6 @@ function basisValue(
           basisValue(index + 1, degree - 1, parameter, knots, domainMax);
 
     return left + right;
-}
-
-function finiteDifferenceTangent(curve: BoundedCurve2, parameter: number): Vec2 {
-    const span = Math.max(curve.domain.length, 1);
-    const delta = Math.max(
-        span * Math.sqrt(DEFAULT_TOLERANCE.parameter),
-        DEFAULT_TOLERANCE.parameter,
-    );
-    const before = curve.domain.clamp(parameter - delta);
-    const after = curve.domain.clamp(parameter + delta);
-
-    if (after === before) {
-        return Vec2.zero();
-    }
-
-    return curve.pointAt(before).vectorTo(curve.pointAt(after)).normalize();
 }
 
 function isNonDecreasing(values: readonly number[]): boolean {

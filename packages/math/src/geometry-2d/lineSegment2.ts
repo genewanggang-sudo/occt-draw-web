@@ -1,14 +1,17 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
+import { GeometryResult } from '../value/result';
 import { MATH_EPSILON } from '../value/tolerance';
+import { BBox2 } from './bbox2';
 import { ParameterDomain } from './parameter';
-import type { BoundedCurve2 } from './curve';
+import { Curve2 } from './curve';
 
-export class LineSegment2 implements BoundedCurve2 {
+export class LineSegment2 extends Curve2 {
     public readonly domain = ParameterDomain.unit();
     public readonly end: Vec2;
     public readonly start: Vec2;
 
     constructor(start: Vector2, end: Vector2) {
+        super();
         this.start = Vec2.from(start);
         this.end = Vec2.from(end);
     }
@@ -25,6 +28,12 @@ export class LineSegment2 implements BoundedCurve2 {
 
     public tangentAt(): Vec2 {
         return this.start.vectorTo(this.end).normalize();
+    }
+
+    public override bounds(): GeometryResult<BBox2> {
+        const bounds = BBox2.fromPoints([this.start, this.end]);
+
+        return bounds ? GeometryResult.success(bounds) : GeometryResult.empty();
     }
 
     public isValid(): boolean {

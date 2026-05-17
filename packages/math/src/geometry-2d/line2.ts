@@ -1,9 +1,11 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
+import { GeometryResult } from '../value/result';
 import { ParameterDomain } from './parameter';
-import type { Curve2 } from './curve';
+import { Curve2 } from './curve';
+import type { BBox2 } from './bbox2';
 import { MATH_EPSILON } from '../value/tolerance';
 
-export class Line2 implements Curve2 {
+export class Line2 extends Curve2 {
     public readonly domain = new ParameterDomain(
         Number.NEGATIVE_INFINITY,
         Number.POSITIVE_INFINITY,
@@ -12,6 +14,7 @@ export class Line2 implements Curve2 {
     public readonly origin: Vec2;
 
     constructor(origin: Vector2, direction: Vector2) {
+        super();
         this.origin = Vec2.from(origin);
         this.direction = Vec2.normalize(direction);
     }
@@ -22,6 +25,10 @@ export class Line2 implements Curve2 {
 
     public tangentAt(): Vec2 {
         return this.direction;
+    }
+
+    public override bounds(): GeometryResult<BBox2> {
+        return GeometryResult.empty();
     }
 
     public isValid(): boolean {
