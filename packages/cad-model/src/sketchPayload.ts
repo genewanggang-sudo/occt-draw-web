@@ -1,5 +1,6 @@
-import type { Feature, PartStudio } from '@occt-draw/core';
-import { Sketch } from './model/sketch';
+import { Sketch } from '@occt-draw/sketch';
+import type { PartStudio } from './document';
+import type { Feature } from './features';
 
 export function findSketchByFeatureId(partStudio: PartStudio, featureId: string): Sketch | null {
     const feature = partStudio.findFeatureById(featureId);

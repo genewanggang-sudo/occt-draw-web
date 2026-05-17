@@ -1,4 +1,3 @@
-import type { ReferencePlaneKind } from '@occt-draw/core';
 import { Vec2, type Plane3, type Vector2, type Vector3 } from '@occt-draw/math';
 import {
     recordSketchEntityAdded,
@@ -13,6 +12,7 @@ import type {
     SketchEntityRef,
     SketchEntitySnapshot,
     SketchId,
+    SketchPlaneKind,
     SketchPlaneInput,
     SketchPointId,
     SketchPropertyValue,
@@ -21,7 +21,7 @@ import type {
 } from '../types';
 
 export class SketchPlane {
-    public readonly planeKind: ReferencePlaneKind;
+    public readonly planeKind: SketchPlaneKind;
     public readonly planeRef: string;
 
     constructor(input: SketchPlaneInput) {
@@ -60,7 +60,7 @@ export class Sketch {
         this.state = input.state ?? SketchState.createInitial(input.id);
     }
 
-    public get planeKind(): ReferencePlaneKind {
+    public get planeKind(): SketchPlaneKind {
         return this.plane.planeKind;
     }
 
@@ -642,7 +642,7 @@ export class SketchState {
 export function createSketchOnReferencePlane(input: {
     readonly id: SketchId;
     readonly name: string;
-    readonly planeKind: ReferencePlaneKind;
+    readonly planeKind: SketchPlaneKind;
     readonly planeRef: string;
 }): Sketch {
     return new Sketch({

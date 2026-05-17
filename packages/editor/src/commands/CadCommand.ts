@@ -4,6 +4,7 @@ import type {
     SelectionTarget,
     TransactionGroup,
 } from '@occt-draw/core';
+import type { CadDocument } from '@occt-draw/cad-model';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import type { SelectionState } from '../selection/selectionState';
 import type { ViewNavigationState } from '../view-navigation/viewNavigation';
@@ -25,7 +26,7 @@ export interface CommandKeyEvent {
 }
 
 export interface CommandContext {
-    getDraft(): EditDraft | null;
+    getDraft(): EditDraft<CadDocument> | null;
     getState(): EditorState;
     pick(point: ScreenPoint): SelectionTarget | null;
 }
@@ -33,8 +34,8 @@ export interface CommandContext {
 export interface CommandResult {
     readonly handled: boolean;
     readonly commandSession?: CommandSession;
-    readonly documentEdit?: DocumentTransaction | TransactionGroup;
-    readonly draft?: EditDraft | null;
+    readonly documentEdit?: DocumentTransaction<CadDocument> | TransactionGroup<CadDocument>;
+    readonly draft?: EditDraft<CadDocument> | null;
     readonly message?: string;
     readonly navigation?: ViewNavigationState;
     readonly nextCommandId?: CommandId;

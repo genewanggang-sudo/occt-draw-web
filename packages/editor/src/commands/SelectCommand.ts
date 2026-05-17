@@ -1,14 +1,17 @@
 import {
     createEditDraft,
     DocumentTransaction,
-    editCadDocument,
-    SetFeaturePayloadOperation,
+    editDocument,
     type SelectionTarget,
 } from '@occt-draw/core';
+import {
+    findSketchByFeatureId,
+    SetFeaturePayloadOperation,
+    type CadDocument,
+} from '@occt-draw/cad-model';
 import { Measurement } from '@occt-draw/math';
 import {
     DeleteSketchEntityRequest,
-    findSketchByFeatureId,
     MoveVertexRequest,
     type Sketch,
     type SketchEntityRef,
@@ -306,8 +309,8 @@ function isDeletableSketchRef(ref: SketchEntityRef): boolean {
 function createSetSketchPayloadTransaction(
     state: EditorState,
     sketch: Sketch,
-): DocumentTransaction {
-    return new DocumentTransaction({
+): DocumentTransaction<CadDocument> {
+    return new DocumentTransaction<CadDocument>({
         label: `更新${sketch.name}`,
         operations: [
             new SetFeaturePayloadOperation({
@@ -331,17 +334,17 @@ function createVertexMoveDraft(
         return null;
     }
 
-    return createEditDraft({
+    return createEditDraft<CadDocument>({
         id: 'draft:move-sketch-vertex',
         kind: 'transform',
-    }).withWorkingDocument(editCadDocument(state.document, transaction));
+    }).withWorkingDocument(editDocument(state.document, transaction));
 }
 
 function createMoveVertexTransactionFromPointer(
     state: EditorState,
     entityRef: Extract<SketchEntityRef, { readonly kind: 'vertex' }>,
     event: CommandPointerEvent,
-): DocumentTransaction | null {
+): DocumentTransaction<CadDocument> | null {
     const activeSketch = findActiveSketch(state);
 
     if (activeSketch?.sketch.id !== entityRef.sketchId) {

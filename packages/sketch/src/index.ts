@@ -42,7 +42,6 @@ export {
     type SketchDisplayProfile,
     type SketchDisplayVertex,
 } from './display/display';
-export { findSketchByFeatureId, getSketchForFeature, getSketchPayload } from './payload';
 export type {
     Arc2DSnapshot,
     Circle2DSnapshot,
@@ -59,6 +58,7 @@ export type {
     SketchEntityStoreName,
     SketchId,
     SketchPlaneInput,
+    SketchPlaneKind,
     SketchPointId,
     SketchProfileId,
     SketchPropertyValue,

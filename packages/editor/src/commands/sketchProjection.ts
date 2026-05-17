@@ -1,4 +1,4 @@
-import { referencePlaneToPlane, type PartStudio } from '@occt-draw/core';
+import { referencePlaneToPlane, type PartStudio } from '@occt-draw/cad-model';
 import {
     screenPointToWorldRay,
     type CameraState,

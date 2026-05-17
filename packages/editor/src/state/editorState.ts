@@ -1,4 +1,5 @@
-import type { CadDocument, EditDraft } from '@occt-draw/core';
+import type { CadDocument } from '@occt-draw/cad-model';
+import type { EditDraft } from '@occt-draw/core';
 import type { Vector2 } from '@occt-draw/math';
 import type { SketchVertexId } from '@occt-draw/sketch';
 import type { CommandSession } from '../commands/commandTypes';
@@ -16,7 +17,7 @@ export interface EditorState {
     readonly activeSketchSession: SketchEditSession | null;
     readonly commandSession: CommandSession;
     readonly document: CadDocument;
-    readonly draft: EditDraft | null;
+    readonly draft: EditDraft<CadDocument> | null;
     readonly navigation: ViewNavigationState;
     readonly selection: SelectionState;
 }

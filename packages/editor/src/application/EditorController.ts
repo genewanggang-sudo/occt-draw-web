@@ -1,5 +1,6 @@
+import type { CadDocument } from '@occt-draw/cad-model';
 import {
-    editCadDocument,
+    editDocument,
     type DocumentEdit,
     type EditDraft,
     type SelectionTarget,
@@ -38,10 +39,10 @@ export class EditorController {
         };
     }
 
-    public applyDocumentEdit(edit: DocumentEdit): EditorState {
+    public applyDocumentEdit(edit: DocumentEdit<CadDocument>): EditorState {
         return {
             ...this.state,
-            document: editCadDocument(this.state.document, edit),
+            document: editDocument(this.state.document, edit),
             draft: null,
         };
     }
@@ -142,7 +143,7 @@ export class EditorController {
         };
     }
 
-    public replaceDraft(draft: EditDraft | null): EditorState {
+    public replaceDraft(draft: EditDraft<CadDocument> | null): EditorState {
         return {
             ...this.state,
             draft,

@@ -2,15 +2,14 @@ import {
     referencePlaneToPlane,
     type CadDocument,
     type CadObject,
-    type DraftLineSegmentObject,
-    type DraftPointObject,
-    type EditDraft,
     type PartStudio,
     type ReferenceOriginObject,
     type ReferencePlaneObject,
-} from '@occt-draw/core';
+} from '@occt-draw/cad-model';
+import type { DraftLineSegmentObject, DraftPointObject, EditDraft } from '@occt-draw/core';
 import { LineSegment3, Vec2, Vec3 } from '@occt-draw/math';
-import { getSketchForFeature, SketchDisplayBuilder, type SketchEntityRef } from '@occt-draw/sketch';
+import { getSketchForFeature } from '@occt-draw/cad-model';
+import { SketchDisplayBuilder, type SketchEntityRef } from '@occt-draw/sketch';
 import {
     EdgeGeometry,
     EdgeSet,

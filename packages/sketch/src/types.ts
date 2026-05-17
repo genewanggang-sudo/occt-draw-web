@@ -1,4 +1,3 @@
-import type { ReferencePlaneKind } from '@occt-draw/core';
 import type { Vector2 } from '@occt-draw/math';
 
 export type SketchId = string;
@@ -6,6 +5,7 @@ export type SketchPointId = string;
 export type SketchCurveId = string;
 export type SketchVertexId = string;
 export type SketchEdgeId = string;
+export type SketchPlaneKind = 'xy' | 'yz' | 'zx';
 export type SketchConstraintId = string;
 export type SketchDimensionId = string;
 export type SketchProfileId = string;
@@ -21,7 +21,7 @@ export type SketchEntityStoreName =
     | 'vertices';
 
 export interface SketchPlaneInput {
-    readonly planeKind: ReferencePlaneKind;
+    readonly planeKind: SketchPlaneKind;
     readonly planeRef: string;
 }
 

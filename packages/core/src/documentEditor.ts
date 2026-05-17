@@ -1,145 +1,27 @@
-import {
-    CadDocument,
-    type FeaturePayload,
-    type FeaturePayloadId,
-    type PartStudio,
-} from './document';
-import type { Feature } from './features';
-import type { PartStudioId } from './ids';
-
 export type OperationId = string;
-export type DocumentEdit = DocumentTransaction | TransactionGroup;
+export type DocumentEdit<TDocument = unknown> =
+    | DocumentTransaction<TDocument>
+    | TransactionGroup<TDocument>;
 
-export abstract class DocumentOperation {
+export abstract class DocumentOperation<TDocument = unknown> {
     public abstract readonly id: OperationId;
     public abstract readonly label: string;
-    public abstract apply(document: CadDocument): CadDocument;
+    public abstract apply(document: TDocument): TDocument;
 }
 
-export class AppendFeatureOperation extends DocumentOperation {
-    public readonly id: OperationId;
+export class DocumentTransaction<TDocument = unknown> {
     public readonly label: string;
-    public readonly feature: Feature;
-    public readonly partStudioId: PartStudioId;
-
-    constructor(input: {
-        readonly feature: Feature;
-        readonly id?: OperationId;
-        readonly label?: string;
-        readonly partStudioId: PartStudioId;
-    }) {
-        super();
-        this.id = input.id ?? createOperationId('append-feature', input.feature.id);
-        this.label = input.label ?? `追加特征：${input.feature.name}`;
-        this.feature = input.feature;
-        this.partStudioId = input.partStudioId;
-    }
-
-    public apply(document: CadDocument): CadDocument {
-        return replacePartStudio(
-            document,
-            appendFeatureToPartStudio(
-                findPartStudioOrThrow(document, this.partStudioId),
-                this.feature,
-            ),
-        );
-    }
-}
-
-export class ReplaceActivePartStudioOperation extends DocumentOperation {
-    public readonly activePartStudioId: PartStudioId;
-    public readonly id: OperationId;
-    public readonly label: string;
-
-    constructor(input: {
-        readonly activePartStudioId: PartStudioId;
-        readonly id?: OperationId;
-        readonly label?: string;
-    }) {
-        super();
-        this.activePartStudioId = input.activePartStudioId;
-        this.id =
-            input.id ?? createOperationId('replace-active-part-studio', input.activePartStudioId);
-        this.label = input.label ?? '切换零件工作室';
-    }
-
-    public apply(document: CadDocument): CadDocument {
-        return new CadDocument({
-            activePartStudioId: this.activePartStudioId,
-            id: document.id,
-            name: document.name,
-            partStudios: document.partStudios,
-        });
-    }
-}
-
-export class ReplacePartStudioOperation extends DocumentOperation {
-    public readonly id: OperationId;
-    public readonly label: string;
-    public readonly partStudio: PartStudio;
-
-    constructor(input: {
-        readonly id?: OperationId;
-        readonly label?: string;
-        readonly partStudio: PartStudio;
-    }) {
-        super();
-        this.id = input.id ?? createOperationId('replace-part-studio', input.partStudio.id);
-        this.label = input.label ?? `替换零件工作室：${input.partStudio.name}`;
-        this.partStudio = input.partStudio;
-    }
-
-    public apply(document: CadDocument): CadDocument {
-        return replacePartStudio(document, this.partStudio);
-    }
-}
-
-export class SetFeaturePayloadOperation extends DocumentOperation {
-    public readonly id: OperationId;
-    public readonly label: string;
-    public readonly partStudioId: PartStudioId;
-    public readonly payload: FeaturePayload;
-    public readonly payloadId: FeaturePayloadId;
-
-    constructor(input: {
-        readonly id?: OperationId;
-        readonly label?: string;
-        readonly partStudioId: PartStudioId;
-        readonly payload: FeaturePayload;
-        readonly payloadId: FeaturePayloadId;
-    }) {
-        super();
-        this.id = input.id ?? createOperationId('set-feature-payload', input.payloadId);
-        this.label = input.label ?? `更新特征数据：${input.payloadId}`;
-        this.partStudioId = input.partStudioId;
-        this.payload = input.payload;
-        this.payloadId = input.payloadId;
-    }
-
-    public apply(document: CadDocument): CadDocument {
-        return replacePartStudio(
-            document,
-            findPartStudioOrThrow(document, this.partStudioId).setFeaturePayload(
-                this.payloadId,
-                this.payload,
-            ),
-        );
-    }
-}
-
-export class DocumentTransaction {
-    public readonly label: string;
-    public readonly operations: readonly DocumentOperation[];
+    public readonly operations: readonly DocumentOperation<TDocument>[];
 
     constructor(input: {
         readonly label: string;
-        readonly operations: readonly DocumentOperation[];
+        readonly operations: readonly DocumentOperation<TDocument>[];
     }) {
         this.label = input.label;
         this.operations = [...input.operations];
     }
 
-    public apply(document: CadDocument): CadDocument {
+    public apply(document: TDocument): TDocument {
         return this.operations.reduce(
             (currentDocument, operation) => operation.apply(currentDocument),
             document,
@@ -147,19 +29,19 @@ export class DocumentTransaction {
     }
 }
 
-export class TransactionGroup {
+export class TransactionGroup<TDocument = unknown> {
     public readonly label: string;
-    public readonly transactions: readonly DocumentTransaction[];
+    public readonly transactions: readonly DocumentTransaction<TDocument>[];
 
     constructor(input: {
         readonly label: string;
-        readonly transactions: readonly DocumentTransaction[];
+        readonly transactions: readonly DocumentTransaction<TDocument>[];
     }) {
         this.label = input.label;
         this.transactions = [...input.transactions];
     }
 
-    public apply(document: CadDocument): CadDocument {
+    public apply(document: TDocument): TDocument {
         return this.transactions.reduce(
             (currentDocument, transaction) => transaction.apply(currentDocument),
             document,
@@ -167,47 +49,25 @@ export class TransactionGroup {
     }
 }
 
-export class DocumentEditor {
-    private readonly document: CadDocument;
+export class DocumentEditor<TDocument = unknown> {
+    private readonly document: TDocument;
 
-    constructor(document: CadDocument) {
+    constructor(document: TDocument) {
         this.document = document;
     }
 
-    public apply(edit: DocumentEdit): CadDocument {
+    public apply(edit: DocumentEdit<TDocument>): TDocument {
         return edit.apply(this.document);
     }
 }
 
-export function editCadDocument(document: CadDocument, edit: DocumentEdit): CadDocument {
+export function editDocument<TDocument>(
+    document: TDocument,
+    edit: DocumentEdit<TDocument>,
+): TDocument {
     return new DocumentEditor(document).apply(edit);
 }
 
-function appendFeatureToPartStudio(partStudio: PartStudio, feature: Feature): PartStudio {
-    return partStudio.appendFeature(feature);
-}
-
-function replacePartStudio(document: CadDocument, partStudio: PartStudio): CadDocument {
-    return new CadDocument({
-        activePartStudioId: document.activePartStudioId,
-        id: document.id,
-        name: document.name,
-        partStudios: document.partStudios.map((current) =>
-            current.id === partStudio.id ? partStudio : current,
-        ),
-    });
-}
-
-function findPartStudioOrThrow(document: CadDocument, partStudioId: PartStudioId): PartStudio {
-    const partStudio = document.partStudios.find((current) => current.id === partStudioId);
-
-    if (!partStudio) {
-        throw new Error(`文档编辑失败：找不到 PartStudio ${partStudioId}`);
-    }
-
-    return partStudio;
-}
-
-function createOperationId(prefix: string, entityId: string): OperationId {
+export function createOperationId(prefix: string, entityId: string): OperationId {
     return `${prefix}:${entityId}`;
 }

@@ -1,13 +1,13 @@
+import { createEditDraft, DocumentTransaction } from '@occt-draw/core';
 import {
-    createEditDraft,
-    DocumentTransaction,
+    findSketchByFeatureId,
     referencePlaneToPlane,
     SetFeaturePayloadOperation,
-} from '@occt-draw/core';
+    type CadDocument,
+} from '@occt-draw/cad-model';
 import { LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
 import {
     AddCornerRectangleRequest,
-    findSketchByFeatureId,
     sketchPointToWorldOnPlane,
     type Sketch,
 } from '@occt-draw/sketch';
@@ -238,7 +238,7 @@ export class SketchRectangleCommand extends CadCommand {
 function createRectangleDraft(plane: Plane3, firstCorner: Vector2, oppositeCorner: Vector2) {
     const segments = getRectangleSegments(plane, firstCorner, oppositeCorner);
 
-    return createEditDraft({
+    return createEditDraft<CadDocument>({
         id: 'draft:sketch-rectangle',
         kind: 'sketch',
     }).withTemporaryObjects(
@@ -313,8 +313,8 @@ function projectPointerToSketch(
 function createSetSketchPayloadTransaction(
     state: EditorState,
     sketch: Sketch,
-): DocumentTransaction {
-    return new DocumentTransaction({
+): DocumentTransaction<CadDocument> {
+    return new DocumentTransaction<CadDocument>({
         label: `更新${sketch.name}`,
         operations: [
             new SetFeaturePayloadOperation({

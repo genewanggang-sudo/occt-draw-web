@@ -1,5 +1,5 @@
 import { projectPartStudioToRenderGraph } from '@occt-draw/cad-rendering';
-import { createDefaultCadDocument, getActivePartStudio } from '@occt-draw/core';
+import { createDefaultCadDocument, getActivePartStudio } from '@occt-draw/cad-model';
 import {
     createInitialEditorState,
     createViewNavigationState,

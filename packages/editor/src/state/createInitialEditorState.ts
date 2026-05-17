@@ -1,4 +1,4 @@
-import type { CadDocument } from '@occt-draw/core';
+import type { CadDocument } from '@occt-draw/cad-model';
 import { createInitialCommandSession } from '../commands/commandReducer';
 import { createInitialSelectionState } from '../selection/selectionState';
 import type { ViewNavigationState } from '../view-navigation/viewNavigation';

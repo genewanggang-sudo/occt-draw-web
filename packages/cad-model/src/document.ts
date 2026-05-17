@@ -1,28 +1,13 @@
+import { PayloadStore, type DocumentId, type Payload } from '@occt-draw/core';
 import type { Feature } from './features';
-import type { CadObjectId, DocumentId, FeatureId, PartStudioId } from './ids';
+import type { CadObjectId, FeaturePayloadId, PartStudioId } from './ids';
 import type { CadObject } from './objects';
 
-export type FeaturePayload = object;
-export type FeaturePayloadId = string;
+export type FeaturePayload = Payload;
 
-export class FeaturePayloadStore {
-    private readonly payloads: Readonly<Record<FeaturePayloadId, FeaturePayload>>;
-
-    constructor(payloads: Readonly<Record<FeaturePayloadId, FeaturePayload>> = {}) {
-        this.payloads = { ...payloads };
-    }
-
-    public find(payloadId: FeaturePayloadId): FeaturePayload | null {
-        const payload = this.payloads[payloadId];
-
-        return payload ?? null;
-    }
-
-    public set(payloadId: FeaturePayloadId, payload: FeaturePayload): FeaturePayloadStore {
-        return new FeaturePayloadStore({
-            ...this.payloads,
-            [payloadId]: payload,
-        });
+export class FeaturePayloadStore extends PayloadStore {
+    public override set(payloadId: FeaturePayloadId, payload: FeaturePayload): FeaturePayloadStore {
+        return new FeaturePayloadStore([...this.entries(), [payloadId, payload]]);
     }
 }
 
@@ -57,7 +42,7 @@ export class PartStudio {
         return this.objects.find((object) => object.id === objectId) ?? null;
     }
 
-    public findFeatureById(featureId: FeatureId): Feature | null {
+    public findFeatureById(featureId: string): Feature | null {
         return this.features.find((feature) => feature.id === featureId) ?? null;
     }
 
@@ -95,7 +80,7 @@ export class PartStudio {
         });
     }
 
-    public removeFeature(featureId: FeatureId): PartStudio {
+    public removeFeature(featureId: string): PartStudio {
         return new PartStudio({
             featurePayloads: this.featurePayloads,
             id: this.id,

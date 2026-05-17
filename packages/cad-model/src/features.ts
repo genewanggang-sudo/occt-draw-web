@@ -1,4 +1,4 @@
-import type { FeatureId } from './ids';
+import type { FeatureId } from '@occt-draw/core';
 
 export type FeatureTypeId = 'placeholder' | 'sketch';
 export type FeatureStatus = 'ready' | 'suppressed';

@@ -1,20 +1,10 @@
 export {
-    CadDocument,
-    FeaturePayloadStore,
-    PartStudio,
-    type FeaturePayload,
-    type FeaturePayloadId,
-} from './document';
-export {
-    AppendFeatureOperation,
     DocumentEditor,
     DocumentOperation,
     DocumentTransaction,
-    ReplaceActivePartStudioOperation,
-    ReplacePartStudioOperation,
-    SetFeaturePayloadOperation,
     TransactionGroup,
-    editCadDocument,
+    createOperationId,
+    editDocument,
     type DocumentEdit,
     type OperationId,
 } from './documentEditor';
@@ -30,23 +20,13 @@ export {
     type DraftObjectKind,
     type DraftPointObject,
 } from './editDraft';
-export { createDefaultCadDocument } from './defaultDocument';
-export { findCadObjectById, getActivePartStudio, listVisibleCadObjects } from './documentQueries';
-export { Feature, type FeatureStatus, type FeatureTypeId } from './features';
-export type { CadObjectId, DocumentId, FeatureId, PartStudioId, SketchId } from './ids';
-export type {
-    BaseCadObject,
-    CadObject,
-    CadObjectKind,
-    ReferenceOriginObject,
-    ReferencePlaneKind,
-    ReferencePlaneObject,
-} from './objects';
-export { referencePlaneToPlane } from './objects';
+export type { DocumentId, FeatureId, ObjectId, PayloadId } from './ids';
+export { PayloadStore, type Payload } from './payload';
 export {
     SelectionSet,
     createEmptySelectionSet,
     createSelectionSetFromTarget,
+    type SelectionObjectId,
     type SelectionTarget,
     type SelectionTargetKind,
 } from './selection';

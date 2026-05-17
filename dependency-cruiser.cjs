@@ -40,13 +40,23 @@ module.exports = {
             },
         },
         {
-            name: 'core-only-shared-and-math',
+            name: 'core-only-math-shared',
             severity: 'error',
             from: {
                 path: '^packages/core/src',
             },
             to: {
                 path: '^packages/(?!shared|math|core)',
+            },
+        },
+        {
+            name: 'cad-model-only-sketch-core-math-shared',
+            severity: 'error',
+            from: {
+                path: '^packages/cad-model/src',
+            },
+            to: {
+                path: '^packages/(?!shared|math|core|sketch|cad-model)',
             },
         },
         {
@@ -90,36 +100,6 @@ module.exports = {
             },
         },
         {
-            name: 'display-only-sketch-core-math-shared',
-            severity: 'error',
-            from: {
-                path: '^packages/display/src',
-            },
-            to: {
-                path: '^packages/(?!shared|math|core|sketch|display)',
-            },
-        },
-        {
-            name: 'renderer-only-display-math-shared',
-            severity: 'error',
-            from: {
-                path: '^packages/renderer/src',
-            },
-            to: {
-                path: '^packages/(?!shared|math|display|renderer)',
-            },
-        },
-        {
-            name: 'renderer-webgl-only-renderer-display-math-shared',
-            severity: 'error',
-            from: {
-                path: '^packages/renderer-webgl/src',
-            },
-            to: {
-                path: '^packages/(?!shared|math|display|renderer|renderer-webgl)',
-            },
-        },
-        {
             name: 'webgl-engine-no-deep-imports',
             severity: 'error',
             from: {
@@ -130,13 +110,23 @@ module.exports = {
             },
         },
         {
-            name: 'editor-only-sketch-core-display-renderer-math-shared',
+            name: 'editor-only-cad-model-sketch-core-rendering-math-shared',
             severity: 'error',
             from: {
                 path: '^packages/editor/src',
             },
             to: {
-                path: '^packages/(?!shared|math|core|sketch|sketch-snapping|display|renderer|editor)',
+                path: '^packages/(?!shared|math|core|cad-model|sketch|sketch-snapping|cad-rendering|webgl-engine|editor)',
+            },
+        },
+        {
+            name: 'cad-rendering-only-cad-model-sketch-core-webgl-math-shared',
+            severity: 'error',
+            from: {
+                path: '^packages/cad-rendering/src',
+            },
+            to: {
+                path: '^packages/(?!shared|math|core|cad-model|sketch|webgl-engine|cad-rendering)',
             },
         },
     ],

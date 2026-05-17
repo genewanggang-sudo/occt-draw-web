@@ -1,11 +1,11 @@
 import {
     AppendFeatureOperation,
-    DocumentTransaction,
     Feature,
     SetFeaturePayloadOperation,
     type ReferencePlaneObject,
     referencePlaneToPlane,
-} from '@occt-draw/core';
+} from '@occt-draw/cad-model';
+import { DocumentTransaction } from '@occt-draw/core';
 import { Vec3 } from '@occt-draw/math';
 import { createSketchOnReferencePlane } from '@occt-draw/sketch';
 import type { CameraState } from '@occt-draw/webgl-engine';

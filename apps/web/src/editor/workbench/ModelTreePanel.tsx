@@ -6,8 +6,8 @@ import type {
     ReferenceOriginObject,
     ReferencePlaneKind,
     ReferencePlaneObject,
-} from '@occt-draw/core';
-import { getSketchForFeature } from '@occt-draw/sketch';
+} from '@occt-draw/cad-model';
+import { getSketchForFeature } from '@occt-draw/cad-model';
 
 interface ModelTreePanelProps {
     readonly document: CadDocument;

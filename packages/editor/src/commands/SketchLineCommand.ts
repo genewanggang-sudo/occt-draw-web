@@ -1,15 +1,15 @@
+import { createEditDraft, DocumentTransaction } from '@occt-draw/core';
 import {
-    createEditDraft,
-    DocumentTransaction,
+    findSketchByFeatureId,
     referencePlaneToPlane,
     SetFeaturePayloadOperation,
-} from '@occt-draw/core';
+    type CadDocument,
+} from '@occt-draw/cad-model';
 import { LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
 import {
     AddLineSegmentRequest,
     AddPointRequest,
     DeleteSketchEntityRequest,
-    findSketchByFeatureId,
     sketchPointToWorldOnPlane,
     type Sketch,
     type SketchVertexId,
@@ -214,7 +214,7 @@ export class SketchLineCommand extends CadCommand {
             sketchPointToWorldOnPlane(resolvedPoint.plane, endPoint2);
 
         return createHandledCommandResult({
-            draft: createEditDraft({
+            draft: createEditDraft<CadDocument>({
                 id: 'draft:sketch-line',
                 kind: 'sketch',
             }).withTemporaryObjects([
@@ -417,8 +417,8 @@ export class SketchLineCommand extends CadCommand {
 function createSetSketchPayloadTransaction(
     state: EditorState,
     sketch: Sketch,
-): DocumentTransaction {
-    return new DocumentTransaction({
+): DocumentTransaction<CadDocument> {
+    return new DocumentTransaction<CadDocument>({
         label: `更新${sketch.name}`,
         operations: [
             new SetFeaturePayloadOperation({

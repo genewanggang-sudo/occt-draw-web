@@ -4,6 +4,7 @@
     "version": "0.1.0",
     "dependencies": {
         "@occt-draw/core": "workspace:*",
+        "@occt-draw/cad-model": "workspace:*",
         "@occt-draw/math": "workspace:*",
         "@occt-draw/webgl-engine": "workspace:*",
         "@occt-draw/sketch": "workspace:*",

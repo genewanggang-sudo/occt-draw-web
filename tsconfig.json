@@ -4,6 +4,7 @@
         { "path": "./apps/web" },
         { "path": "./packages/constraints" },
         { "path": "./packages/core" },
+        { "path": "./packages/cad-model" },
         { "path": "./packages/cad-rendering" },
         { "path": "./packages/editor" },
         { "path": "./packages/math" },

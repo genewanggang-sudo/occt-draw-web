@@ -1,12 +1,13 @@
-import type { CadObject, SelectionTarget, SelectionTargetKind } from '@occt-draw/core';
+import type { CadObject, PartStudio } from '@occt-draw/cad-model';
+import { findSketchByFeatureId } from '@occt-draw/cad-model';
+import type { SelectionTarget, SelectionTargetKind } from '@occt-draw/core';
 import {
     getSketchEntityRefFromSelectionTarget,
     type CommandSession,
     type CommandStatus,
     type SketchEditSession,
 } from '@occt-draw/editor';
-import { findSketchByFeatureId, type Sketch, type SketchEntityRef } from '@occt-draw/sketch';
-import type { PartStudio } from '@occt-draw/core';
+import type { Sketch, SketchEntityRef } from '@occt-draw/sketch';
 
 interface InspectorPanelProps {
     readonly activeCommandLabel: string;
