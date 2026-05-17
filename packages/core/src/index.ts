@@ -34,13 +34,6 @@ export { createDefaultCadDocument } from './defaultDocument';
 export { findCadObjectById, getActivePartStudio, listVisibleCadObjects } from './documentQueries';
 export { Feature, type FeatureStatus, type FeatureTypeId } from './features';
 export type { CadObjectId, DocumentId, FeatureId, PartStudioId, SketchId } from './ids';
-export {
-    CORE_MODULE_MANIFEST,
-    getCoreModuleManifest,
-    type CoreDirection,
-    type CoreModuleManifest,
-    type CoreStatus,
-} from './manifest';
 export type {
     BaseCadObject,
     CadObject,

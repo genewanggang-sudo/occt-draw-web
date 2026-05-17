@@ -1,7 +1,6 @@
 import type { ReferencePlaneKind } from '@occt-draw/core';
 import type { Vector2 } from '@occt-draw/math';
 
-export type SketchModuleStatus = 'active';
 export type SketchId = string;
 export type SketchPointId = string;
 export type SketchCurveId = string;
@@ -20,11 +19,6 @@ export type SketchEntityStoreName =
     | 'profiles'
     | 'state'
     | 'vertices';
-
-export interface SketchModuleManifest {
-    readonly domain: 'sketch';
-    readonly status: SketchModuleStatus;
-}
 
 export interface SketchPlaneInput {
     readonly planeKind: ReferencePlaneKind;

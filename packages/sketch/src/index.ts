@@ -1,4 +1,3 @@
-export { SKETCH_MODULE_MANIFEST, getSketchModuleManifest } from './manifest';
 export { Arc2D, Circle2D, Curve2D, Line2D, Point2D, curveFromSnapshot } from './geometry/geometry';
 export { Edge, Vertex } from './topology/topology';
 export {
@@ -59,8 +58,6 @@ export type {
     SketchEntitySnapshot,
     SketchEntityStoreName,
     SketchId,
-    SketchModuleManifest,
-    SketchModuleStatus,
     SketchPlaneInput,
     SketchPointId,
     SketchProfileId,

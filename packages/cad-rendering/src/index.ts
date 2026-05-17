@@ -4,12 +4,6 @@ export {
     projectPartStudioToRenderGraph,
     type DisplayProjectorOptions,
 } from './displayProjector';
-export {
-    DISPLAY_MODULE_MANIFEST,
-    getDisplayModuleManifest,
-    type DisplayModuleManifest,
-    type DisplayModuleStatus,
-} from './manifest';
 export type {
     RenderDepthRole,
     RenderGraph,

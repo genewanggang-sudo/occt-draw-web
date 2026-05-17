@@ -74,9 +74,3 @@ export {
     type SegmentSegment2PointIntersection,
 } from './query';
 export { BoundsApproximation, CurveSampler, PolylineApproximation } from './approximation';
-export {
-    MATH_MODULE_MANIFEST,
-    getMathModuleManifest,
-    type MathModuleManifest,
-    type MathModuleStatus,
-} from './manifest';

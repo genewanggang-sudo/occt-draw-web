@@ -1,10 +1,4 @@
 export {
-    RENDERER_WEBGL_MODULE_MANIFEST,
-    getRendererWebglModuleManifest,
-    type RendererWebglModuleManifest,
-    type RendererWebglModuleStatus,
-} from './manifest';
-export {
     RenderDirtyFlags,
     RenderGraph,
     RenderGroup,
