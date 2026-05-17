@@ -122,9 +122,6 @@ importers:
 
   packages/cloud-client:
     dependencies:
-      '@occt-draw/protocol':
-        specifier: workspace:*
-        version: link:../protocol
       '@occt-draw/shared':
         specifier: workspace:*
         version: link:../shared
@@ -194,8 +191,6 @@ importers:
         specifier: workspace:*
         version: link:../shared
 
-  packages/protocol: {}
-
   packages/shared: {}
 
   packages/sketch:
@@ -231,8 +226,6 @@ importers:
         specifier: ^19.2.0
         version: 19.2.5(react@19.2.5)
 
-  packages/wasm-bridge: {}
-
   packages/webgl-engine:
     dependencies:
       '@occt-draw/math':
@@ -241,18 +234,6 @@ importers:
       '@occt-draw/shared':
         specifier: workspace:*
         version: link:../shared
-
-  packages/worker-client:
-    dependencies:
-      '@occt-draw/protocol':
-        specifier: workspace:*
-        version: link:../protocol
-
-  packages/worker-runtime:
-    dependencies:
-      '@occt-draw/protocol':
-        specifier: workspace:*
-        version: link:../protocol
 
 packages:
 

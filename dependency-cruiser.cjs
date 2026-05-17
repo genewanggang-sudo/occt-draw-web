@@ -40,16 +40,6 @@ module.exports = {
             },
         },
         {
-            name: 'protocol-only-shared',
-            severity: 'error',
-            from: {
-                path: '^packages/protocol/src',
-            },
-            to: {
-                path: '^packages/(?!shared|protocol)',
-            },
-        },
-        {
             name: 'core-only-shared-and-math',
             severity: 'error',
             from: {
@@ -150,43 +140,13 @@ module.exports = {
             },
         },
         {
-            name: 'wasm-bridge-only-protocol-shared',
-            severity: 'error',
-            from: {
-                path: '^packages/wasm-bridge/src',
-            },
-            to: {
-                path: '^packages/(?!shared|protocol|wasm-bridge)',
-            },
-        },
-        {
-            name: 'worker-client-only-protocol-shared',
-            severity: 'error',
-            from: {
-                path: '^packages/worker-client/src',
-            },
-            to: {
-                path: '^packages/(?!shared|protocol|worker-client)',
-            },
-        },
-        {
-            name: 'worker-runtime-only-protocol-shared-wasm-bridge',
-            severity: 'error',
-            from: {
-                path: '^packages/worker-runtime/src',
-            },
-            to: {
-                path: '^packages/(?!shared|protocol|wasm-bridge|worker-runtime)',
-            },
-        },
-        {
-            name: 'cloud-client-only-protocol-shared',
+            name: 'cloud-client-only-shared',
             severity: 'error',
             from: {
                 path: '^packages/cloud-client/src',
             },
             to: {
-                path: '^packages/(?!shared|protocol|cloud-client)',
+                path: '^packages/(?!shared|cloud-client)',
             },
         },
     ],

@@ -3,7 +3,6 @@
     "private": true,
     "version": "0.1.0",
     "dependencies": {
-        "@occt-draw/protocol": "workspace:*",
         "@occt-draw/shared": "workspace:*"
     },
     "types": "./src/index.ts",
