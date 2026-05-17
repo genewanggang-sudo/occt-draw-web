@@ -12,9 +12,15 @@ import {
     DeleteSketchEntityRequest,
     sketchPointToWorldOnPlane,
     type Sketch,
+    type SketchEntityRef,
     type SketchVertexId,
 } from '@occt-draw/sketch';
-import { SketchSnapService, type SketchSnapResult } from '@occt-draw/sketch-snapping';
+import {
+    SketchSnapService,
+    type SketchSnapResult,
+    type SketchSnapSource,
+} from '@occt-draw/sketch-snapping';
+import { projectWorldToScreen } from '@occt-draw/webgl-engine';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
     CadCommand,
@@ -248,7 +254,7 @@ export class SketchLineCommand extends CadCommand {
     ): {
         readonly plane: Plane3 | null;
         readonly rawPoint: Vector2 | null;
-        readonly snap: SketchSnapResult | null;
+        readonly snap: SketchSnapResult<SketchEntityRef> | null;
     } {
         const state = context.getState();
         const plane = findSketchPlane(state, sketch);
@@ -268,23 +274,11 @@ export class SketchLineCommand extends CadCommand {
             plane,
             rawPoint,
             snap: this.snapService.resolve({
-                camera: state.navigation.camera,
                 enabledKinds: ['vertex'],
-                excludedRefs: excludedVertexId
-                    ? [
-                          {
-                              kind: 'vertex',
-                              sketchId: sketch.id,
-                              vertexId: excludedVertexId,
-                          },
-                      ]
-                    : [],
-                plane,
+                candidates: collectSketchVertexSnapSources(state, sketch, plane, excludedVertexId),
                 pointerPoint: event.point,
                 rawSketchPoint: rawPoint,
-                sketch,
                 thresholdPixels: LINE_SNAP_THRESHOLD_PIXELS,
-                viewportSize: state.navigation.viewportSize,
             }),
         };
     }
@@ -447,12 +441,50 @@ function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
     return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
 }
 
+function collectSketchVertexSnapSources(
+    state: EditorState,
+    sketch: Sketch,
+    plane: Plane3,
+    excludedVertexId: SketchVertexId | null,
+): readonly SketchSnapSource<SketchEntityRef>[] {
+    const sources: SketchSnapSource<SketchEntityRef>[] = [];
+
+    for (const vertex of sketch.entities.topology.vertices.list()) {
+        if (vertex.id === excludedVertexId) {
+            continue;
+        }
+
+        const point = sketch.findPointForVertex(vertex.id);
+
+        if (!point) {
+            continue;
+        }
+
+        const worldPoint = plane.localToWorld(point.position);
+
+        sources.push({
+            kind: 'vertex',
+            point: point.position,
+            screenPoint: projectWorldToScreen(
+                worldPoint,
+                state.navigation.camera,
+                state.navigation.viewportSize,
+            ),
+            sourceRef: vertex.ref,
+            stableId: vertex.id,
+            worldPoint,
+        });
+    }
+
+    return sources;
+}
+
 function isVertexUsedByEdge(sketch: Sketch, vertexId: SketchVertexId): boolean {
     return sketch.entities.topology.edges
         .list()
         .some((edge) => edge.startVertexId === vertexId || edge.endVertexId === vertexId);
 }
 
-function getSnappedVertexId(snap: SketchSnapResult | null): SketchVertexId | null {
+function getSnappedVertexId(snap: SketchSnapResult<SketchEntityRef> | null): SketchVertexId | null {
     return snap?.sourceRef?.kind === 'vertex' ? snap.sourceRef.vertexId : null;
 }

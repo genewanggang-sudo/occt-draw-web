@@ -1,33 +1,23 @@
 import { Vec2 } from '@occt-draw/math';
-import type { SketchEntityRef } from '@occt-draw/sketch';
-import { projectWorldToScreen } from '@occt-draw/webgl-engine';
 import type { SketchSnapCandidate, SketchSnapInput } from '../types';
 
-const VERTEX_SNAP_PRIORITY = 1000;
+const DEFAULT_VERTEX_SNAP_PRIORITY = 1000;
 
-export function collectVertexSnapCandidates(
-    input: SketchSnapInput,
-): readonly SketchSnapCandidate[] {
+export function collectVertexSnapCandidates<TSourceRef>(
+    input: SketchSnapInput<TSourceRef>,
+): readonly SketchSnapCandidate<TSourceRef>[] {
     if (!input.enabledKinds.includes('vertex')) {
         return [];
     }
 
-    const candidates: SketchSnapCandidate[] = [];
+    const candidates: SketchSnapCandidate<TSourceRef>[] = [];
 
-    for (const vertex of input.sketch.entities.topology.vertices.list()) {
-        if (isExcluded(input, vertex.ref)) {
+    for (const source of input.candidates) {
+        if (source.kind !== 'vertex') {
             continue;
         }
 
-        const point = input.sketch.findPointForVertex(vertex.id);
-
-        if (!point) {
-            continue;
-        }
-
-        const worldPoint = input.plane.localToWorld(point.position);
-        const screenPoint = projectWorldToScreen(worldPoint, input.camera, input.viewportSize);
-        const distancePixels = Vec2.distance(screenPoint, input.pointerPoint);
+        const distancePixels = Vec2.distance(source.screenPoint, input.pointerPoint);
 
         if (distancePixels > input.thresholdPixels) {
             continue;
@@ -35,29 +25,14 @@ export function collectVertexSnapCandidates(
 
         candidates.push({
             distancePixels,
-            kind: 'vertex',
-            point: point.position,
-            priority: VERTEX_SNAP_PRIORITY,
-            sourceRef: vertex.ref,
-            stableId: vertex.id,
-            worldPoint,
+            kind: source.kind,
+            point: source.point,
+            priority: source.priority ?? DEFAULT_VERTEX_SNAP_PRIORITY,
+            ...(source.sourceRef ? { sourceRef: source.sourceRef } : {}),
+            stableId: source.stableId,
+            worldPoint: source.worldPoint,
         });
     }
 
     return candidates;
-}
-
-function isExcluded(input: SketchSnapInput, ref: SketchEntityRef): boolean {
-    if (ref.kind !== 'vertex') {
-        return false;
-    }
-
-    return (
-        input.excludedRefs?.some(
-            (excluded) =>
-                excluded.kind === 'vertex' &&
-                excluded.sketchId === ref.sketchId &&
-                excluded.vertexId === ref.vertexId,
-        ) ?? false
-    );
 }

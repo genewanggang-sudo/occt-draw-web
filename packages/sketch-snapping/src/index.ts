@@ -4,4 +4,6 @@ export type {
     SketchSnapInput,
     SketchSnapKind,
     SketchSnapResult,
+    SketchSnapSource,
+    ScreenPoint2,
 } from './types';

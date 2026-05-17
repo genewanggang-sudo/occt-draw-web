@@ -70,13 +70,13 @@ module.exports = {
             },
         },
         {
-            name: 'sketch-snapping-only-sketch-math-webgl',
+            name: 'sketch-snapping-only-math',
             severity: 'error',
             from: {
                 path: '^packages/sketch-snapping/src',
             },
             to: {
-                path: '^packages/(?!math|sketch|webgl-engine|sketch-snapping)',
+                path: '^packages/(?!math|sketch-snapping)',
             },
         },
         {

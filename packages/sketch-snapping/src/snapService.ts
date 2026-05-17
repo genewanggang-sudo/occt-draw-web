@@ -3,7 +3,9 @@ import { chooseBestSnap } from './scoring/chooseBestSnap';
 import type { SketchSnapInput, SketchSnapResult } from './types';
 
 export class SketchSnapService {
-    public resolve(input: SketchSnapInput): SketchSnapResult | null {
+    public resolve<TSourceRef>(
+        input: SketchSnapInput<TSourceRef>,
+    ): SketchSnapResult<TSourceRef> | null {
         const candidate = chooseBestSnap([...collectVertexSnapCandidates(input)]);
 
         return candidate

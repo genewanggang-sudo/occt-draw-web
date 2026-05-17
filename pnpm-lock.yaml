@@ -193,12 +193,6 @@ importers:
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math
-      '@occt-draw/sketch':
-        specifier: workspace:*
-        version: link:../sketch
-      '@occt-draw/webgl-engine':
-        specifier: workspace:*
-        version: link:../webgl-engine
 
   packages/ui:
     dependencies:
