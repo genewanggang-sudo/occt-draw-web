@@ -2,22 +2,22 @@ import type { RefObject } from 'react';
 
 interface CadViewportProps {
     readonly activeCommandLabel: string;
-    readonly canvasRef: RefObject<HTMLCanvasElement | null>;
     readonly displayObjectCount: number;
     readonly documentName: string;
     readonly rendererStatus: string;
+    readonly viewportHostRef: RefObject<HTMLDivElement | null>;
 }
 
 export function CadViewport({
     activeCommandLabel,
-    canvasRef,
     displayObjectCount,
     documentName,
     rendererStatus,
+    viewportHostRef,
 }: CadViewportProps) {
     return (
         <section className="cad-workbench__viewport" aria-label="三维视窗">
-            <canvas ref={canvasRef} className="cad-workbench__canvas" />
+            <div ref={viewportHostRef} className="cad-workbench__viewport-host" />
             <div className="cad-workbench__viewport-footer">
                 <div className="cad-workbench__status" role="status">
                     <span>{rendererStatus}</span>

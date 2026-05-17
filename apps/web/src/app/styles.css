@@ -171,6 +171,14 @@ button {
     overflow: hidden;
 }
 
+.cad-workbench__viewport-host {
+    position: absolute;
+    inset: 0;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .cad-workbench__canvas {
     display: block;
     position: absolute;

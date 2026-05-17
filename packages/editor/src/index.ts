@@ -1,5 +1,21 @@
 export { CommandManager } from './application/CommandManager';
 export { EditorController } from './application/EditorController';
+export {
+    createDefaultEditorState,
+    EditorViewportRuntime,
+    type EditorViewportRuntimeStatus,
+} from './application/EditorViewportRuntime';
+export {
+    createEditorRenderGraph,
+    createEditorRenderHighlight,
+    getEditorDisplayDocument,
+} from './application/editorRendering';
+export {
+    createEditorWorkbenchViewModel,
+    type EditorWorkbenchViewModel,
+    type InspectorViewModel,
+    type ModelTreeViewModel,
+} from './application/workbenchViewModel';
 export { PickService, type PickSelectionTargetInput } from './application/PickService';
 export { getSketchEntityRefFromSelectionTarget } from './selection/sketchSelection';
 export { SelectionManager } from './application/SelectionManager';
@@ -72,3 +88,4 @@ export {
     type ViewCubeRotationStep,
 } from './view-navigation/viewNavigation';
 export type { ViewCubeArrowCommand } from '@occt-draw/webgl-engine';
+export type { StandardCameraView } from '@occt-draw/webgl-engine';

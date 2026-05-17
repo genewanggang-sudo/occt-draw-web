@@ -62,36 +62,12 @@ importers:
 
   apps/web:
     dependencies:
-      '@occt-draw/cad-model':
-        specifier: workspace:*
-        version: link:../../packages/cad-model
-      '@occt-draw/cad-rendering':
-        specifier: workspace:*
-        version: link:../../packages/cad-rendering
-      '@occt-draw/constraints':
-        specifier: workspace:*
-        version: link:../../packages/constraints
-      '@occt-draw/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@occt-draw/editor':
         specifier: workspace:*
         version: link:../../packages/editor
-      '@occt-draw/math':
-        specifier: workspace:*
-        version: link:../../packages/math
-      '@occt-draw/parametrics':
-        specifier: workspace:*
-        version: link:../../packages/parametrics
-      '@occt-draw/sketch':
-        specifier: workspace:*
-        version: link:../../packages/sketch
       '@occt-draw/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@occt-draw/webgl-engine':
-        specifier: workspace:*
-        version: link:../../packages/webgl-engine
       react:
         specifier: ^19.2.0
         version: 19.2.5

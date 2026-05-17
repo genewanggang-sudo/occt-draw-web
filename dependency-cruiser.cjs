@@ -20,6 +20,16 @@ module.exports = {
             },
         },
         {
+            name: 'web-app-only-editor-ui',
+            severity: 'error',
+            from: {
+                path: '^apps/web/src',
+            },
+            to: {
+                path: '^packages/(?!editor|ui)',
+            },
+        },
+        {
             name: 'math-no-workspace-deps',
             severity: 'error',
             from: {

@@ -3,15 +3,7 @@
     "private": true,
     "version": "0.1.0",
     "dependencies": {
-        "@occt-draw/constraints": "workspace:*",
-        "@occt-draw/core": "workspace:*",
-        "@occt-draw/cad-model": "workspace:*",
-        "@occt-draw/cad-rendering": "workspace:*",
         "@occt-draw/editor": "workspace:*",
-        "@occt-draw/math": "workspace:*",
-        "@occt-draw/parametrics": "workspace:*",
-        "@occt-draw/webgl-engine": "workspace:*",
-        "@occt-draw/sketch": "workspace:*",
         "@occt-draw/ui": "workspace:*",
         "react": "^19.2.0",
         "react-dom": "^19.2.0"

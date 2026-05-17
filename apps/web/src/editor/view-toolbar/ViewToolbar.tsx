@@ -1,4 +1,4 @@
-import type { StandardCameraView } from '@occt-draw/webgl-engine';
+import type { StandardCameraView } from '@occt-draw/editor';
 
 interface StandardViewAction {
     readonly label: string;

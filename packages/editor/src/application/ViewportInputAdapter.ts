@@ -1,6 +1,6 @@
 export interface ViewportInputAdapterHandlers {
-    readonly onKeyDown?: (event: KeyboardEvent) => void;
     readonly onContextMenu?: (event: MouseEvent) => void;
+    readonly onKeyDown?: (event: KeyboardEvent) => void;
     readonly onPointerCancel?: (event: PointerEvent) => void;
     readonly onPointerDown?: (event: PointerEvent) => void;
     readonly onPointerMove?: (event: PointerEvent) => void;
@@ -9,13 +9,9 @@ export interface ViewportInputAdapterHandlers {
 }
 
 export class ViewportInputAdapter {
-    private readonly handlers: ViewportInputAdapterHandlers;
-    private canvas: HTMLCanvasElement | null;
+    private canvas: HTMLCanvasElement | null = null;
 
-    constructor(handlers: ViewportInputAdapterHandlers) {
-        this.handlers = handlers;
-        this.canvas = null;
-    }
+    constructor(private readonly handlers: ViewportInputAdapterHandlers) {}
 
     public attach(canvas: HTMLCanvasElement): void {
         if (this.canvas === canvas) {

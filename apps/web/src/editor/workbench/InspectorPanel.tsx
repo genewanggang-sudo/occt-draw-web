@@ -1,37 +1,16 @@
-import type { CadObject, PartStudio } from '@occt-draw/cad-model';
-import { findSketchByFeatureId } from '@occt-draw/cad-model';
-import type { SelectionTarget, SelectionTargetKind } from '@occt-draw/core';
-import {
-    getSketchEntityRefFromSelectionTarget,
-    type CommandSession,
-    type CommandStatus,
-    type SketchEditSession,
-} from '@occt-draw/editor';
-import type { Sketch, SketchEntityRef } from '@occt-draw/sketch';
+import type { CommandSession, CommandStatus, InspectorViewModel } from '@occt-draw/editor';
 
 interface InspectorPanelProps {
     readonly activeCommandLabel: string;
-    readonly activeSketchSession: SketchEditSession | null;
     readonly commandSession: CommandSession;
-    readonly partStudio: PartStudio;
-    readonly selectedObjects: readonly CadObject[];
-    readonly selectedTarget: SelectionTarget | null;
+    readonly inspector: InspectorViewModel;
 }
 
 export function InspectorPanel({
     activeCommandLabel,
-    activeSketchSession,
     commandSession,
-    partStudio,
-    selectedObjects,
-    selectedTarget,
+    inspector,
 }: InspectorPanelProps) {
-    const selectedObject = selectedObjects[0] ?? null;
-    const activeSketch = activeSketchSession
-        ? findSketchByFeatureId(partStudio, activeSketchSession.sketchFeatureId)
-        : null;
-    const selectedSketchEntityRef = getSketchEntityRefFromSelectionTarget(selectedTarget);
-
     return (
         <aside className="cad-workbench__side-panel" aria-label="属性面板">
             <div className="cad-workbench__panel-header">
@@ -49,26 +28,17 @@ export function InspectorPanel({
                 <span className="cad-workbench__inspector-label">命令说明</span>
                 <strong>{commandSession.message}</strong>
             </div>
-            {activeSketch && activeSketchSession ? (
-                <SketchSessionInspector sketch={activeSketch} session={activeSketchSession} />
+            {inspector.activeSketch ? (
+                <SketchSessionInspector sketch={inspector.activeSketch} />
             ) : null}
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">选择</span>
-                <strong>
-                    {selectedObject
-                        ? selectedObject.name
-                        : selectedSketchEntityRef
-                          ? getSketchEntityKindLabel(selectedSketchEntityRef)
-                          : '未选择对象'}
-                </strong>
+                <strong>{inspector.selectionLabel}</strong>
             </div>
-            {selectedObject ? (
-                <ObjectInspector object={selectedObject} selectedTarget={selectedTarget} />
-            ) : selectedSketchEntityRef ? (
-                <SelectionTargetInspector
-                    entityRef={selectedSketchEntityRef}
-                    selectedTarget={selectedTarget}
-                />
+            {inspector.object ? (
+                <ObjectInspector inspector={inspector} />
+            ) : inspector.selectedSketchEntity ? (
+                <SelectionTargetInspector inspector={inspector} />
             ) : (
                 <div className="cad-workbench__empty-note">
                     选择基准面后可进入草图；进入草图后可使用直线工具绘制草图线。
@@ -78,36 +48,21 @@ export function InspectorPanel({
     );
 }
 
-function SelectionTargetInspector({
-    entityRef,
-    selectedTarget,
-}: {
-    readonly entityRef: SketchEntityRef;
-    readonly selectedTarget: SelectionTarget | null;
-}) {
+function SelectionTargetInspector({ inspector }: { readonly inspector: InspectorViewModel }) {
     return (
         <>
-            <div className="cad-workbench__inspector-section">
-                <span className="cad-workbench__inspector-label">拾取目标</span>
-                <strong>
-                    {selectedTarget ? getPickTargetKindLabel(selectedTarget.targetKind) : '对象'}
-                </strong>
-            </div>
-            <div className="cad-workbench__inspector-section">
-                <span className="cad-workbench__inspector-label">Primitive ID</span>
-                <strong>{selectedTarget?.primitiveId ?? '-'}</strong>
-            </div>
-            <SketchEntityRefInspector entityRef={entityRef} />
+            <SelectionPrimitiveInspector selectedTarget={inspector.selectedTarget} />
+            {inspector.selectedSketchEntity ? (
+                <SketchEntityRefInspector entity={inspector.selectedSketchEntity} />
+            ) : null}
         </>
     );
 }
 
 function SketchSessionInspector({
-    session,
     sketch,
 }: {
-    readonly session: SketchEditSession;
-    readonly sketch: Sketch;
+    readonly sketch: NonNullable<InspectorViewModel['activeSketch']>;
 }) {
     return (
         <>
@@ -121,188 +76,93 @@ function SketchSessionInspector({
             </div>
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">草图平面</span>
-                <strong>{sketch.planeKind.toUpperCase()}</strong>
+                <strong>{sketch.planeKind}</strong>
             </div>
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">当前工具</span>
-                <strong>{session.activeTool === 'line' ? '直线' : '选择'}</strong>
+                <strong>{sketch.activeToolLabel}</strong>
             </div>
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">元素数量</span>
-                <strong>
-                    {sketch.entities.geometry.points.list().length +
-                        sketch.entities.topology.edges.list().length}
-                </strong>
+                <strong>{sketch.entityCount}</strong>
             </div>
         </>
     );
 }
 
-function ObjectInspector({
-    object,
-    selectedTarget,
-}: {
-    readonly object: CadObject;
-    readonly selectedTarget: SelectionTarget | null;
-}) {
-    const sketchEntityRef = getSketchEntityRefFromSelectionTarget(selectedTarget);
+function ObjectInspector({ inspector }: { readonly inspector: InspectorViewModel }) {
+    const object = inspector.object;
+
+    if (!object) {
+        return null;
+    }
 
     return (
         <>
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">对象类型</span>
-                <strong>{getObjectKindLabel(object)}</strong>
+                <strong>{object.kindLabel}</strong>
             </div>
-            {object.kind === 'reference-origin' ? <OriginInspector object={object} /> : null}
-            {object.kind === 'reference-plane' ? <PlaneInspector object={object} /> : null}
+            {object.positionLabel ? (
+                <div className="cad-workbench__inspector-section">
+                    <span className="cad-workbench__inspector-label">位置</span>
+                    <strong>{object.positionLabel}</strong>
+                </div>
+            ) : null}
+            {object.planeKindLabel ? (
+                <div className="cad-workbench__inspector-section">
+                    <span className="cad-workbench__inspector-label">平面</span>
+                    <strong>{object.planeKindLabel}</strong>
+                </div>
+            ) : null}
+            <SelectionPrimitiveInspector selectedTarget={inspector.selectedTarget} />
+            {inspector.selectedSketchEntity ? (
+                <SketchEntityRefInspector entity={inspector.selectedSketchEntity} />
+            ) : null}
+            <div className="cad-workbench__inspector-section">
+                <span className="cad-workbench__inspector-label">可见性</span>
+                <strong>{object.visibleLabel}</strong>
+            </div>
+        </>
+    );
+}
+
+function SelectionPrimitiveInspector({
+    selectedTarget,
+}: {
+    readonly selectedTarget: InspectorViewModel['selectedTarget'];
+}) {
+    return (
+        <>
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">拾取目标</span>
-                <strong>
-                    {selectedTarget ? getPickTargetKindLabel(selectedTarget.targetKind) : '对象'}
-                </strong>
+                <strong>{selectedTarget?.kindLabel ?? '对象'}</strong>
             </div>
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">Primitive ID</span>
                 <strong>{selectedTarget?.primitiveId ?? '-'}</strong>
             </div>
-            {sketchEntityRef ? <SketchEntityRefInspector entityRef={sketchEntityRef} /> : null}
-            <div className="cad-workbench__inspector-section">
-                <span className="cad-workbench__inspector-label">可见性</span>
-                <strong>{object.visible ? '可见' : '隐藏'}</strong>
-            </div>
         </>
     );
 }
 
-function SketchEntityRefInspector({ entityRef }: { readonly entityRef: SketchEntityRef }) {
+function SketchEntityRefInspector({
+    entity,
+}: {
+    readonly entity: NonNullable<InspectorViewModel['selectedSketchEntity']>;
+}) {
     return (
         <>
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">草图实体</span>
-                <strong>{getSketchEntityKindLabel(entityRef)}</strong>
+                <strong>{entity.kindLabel}</strong>
             </div>
             <div className="cad-workbench__inspector-section">
                 <span className="cad-workbench__inspector-label">实体 ID</span>
-                <strong>{getSketchEntityId(entityRef)}</strong>
+                <strong>{entity.id}</strong>
             </div>
         </>
     );
-}
-
-function OriginInspector({
-    object,
-}: {
-    readonly object: Extract<CadObject, { kind: 'reference-origin' }>;
-}) {
-    return (
-        <div className="cad-workbench__inspector-section">
-            <span className="cad-workbench__inspector-label">位置</span>
-            <strong>
-                {object.position.x}, {object.position.y}, {object.position.z}
-            </strong>
-        </div>
-    );
-}
-
-function PlaneInspector({
-    object,
-}: {
-    readonly object: Extract<CadObject, { kind: 'reference-plane' }>;
-}) {
-    return (
-        <div className="cad-workbench__inspector-section">
-            <span className="cad-workbench__inspector-label">平面</span>
-            <strong>{object.planeKind.toUpperCase()}</strong>
-        </div>
-    );
-}
-
-function getObjectKindLabel(object: CadObject): string {
-    if (object.kind === 'reference-origin') {
-        return '原点';
-    }
-
-    return '基准面';
-}
-
-function getPickTargetKindLabel(kind: SelectionTargetKind): string {
-    if (kind === 'edge') {
-        return '边';
-    }
-
-    if (kind === 'face') {
-        return '面';
-    }
-
-    if (kind === 'vertex') {
-        return '顶点';
-    }
-
-    return '对象';
-}
-
-function getSketchEntityKindLabel(ref: SketchEntityRef): string {
-    if (ref.kind === 'edge') {
-        return '草图边';
-    }
-
-    if (ref.kind === 'vertex') {
-        return '草图顶点';
-    }
-
-    if (ref.kind === 'point') {
-        return '草图点';
-    }
-
-    if (ref.kind === 'curve') {
-        return '草图曲线';
-    }
-
-    if (ref.kind === 'constraint') {
-        return '草图约束';
-    }
-
-    if (ref.kind === 'dimension') {
-        return '草图尺寸';
-    }
-
-    if (ref.kind === 'profile') {
-        return '草图区域';
-    }
-
-    return '草图状态';
-}
-
-function getSketchEntityId(ref: SketchEntityRef): string {
-    if (ref.kind === 'edge') {
-        return ref.edgeId;
-    }
-
-    if (ref.kind === 'vertex') {
-        return ref.vertexId;
-    }
-
-    if (ref.kind === 'point') {
-        return ref.pointId;
-    }
-
-    if (ref.kind === 'curve') {
-        return ref.curveId;
-    }
-
-    if (ref.kind === 'constraint') {
-        return ref.constraintId;
-    }
-
-    if (ref.kind === 'dimension') {
-        return ref.dimensionId;
-    }
-
-    if (ref.kind === 'profile') {
-        return ref.profileId;
-    }
-
-    return ref.sketchId;
 }
 
 function getCommandStatusLabel(status: CommandStatus): string {

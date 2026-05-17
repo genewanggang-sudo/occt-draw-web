@@ -1,45 +1,20 @@
 import { useState } from 'react';
-import type {
-    CadDocument,
-    CadObject,
-    PartStudio,
-    ReferenceOriginObject,
-    ReferencePlaneKind,
-    ReferencePlaneObject,
-} from '@occt-draw/cad-model';
-import { getSketchForFeature } from '@occt-draw/cad-model';
+import type { ModelTreeViewModel } from '@occt-draw/editor';
 
 interface ModelTreePanelProps {
-    readonly document: CadDocument;
+    readonly modelTree: ModelTreeViewModel;
     readonly onSelectObject: (objectId: string) => void;
-    readonly partStudio: PartStudio;
-    readonly selectedObjectIds: readonly string[];
 }
 
-interface DefaultGeometryItem {
-    readonly id: string;
-    readonly label: string;
-    readonly object: CadObject | null;
-    readonly type: 'origin' | 'plane';
-}
-
-export function ModelTreePanel({
-    onSelectObject,
-    partStudio,
-    selectedObjectIds,
-}: ModelTreePanelProps) {
+export function ModelTreePanel({ modelTree, onSelectObject }: ModelTreePanelProps) {
     const [filterText, setFilterText] = useState('');
-    const defaultGeometryItems = createDefaultGeometryItems(partStudio);
-    const featureCount = defaultGeometryItems.length + partStudio.features.length;
     const normalizedFilter = normalizeFilterText(filterText);
-    const visibleDefaultGeometryItems = defaultGeometryItems.filter((item) =>
+    const visibleDefaultGeometryItems = modelTree.defaultGeometryItems.filter((item) =>
         matchesFilter([item.label, item.type === 'origin' ? '原点' : '基准面'], normalizedFilter),
     );
-    const visibleFeatures = partStudio.features.filter((feature) => {
-        const sketch = getSketchForFeature(partStudio, feature);
-
-        return matchesFilter([sketch?.name ?? feature.name, feature.type], normalizedFilter);
-    });
+    const visibleFeatures = modelTree.features.filter((feature) =>
+        matchesFilter([feature.label, feature.type], normalizedFilter),
+    );
 
     return (
         <aside
@@ -63,7 +38,9 @@ export function ModelTreePanel({
             </div>
             <div className="cad-feature-tree">
                 <section className="cad-feature-tree__section">
-                    <div className="cad-feature-tree__section-title">特征 ({featureCount})</div>
+                    <div className="cad-feature-tree__section-title">
+                        特征 ({modelTree.featureCount})
+                    </div>
                     <div className="cad-feature-tree__group">
                         <div className="cad-feature-tree__group-title">
                             <span className="cad-feature-tree__chevron" aria-hidden="true">
@@ -76,29 +53,20 @@ export function ModelTreePanel({
                                 <DefaultGeometryNode
                                     key={item.id}
                                     item={item}
-                                    selected={
-                                        item.object
-                                            ? selectedObjectIds.includes(item.object.id)
-                                            : false
-                                    }
                                     onSelectObject={onSelectObject}
                                 />
                             ))}
                         </div>
                     </div>
-                    {visibleFeatures.map((feature) => {
-                        const sketch = getSketchForFeature(partStudio, feature);
-
-                        return (
-                            <div key={feature.id} className="cad-feature-tree__node">
-                                <span
-                                    className="cad-feature-tree__node-icon cad-feature-tree__node-icon--feature"
-                                    aria-hidden="true"
-                                />
-                                <span>{sketch?.name ?? feature.name}</span>
-                            </div>
-                        );
-                    })}
+                    {visibleFeatures.map((feature) => (
+                        <div key={feature.id} className="cad-feature-tree__node">
+                            <span
+                                className="cad-feature-tree__node-icon cad-feature-tree__node-icon--feature"
+                                aria-hidden="true"
+                            />
+                            <span>{feature.label}</span>
+                        </div>
+                    ))}
                 </section>
                 <section className="cad-feature-tree__parts">
                     <div className="cad-feature-tree__section-title">零件数 (0)</div>
@@ -111,18 +79,16 @@ export function ModelTreePanel({
 function DefaultGeometryNode({
     item,
     onSelectObject,
-    selected,
 }: {
-    readonly item: DefaultGeometryItem;
+    readonly item: ModelTreeViewModel['defaultGeometryItems'][number];
     readonly onSelectObject: (objectId: string) => void;
-    readonly selected: boolean;
 }) {
-    const className = selected
+    const objectId = item.objectId;
+    const className = item.selected
         ? 'cad-feature-tree__node cad-feature-tree__node--selected'
         : 'cad-feature-tree__node';
-    const object = item.object;
 
-    if (!object) {
+    if (!objectId) {
         return (
             <div className={`${className} cad-feature-tree__node--muted`}>
                 <DefaultGeometryIcon type={item.type} />
@@ -134,10 +100,10 @@ function DefaultGeometryNode({
     return (
         <button
             type="button"
-            aria-pressed={selected}
+            aria-pressed={item.selected}
             className={className}
             onClick={() => {
-                onSelectObject(object.id);
+                onSelectObject(objectId);
             }}
         >
             <DefaultGeometryIcon type={item.type} />
@@ -146,56 +112,16 @@ function DefaultGeometryNode({
     );
 }
 
-function DefaultGeometryIcon({ type }: { readonly type: DefaultGeometryItem['type'] }) {
+function DefaultGeometryIcon({
+    type,
+}: {
+    readonly type: ModelTreeViewModel['defaultGeometryItems'][number]['type'];
+}) {
     return (
         <span
             className={`cad-feature-tree__node-icon cad-feature-tree__node-icon--${type}`}
             aria-hidden="true"
         />
-    );
-}
-
-function createDefaultGeometryItems(partStudio: PartStudio): readonly DefaultGeometryItem[] {
-    return [
-        { id: 'origin', label: '原点', object: findOrigin(partStudio.objects), type: 'origin' },
-        {
-            id: 'top',
-            label: '上',
-            object: findPlaneByKind(partStudio.objects, 'xy'),
-            type: 'plane',
-        },
-        {
-            id: 'front',
-            label: '前',
-            object: findPlaneByKind(partStudio.objects, 'zx'),
-            type: 'plane',
-        },
-        {
-            id: 'right',
-            label: '右',
-            object: findPlaneByKind(partStudio.objects, 'yz'),
-            type: 'plane',
-        },
-    ];
-}
-
-function findOrigin(objects: readonly CadObject[]): ReferenceOriginObject | null {
-    return (
-        objects.find(
-            (object): object is ReferenceOriginObject => object.kind === 'reference-origin',
-        ) ?? null
-    );
-}
-
-function findPlaneByKind(
-    objects: readonly CadObject[],
-    planeKind: ReferencePlaneKind,
-): ReferencePlaneObject | null {
-    return (
-        objects.find(
-            (object): object is ReferencePlaneObject =>
-                object.kind === 'reference-plane' && object.planeKind === planeKind,
-        ) ?? null
     );
 }
 
