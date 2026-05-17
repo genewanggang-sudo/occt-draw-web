@@ -4,7 +4,7 @@ import {
     referencePlaneToPlane,
     SetFeaturePayloadOperation,
 } from '@occt-draw/core';
-import { LineSegment3, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
+import { LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
 import {
     AddLineSegmentRequest,
     AddPointRequest,
@@ -24,6 +24,8 @@ import {
     type CommandResult,
 } from './CadCommand';
 import { projectScreenPointToSketch2 } from './sketchProjection';
+
+const MIN_LINE_LENGTH = 1e-6;
 
 export class SketchLineCommand extends CadCommand {
     public readonly id = 'sketch-line';
@@ -68,6 +70,22 @@ export class SketchLineCommand extends CadCommand {
 
             if (!activeSketch) {
                 return createHandledCommandResult({
+                    draft: null,
+                });
+            }
+
+            if (isVertexUsedByEdge(activeSketch.sketch, session.pendingLineStartVertexId)) {
+                return createHandledCommandResult({
+                    activeSketchSession: {
+                        ...session,
+                        pendingLineStartVertexId: null,
+                    },
+                    commandSession: {
+                        id: 'sketch-line',
+                        message: '已结束连续直线，继续指定直线起点。',
+                        selectionContext: state.commandSession.selectionContext,
+                        status: 'running',
+                    },
                     draft: null,
                 });
             }
@@ -257,6 +275,19 @@ export class SketchLineCommand extends CadCommand {
         }
 
         const sketch = sourceSketch.clone();
+        const startPoint = sketch.findPointForVertex(startVertexId);
+
+        if (!startPoint || Vec2.distance(startPoint.position, point) <= MIN_LINE_LENGTH) {
+            return createHandledCommandResult({
+                commandSession: {
+                    id: 'sketch-line',
+                    message: '直线长度过短，继续指定直线终点。',
+                    selectionContext: state.commandSession.selectionContext,
+                    status: 'running',
+                },
+            });
+        }
+
         const request = new AddLineSegmentRequest({
             endPosition: point,
             startVertexId,
@@ -265,14 +296,18 @@ export class SketchLineCommand extends CadCommand {
 
         transaction.commit(sketch);
 
+        if (!request.createdEndVertexId) {
+            return createUnhandledCommandResult();
+        }
+
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingLineStartVertexId: null,
+                pendingLineStartVertexId: request.createdEndVertexId,
             },
             commandSession: {
                 id: 'sketch-line',
-                message: '直线已创建，继续指定下一条直线起点。',
+                message: '直线已创建，继续指定下一段终点。',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
@@ -313,4 +348,10 @@ function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
     const object = state.document.getActivePartStudio().findObjectById(sketch.planeRef);
 
     return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
+}
+
+function isVertexUsedByEdge(sketch: Sketch, vertexId: SketchVertexId): boolean {
+    return sketch.entities.topology.edges
+        .list()
+        .some((edge) => edge.startVertexId === vertexId || edge.endVertexId === vertexId);
 }
