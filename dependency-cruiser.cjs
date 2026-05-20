@@ -70,13 +70,13 @@ module.exports = {
             },
         },
         {
-            name: 'sketch-snapping-only-math',
+            name: 'snapping-only-core-math',
             severity: 'error',
             from: {
-                path: '^packages/sketch-snapping/src',
+                path: '^packages/snapping/src',
             },
             to: {
-                path: '^packages/(?!math|sketch-snapping)',
+                path: '^packages/(?!math|core|snapping)',
             },
         },
         {
@@ -96,7 +96,7 @@ module.exports = {
                 path: '^packages/editor/src',
             },
             to: {
-                path: '^packages/(?!math|core|cad-model|sketch|sketch-snapping|cad-render-adapter|canvas|webgl-engine|editor)',
+                path: '^packages/(?!math|core|cad-model|sketch|snapping|cad-render-adapter|canvas|webgl-engine|editor)',
             },
         },
         {

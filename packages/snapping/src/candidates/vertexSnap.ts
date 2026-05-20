@@ -1,16 +1,16 @@
 import { Vec2 } from '@occt-draw/math';
-import type { SketchSnapCandidate, SketchSnapInput } from '../types';
+import type { SnapCandidate, SnapInput } from '../types';
 
 const DEFAULT_VERTEX_SNAP_PRIORITY = 1000;
 
 export function collectVertexSnapCandidates<TSourceRef>(
-    input: SketchSnapInput<TSourceRef>,
-): readonly SketchSnapCandidate<TSourceRef>[] {
+    input: SnapInput<TSourceRef>,
+): readonly SnapCandidate<TSourceRef>[] {
     if (!input.enabledKinds.includes('vertex')) {
         return [];
     }
 
-    const candidates: SketchSnapCandidate<TSourceRef>[] = [];
+    const candidates: SnapCandidate<TSourceRef>[] = [];
 
     for (const source of input.candidates) {
         if (source.kind !== 'vertex') {

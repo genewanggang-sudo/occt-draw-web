@@ -10,7 +10,7 @@
         { "path": "./packages/math" },
         { "path": "./packages/webgl-engine" },
         { "path": "./packages/sketch" },
-        { "path": "./packages/sketch-snapping" },
+        { "path": "./packages/snapping" },
         { "path": "./packages/ui" }
     ]
 }

@@ -1,8 +1,9 @@
 {
-    "name": "@occt-draw/sketch-snapping",
+    "name": "@occt-draw/snapping",
     "private": true,
     "version": "0.1.0",
     "dependencies": {
+        "@occt-draw/core": "workspace:*",
         "@occt-draw/math": "workspace:*"
     },
     "types": "./src/index.ts",

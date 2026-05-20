@@ -140,9 +140,9 @@ importers:
       '@occt-draw/sketch':
         specifier: workspace:*
         version: link:../sketch
-      '@occt-draw/sketch-snapping':
+      '@occt-draw/snapping':
         specifier: workspace:*
-        version: link:../sketch-snapping
+        version: link:../snapping
       '@occt-draw/webgl-engine':
         specifier: workspace:*
         version: link:../webgl-engine
@@ -158,8 +158,11 @@ importers:
         specifier: workspace:*
         version: link:../math
 
-  packages/sketch-snapping:
+  packages/snapping:
     dependencies:
+      '@occt-draw/core':
+        specifier: workspace:*
+        version: link:../core
       '@occt-draw/math':
         specifier: workspace:*
         version: link:../math

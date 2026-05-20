@@ -16,11 +16,7 @@ import {
     type SketchEntityRef,
     type SketchVertexId,
 } from '@occt-draw/sketch';
-import {
-    SketchSnapService,
-    type SketchSnapResult,
-    type SketchSnapSource,
-} from '@occt-draw/sketch-snapping';
+import { SnapService, type SnapResult, type SnapSource } from '@occt-draw/snapping';
 import { projectWorldToScreen } from '@occt-draw/webgl-engine';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
@@ -38,7 +34,7 @@ const LINE_SNAP_THRESHOLD_PIXELS = 9;
 
 export class SketchLineCommand extends CadCommand {
     public readonly id = 'sketch-line';
-    private readonly snapService = new SketchSnapService();
+    private readonly snapService = new SnapService();
 
     public override enter(context: CommandContext): CommandResult {
         const state = context.getState();
@@ -255,7 +251,7 @@ export class SketchLineCommand extends CadCommand {
     ): {
         readonly plane: Plane3 | null;
         readonly rawPoint: Vector2 | null;
-        readonly snap: SketchSnapResult<SketchEntityRef> | null;
+        readonly snap: SnapResult<SketchEntityRef> | null;
     } {
         const state = context.getState();
         const plane = findSketchPlane(state, sketch);
@@ -447,8 +443,8 @@ function collectSketchVertexSnapSources(
     sketch: Sketch,
     plane: Plane3,
     excludedVertexId: SketchVertexId | null,
-): readonly SketchSnapSource<SketchEntityRef>[] {
-    const sources: SketchSnapSource<SketchEntityRef>[] = [];
+): readonly SnapSource<SketchEntityRef>[] {
+    const sources: SnapSource<SketchEntityRef>[] = [];
 
     for (const vertex of sketch.entities.topology.vertices.list()) {
         if (vertex.id === excludedVertexId) {
@@ -486,6 +482,6 @@ function isVertexUsedByEdge(sketch: Sketch, vertexId: SketchVertexId): boolean {
         .some((edge) => edge.startVertexId === vertexId || edge.endVertexId === vertexId);
 }
 
-function getSnappedVertexId(snap: SketchSnapResult<SketchEntityRef> | null): SketchVertexId | null {
+function getSnappedVertexId(snap: SnapResult<SketchEntityRef> | null): SketchVertexId | null {
     return snap?.sourceRef?.kind === SketchEntityKind.Vertex ? snap.sourceRef.entityId : null;
 }
