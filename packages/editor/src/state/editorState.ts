@@ -1,10 +1,9 @@
 import type { CadDocument } from '@occt-draw/cad-model';
 import type { EditDraft } from '@occt-draw/core';
 import type { Vector2 } from '@occt-draw/math';
+import type { SelectionState, ViewNavigationState } from '@occt-draw/platform';
 import type { SketchVertexId } from '@occt-draw/sketch';
 import type { CommandSession } from '../commands/commandTypes';
-import type { SelectionState } from '../selection/selectionState';
-import type { ViewNavigationState } from '../view-navigation/viewNavigation';
 
 export interface SketchEditSession {
     readonly activeTool: 'line' | 'rectangle' | 'select';

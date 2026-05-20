@@ -5,25 +5,23 @@ import type {
     TransactionGroup,
 } from '@occt-draw/core';
 import type { CadDocument } from '@occt-draw/cad-model';
+import {
+    PlatformCommand,
+    createHandledPlatformCommandResult,
+    createUnhandledPlatformCommandResult,
+    type PlatformCommandKeyEvent,
+    type PlatformCommandPointerEvent,
+    type PlatformCommandResult,
+    type ScreenPoint,
+    type SelectionState,
+    type ViewNavigationState,
+} from '@occt-draw/platform';
 import type { EditorState, SketchEditSession } from '../state/editorState';
-import type { SelectionState } from '../selection/selectionState';
-import type { ViewNavigationState } from '../view-navigation/viewNavigation';
-import type { ScreenPoint } from '../view-navigation/viewNavigation';
 import type { CommandId, CommandSession } from './commandTypes';
 
-export interface CommandPointerEvent {
-    readonly altKey: boolean;
-    readonly button: number;
-    readonly buttons: number;
-    readonly ctrlKey: boolean;
-    readonly point: ScreenPoint;
-    readonly pointerId: number;
-    readonly shiftKey: boolean;
-}
+export type CommandPointerEvent = PlatformCommandPointerEvent<ScreenPoint>;
 
-export interface CommandKeyEvent {
-    readonly key: string;
-}
+export type CommandKeyEvent = PlatformCommandKeyEvent;
 
 export interface CommandContext {
     getDraft(): EditDraft<CadDocument> | null;
@@ -31,7 +29,7 @@ export interface CommandContext {
     pick(point: ScreenPoint): SelectionTarget | null;
 }
 
-export interface CommandResult {
+export interface CommandResult extends PlatformCommandResult {
     readonly handled: boolean;
     readonly commandSession?: CommandSession;
     readonly documentEdit?: DocumentTransaction<CadDocument> | TransactionGroup<CadDocument>;
@@ -43,8 +41,8 @@ export interface CommandResult {
     readonly activeSketchSession?: SketchEditSession | null;
 }
 
-export abstract class CadCommand {
-    public abstract readonly id: CommandId;
+export abstract class CadCommand extends PlatformCommand {
+    public abstract override readonly id: CommandId;
 
     public enter(_context: CommandContext): CommandResult {
         return createUnhandledCommandResult();
@@ -82,16 +80,11 @@ export abstract class CadCommand {
 export function createHandledCommandResult(
     result: Omit<CommandResult, 'handled'> = {},
 ): CommandResult {
-    return {
-        ...result,
-        handled: true,
-    };
+    return createHandledPlatformCommandResult(result);
 }
 
 export function createUnhandledCommandResult(): CommandResult {
-    return {
-        handled: false,
-    };
+    return createUnhandledPlatformCommandResult();
 }
 
 export function mergeCommandResults(first: CommandResult, second: CommandResult): CommandResult {

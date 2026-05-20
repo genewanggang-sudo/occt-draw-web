@@ -17,18 +17,27 @@ import {
     Vec3,
     type Vector3,
 } from '@occt-draw/math';
-import type { CommandContext, CommandPointerEvent, CommandResult } from '../commands/CadCommand';
+import {
+    CommandManager,
+    ViewNavigationController,
+    type PickService,
+    type ScreenPoint,
+} from '@occt-draw/platform';
+import {
+    mergeCommandResults,
+    createUnhandledCommandResult,
+    type CommandContext,
+    type CommandKeyEvent,
+    type CommandPointerEvent,
+    type CommandResult,
+} from '../commands/CadCommand';
 import { SelectCommand } from '../commands/SelectCommand';
 import { SketchCommand } from '../commands/SketchCommand';
 import { SketchLineCommand } from '../commands/SketchLineCommand';
 import { SketchRectangleCommand } from '../commands/SketchRectangleCommand';
 import type { CommandId } from '../commands/commandTypes';
 import type { EditorState } from '../state/editorState';
-import type { ScreenPoint } from '../view-navigation/viewNavigation';
-import { CommandManager } from './CommandManager';
 import { EditorController } from './EditorController';
-import type { PickService } from './PickService';
-import { ViewNavigationController } from './ViewNavigationController';
 
 export interface ViewportInteractionContext {
     readonly getActiveCommandId: () => CommandId;
@@ -65,7 +74,14 @@ const MIN_WINDOW_DEPTH_SAMPLES = 3;
 const BOUNDS_FIT_ROTATE_FACTOR = 2;
 
 export class ViewportInteractionController {
-    private readonly commandManager: CommandManager;
+    private readonly commandManager: CommandManager<
+        CommandId,
+        CommandContext,
+        CommandResult,
+        CommandPointerEvent,
+        CommandKeyEvent,
+        SelectCommand | SketchCommand | SketchLineCommand | SketchRectangleCommand
+    >;
     private readonly context: ViewportInteractionContext;
 
     constructor(context: ViewportInteractionContext) {
@@ -78,6 +94,8 @@ export class ViewportInteractionController {
                 new SketchLineCommand(),
                 new SketchRectangleCommand(),
             ],
+            createUnhandledResult: createUnhandledCommandResult,
+            mergeResults: mergeCommandResults,
         });
     }
 

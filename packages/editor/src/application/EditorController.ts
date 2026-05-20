@@ -5,6 +5,7 @@ import {
     type EditDraft,
     type SelectionTarget,
 } from '@occt-draw/core';
+import { SelectionManager, type ViewNavigationState } from '@occt-draw/platform';
 import type { CommandResult } from '../commands/CadCommand';
 import {
     activateCommandSession,
@@ -16,8 +17,6 @@ import {
 } from '../commands/commandReducer';
 import type { CommandId } from '../commands/commandTypes';
 import type { EditorState } from '../state/editorState';
-import type { ViewNavigationState } from '../view-navigation/viewNavigation';
-import { SelectionManager } from './SelectionManager';
 
 export class EditorController {
     private readonly selectionManager: SelectionManager;

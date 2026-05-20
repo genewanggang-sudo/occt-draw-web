@@ -1,4 +1,32 @@
-export { CommandManager } from './application/CommandManager';
+export {
+    CommandManager,
+    PickService,
+    SelectionManager,
+    ViewNavigationController,
+    ViewportInputAdapter,
+    beginViewNavigation,
+    clearSelection,
+    createFramedStandardCamera,
+    createInitialSelectionState,
+    createViewNavigationState,
+    endViewNavigation,
+    interpolateCameraState,
+    replaceSelection,
+    rotateCameraByScreenDelta,
+    rotateCameraByViewCubeArrow,
+    updatePreselection,
+    updateViewNavigation,
+    updateViewNavigationCamera,
+    updateViewNavigationViewport,
+    zoomViewNavigation,
+    type PickSelectionTargetInput,
+    type ScreenPoint,
+    type SelectionState,
+    type ViewCubeRotationStep,
+    type ViewNavigationPointer,
+    type ViewNavigationState,
+    type ViewNavigationWheel,
+} from '@occt-draw/platform';
 export { EditorController } from './application/EditorController';
 export {
     createDefaultEditorState,
@@ -16,10 +44,7 @@ export {
     type InspectorViewModel,
     type ModelTreeViewModel,
 } from './application/workbenchViewModel';
-export { PickService, type PickSelectionTargetInput } from './application/PickService';
 export { getSketchEntityRefFromSelectionTarget } from './selection/sketchSelection';
-export { SelectionManager } from './application/SelectionManager';
-export { ViewNavigationController } from './application/ViewNavigationController';
 export {
     ViewportInteractionController,
     type EditorKeyInput,
@@ -65,27 +90,7 @@ export { SelectCommand } from './commands/SelectCommand';
 export { SketchCommand } from './commands/SketchCommand';
 export { SketchLineCommand } from './commands/SketchLineCommand';
 export { SketchRectangleCommand } from './commands/SketchRectangleCommand';
-export { clearSelection, replaceSelection, updatePreselection } from './selection/selectionReducer';
-export { createInitialSelectionState, type SelectionState } from './selection/selectionState';
 export { createInitialEditorState } from './state/createInitialEditorState';
 export type { EditorState, SketchEditSession } from './state/editorState';
-export {
-    beginViewNavigation,
-    createFramedStandardCamera,
-    createViewNavigationState,
-    endViewNavigation,
-    interpolateCameraState,
-    rotateCameraByViewCubeArrow,
-    rotateCameraByScreenDelta,
-    updateViewNavigation,
-    updateViewNavigationCamera,
-    updateViewNavigationViewport,
-    zoomViewNavigation,
-    type ScreenPoint,
-    type ViewNavigationPointer,
-    type ViewNavigationState,
-    type ViewNavigationWheel,
-    type ViewCubeRotationStep,
-} from './view-navigation/viewNavigation';
 export type { ViewCubeArrowCommand } from '@occt-draw/webgl-engine';
 export type { StandardCameraView } from '@occt-draw/webgl-engine';

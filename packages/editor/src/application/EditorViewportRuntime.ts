@@ -13,19 +13,19 @@ import {
 } from '@occt-draw/webgl-engine';
 import { Measurement } from '@occt-draw/math';
 import { createDefaultCadDocument } from '@occt-draw/cad-model';
-import { PickService } from './PickService';
-import { ViewNavigationController } from './ViewNavigationController';
-import { ViewportInputAdapter } from './ViewportInputAdapter';
-import { ViewportInteractionController } from './ViewportInteractionController';
-import { createEditorRenderGraph, createEditorRenderHighlight } from './editorRendering';
-import { createInitialEditorState } from '../state/createInitialEditorState';
 import {
+    PickService,
+    ViewNavigationController,
+    ViewportInputAdapter,
     createViewNavigationState,
     interpolateCameraState,
     rotateCameraByViewCubeArrow,
     type ScreenPoint,
     type ViewCubeRotationStep,
-} from '../view-navigation/viewNavigation';
+} from '@occt-draw/platform';
+import { ViewportInteractionController } from './ViewportInteractionController';
+import { createEditorRenderGraph, createEditorRenderHighlight } from './editorRendering';
+import { createInitialEditorState } from '../state/createInitialEditorState';
 import type {
     EditorKeyInput,
     EditorPointerInput,

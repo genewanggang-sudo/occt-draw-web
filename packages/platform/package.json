@@ -1,17 +1,12 @@
 {
-    "name": "@occt-draw/editor",
+    "name": "@occt-draw/platform",
     "private": true,
     "version": "0.1.0",
     "dependencies": {
         "@occt-draw/core": "workspace:*",
-        "@occt-draw/cad-model": "workspace:*",
-        "@occt-draw/cad-render-adapter": "workspace:*",
-        "@occt-draw/canvas": "workspace:*",
         "@occt-draw/math": "workspace:*",
-        "@occt-draw/platform": "workspace:*",
-        "@occt-draw/webgl-engine": "workspace:*",
-        "@occt-draw/sketch": "workspace:*",
-        "@occt-draw/snapping": "workspace:*"
+        "@occt-draw/snapping": "workspace:*",
+        "@occt-draw/webgl-engine": "workspace:*"
     },
     "types": "./src/index.ts",
     "exports": {

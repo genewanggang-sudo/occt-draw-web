@@ -8,6 +8,7 @@
         { "path": "./packages/canvas" },
         { "path": "./packages/editor" },
         { "path": "./packages/math" },
+        { "path": "./packages/platform" },
         { "path": "./packages/webgl-engine" },
         { "path": "./packages/sketch" },
         { "path": "./packages/snapping" },

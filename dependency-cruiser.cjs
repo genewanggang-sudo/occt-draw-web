@@ -90,13 +90,23 @@ module.exports = {
             },
         },
         {
+            name: 'platform-only-core-math-snapping-webgl',
+            severity: 'error',
+            from: {
+                path: '^packages/platform/src',
+            },
+            to: {
+                path: '^packages/(?!math|core|snapping|webgl-engine|platform)',
+            },
+        },
+        {
             name: 'editor-only-cad-model-sketch-core-canvas-math',
             severity: 'error',
             from: {
                 path: '^packages/editor/src',
             },
             to: {
-                path: '^packages/(?!math|core|cad-model|sketch|snapping|cad-render-adapter|canvas|webgl-engine|editor)',
+                path: '^packages/(?!math|core|cad-model|sketch|snapping|platform|cad-render-adapter|canvas|webgl-engine|editor)',
             },
         },
         {

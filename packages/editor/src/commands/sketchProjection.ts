@@ -5,7 +5,7 @@ import {
     type ViewportSize,
 } from '@occt-draw/webgl-engine';
 import { worldPointToSketchPointOnPlane } from '@occt-draw/sketch';
-import type { ScreenPoint } from '../view-navigation/viewNavigation';
+import type { ScreenPoint } from '@occt-draw/platform';
 
 export function projectScreenPointToSketch2(input: {
     readonly camera: CameraState;

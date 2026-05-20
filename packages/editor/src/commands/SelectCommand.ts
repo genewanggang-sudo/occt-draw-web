@@ -17,9 +17,14 @@ import {
     type Sketch,
     type SketchEntityRef,
 } from '@occt-draw/sketch';
+import {
+    clearSelection,
+    replaceSelection,
+    updatePreselection,
+    type ScreenPoint,
+} from '@occt-draw/platform';
 import type { EditorState } from '../state/editorState';
 import { getSketchEntityRefFromSelectionTarget } from '../selection/sketchSelection';
-import type { ScreenPoint } from '../view-navigation/viewNavigation';
 import {
     CadCommand,
     createHandledCommandResult,
@@ -30,11 +35,6 @@ import {
     type CommandResult,
 } from './CadCommand';
 import { consumeSelectionForCommandSession } from './commandReducer';
-import {
-    clearSelection,
-    replaceSelection,
-    updatePreselection,
-} from '../selection/selectionReducer';
 import { projectScreenPointToSketch2 } from './sketchProjection';
 
 type PendingSelectionPointer =

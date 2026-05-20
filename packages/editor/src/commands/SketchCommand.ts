@@ -8,6 +8,7 @@ import {
 import { DocumentTransaction } from '@occt-draw/core';
 import { Vec3 } from '@occt-draw/math';
 import { createSketchOnReferencePlane } from '@occt-draw/sketch';
+import { clearSelection } from '@occt-draw/platform';
 import type { CameraState } from '@occt-draw/webgl-engine';
 import {
     CadCommand,
@@ -15,7 +16,6 @@ import {
     type CommandContext,
     type CommandResult,
 } from './CadCommand';
-import { clearSelection } from '../selection/selectionReducer';
 
 const SKETCH_WORKSPACE_CAMERA_HEIGHT_SCALE = 1.55;
 

@@ -1,7 +1,6 @@
 import type { CadDocument } from '@occt-draw/cad-model';
+import { createInitialSelectionState, type ViewNavigationState } from '@occt-draw/platform';
 import { createInitialCommandSession } from '../commands/commandReducer';
-import { createInitialSelectionState } from '../selection/selectionState';
-import type { ViewNavigationState } from '../view-navigation/viewNavigation';
 import type { EditorState } from './editorState';
 
 interface CreateInitialEditorStateInput {
