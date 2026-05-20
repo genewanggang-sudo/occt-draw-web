@@ -1,5 +1,5 @@
 {
-    "name": "@occt-draw/cad-rendering",
+    "name": "@occt-draw/canvas",
     "private": true,
     "version": "0.1.0",
     "dependencies": {

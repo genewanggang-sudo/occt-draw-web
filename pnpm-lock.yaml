@@ -92,9 +92,9 @@ importers:
       '@occt-draw/cad-model':
         specifier: workspace:*
         version: link:../cad-model
-      '@occt-draw/cad-rendering':
+      '@occt-draw/canvas':
         specifier: workspace:*
-        version: link:../cad-rendering
+        version: link:../canvas
       '@occt-draw/core':
         specifier: workspace:*
         version: link:../core
@@ -105,7 +105,7 @@ importers:
         specifier: workspace:*
         version: link:../sketch
 
-  packages/cad-rendering:
+  packages/canvas:
     dependencies:
       '@occt-draw/math':
         specifier: workspace:*
@@ -128,9 +128,9 @@ importers:
       '@occt-draw/cad-render-adapter':
         specifier: workspace:*
         version: link:../cad-render-adapter
-      '@occt-draw/cad-rendering':
+      '@occt-draw/canvas':
         specifier: workspace:*
-        version: link:../cad-rendering
+        version: link:../canvas
       '@occt-draw/core':
         specifier: workspace:*
         version: link:../core

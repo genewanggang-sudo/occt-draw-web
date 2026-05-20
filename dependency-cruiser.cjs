@@ -90,33 +90,33 @@ module.exports = {
             },
         },
         {
-            name: 'editor-only-cad-model-sketch-core-rendering-math',
+            name: 'editor-only-cad-model-sketch-core-canvas-math',
             severity: 'error',
             from: {
                 path: '^packages/editor/src',
             },
             to: {
-                path: '^packages/(?!math|core|cad-model|sketch|sketch-snapping|cad-render-adapter|cad-rendering|webgl-engine|editor)',
+                path: '^packages/(?!math|core|cad-model|sketch|sketch-snapping|cad-render-adapter|canvas|webgl-engine|editor)',
             },
         },
         {
-            name: 'cad-rendering-only-webgl-math',
+            name: 'canvas-only-webgl-math',
             severity: 'error',
             from: {
-                path: '^packages/cad-rendering/src',
+                path: '^packages/canvas/src',
             },
             to: {
-                path: '^packages/(?!math|webgl-engine|cad-rendering)',
+                path: '^packages/(?!math|webgl-engine|canvas)',
             },
         },
         {
-            name: 'cad-render-adapter-only-model-sketch-core-rendering-math',
+            name: 'cad-render-adapter-only-model-sketch-core-canvas-math',
             severity: 'error',
             from: {
                 path: '^packages/cad-render-adapter/src',
             },
             to: {
-                path: '^packages/(?!math|core|cad-model|sketch|cad-rendering|cad-render-adapter)',
+                path: '^packages/(?!math|core|cad-model|sketch|canvas|cad-render-adapter)',
             },
         },
     ],

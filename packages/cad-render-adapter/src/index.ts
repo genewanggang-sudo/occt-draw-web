@@ -1,8 +1,8 @@
 export {
-    CadRenderAdapter,
-    type CreateCadRenderDocumentInput,
-    type CreateCadRenderPartStudioInput,
-} from './CadRenderAdapter';
+    CadCanvasAdapter,
+    type CreateCadCanvasPartStudioInput,
+    type CreateCadCanvasSceneInput,
+} from './CadCanvasAdapter';
 export { PartStudioRenderAdapter } from './PartStudioRenderAdapter';
 export { CadObjectRenderAdapter } from './CadObjectRenderAdapter';
 export { ActiveSketchPlaneRenderAdapter } from './ActiveSketchPlaneRenderAdapter';

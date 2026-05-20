@@ -6,7 +6,7 @@
         "@occt-draw/core": "workspace:*",
         "@occt-draw/cad-model": "workspace:*",
         "@occt-draw/cad-render-adapter": "workspace:*",
-        "@occt-draw/cad-rendering": "workspace:*",
+        "@occt-draw/canvas": "workspace:*",
         "@occt-draw/math": "workspace:*",
         "@occt-draw/webgl-engine": "workspace:*",
         "@occt-draw/sketch": "workspace:*",

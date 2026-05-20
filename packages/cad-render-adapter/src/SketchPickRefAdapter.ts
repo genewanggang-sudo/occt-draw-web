@@ -1,15 +1,29 @@
-import type { CadRenderPickRef } from '@occt-draw/cad-rendering';
+import type { CanvasPickRef } from '@occt-draw/canvas';
 import { SketchEntityKind, type SketchEntityRef } from '@occt-draw/sketch';
+import {
+    DOMAIN_METADATA_KEY,
+    ENTITY_KIND_METADATA_KEY,
+    FEATURE_ID_METADATA_KEY,
+    SKETCH_ENTITY_REF_METADATA_KEY,
+} from './canvasAdapterMetadata';
 
 export class SketchPickRefAdapter {
-    public createSketchPickRef(featureId: string, ref: SketchEntityRef): CadRenderPickRef {
+    public createSketchPickRef(featureId: string, ref: SketchEntityRef): CanvasPickRef {
         const entityKind = this.getPickableEntityKind(ref);
+        const metadata = new Map<string, unknown>([
+            [DOMAIN_METADATA_KEY, 'sketch'],
+            [FEATURE_ID_METADATA_KEY, featureId],
+            [SKETCH_ENTITY_REF_METADATA_KEY, ref],
+        ]);
+
+        if (entityKind) {
+            metadata.set(ENTITY_KIND_METADATA_KEY, entityKind);
+        }
+
         return {
-            domain: 'sketch',
-            entityId: this.getSketchEntityId(ref),
-            ...(entityKind ? { entityKind } : {}),
-            featureId,
-            objectId: ref.sketchId,
+            id: `${ref.sketchId}:${ref.entityId}`,
+            ...(entityKind ? { kind: entityKind } : {}),
+            metadata,
         };
     }
 
@@ -17,7 +31,7 @@ export class SketchPickRefAdapter {
         return ref.entityId;
     }
 
-    private getPickableEntityKind(ref: SketchEntityRef): CadRenderPickRef['entityKind'] | null {
+    private getPickableEntityKind(ref: SketchEntityRef): string | null {
         switch (ref.kind) {
             case SketchEntityKind.Edge:
                 return 'edge';

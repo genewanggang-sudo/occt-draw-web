@@ -1,8 +1,9 @@
 import type { CadDocument, PartStudio } from '@occt-draw/cad-model';
+import type { CanvasScene } from '@occt-draw/canvas';
 import type { EditDraft } from '@occt-draw/core';
-import type { CadRenderPartStudio } from '@occt-draw/cad-rendering';
 import { ActiveSketchPlaneRenderAdapter } from './ActiveSketchPlaneRenderAdapter';
 import { CadObjectRenderAdapter } from './CadObjectRenderAdapter';
+import { DEFAULT_CANVAS_LAYERS } from './canvasAdapterLayers';
 import { DraftRenderAdapter } from './DraftRenderAdapter';
 import { SketchRenderAdapter } from './SketchRenderAdapter';
 
@@ -33,17 +34,20 @@ export class PartStudioRenderAdapter {
         this.sketchAdapter = input.sketchAdapter ?? new SketchRenderAdapter();
     }
 
-    public createPartStudio(input: CreatePartStudioRenderInput): CadRenderPartStudio {
+    public createPartStudio(input: CreatePartStudioRenderInput): CanvasScene {
         return {
-            activeSketchPlane: this.activeSketchPlaneAdapter.createActiveSketchPlane({
-                activeSketchFeatureId: input.activeSketchFeatureId ?? null,
-                partStudio: input.partStudio,
-            }),
-            draft: this.draftAdapter.createDraft(input.draft ?? null),
-            objects: input.partStudio.objects.map((object) =>
-                this.objectAdapter.createObject(object),
-            ),
-            sketches: this.sketchAdapter.createSketches(input.partStudio),
+            layers: DEFAULT_CANVAS_LAYERS,
+            objects: [
+                ...input.partStudio.objects.flatMap((object) =>
+                    this.objectAdapter.createObjects(object),
+                ),
+                ...this.activeSketchPlaneAdapter.createActiveSketchPlaneObjects({
+                    activeSketchFeatureId: input.activeSketchFeatureId ?? null,
+                    partStudio: input.partStudio,
+                }),
+                ...this.sketchAdapter.createSketches(input.partStudio),
+                ...this.draftAdapter.createDraftObjects(input.draft ?? null),
+            ],
         };
     }
 }

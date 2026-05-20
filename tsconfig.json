@@ -5,7 +5,7 @@
         { "path": "./packages/core" },
         { "path": "./packages/cad-model" },
         { "path": "./packages/cad-render-adapter" },
-        { "path": "./packages/cad-rendering" },
+        { "path": "./packages/canvas" },
         { "path": "./packages/editor" },
         { "path": "./packages/math" },
         { "path": "./packages/webgl-engine" },

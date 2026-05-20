@@ -4,7 +4,7 @@
     "version": "0.1.0",
     "dependencies": {
         "@occt-draw/cad-model": "workspace:*",
-        "@occt-draw/cad-rendering": "workspace:*",
+        "@occt-draw/canvas": "workspace:*",
         "@occt-draw/core": "workspace:*",
         "@occt-draw/math": "workspace:*",
         "@occt-draw/sketch": "workspace:*"

@@ -1,18 +1,18 @@
-import { CadRenderAdapter } from '@occt-draw/cad-render-adapter';
-import { renderCadDocumentToGraph } from '@occt-draw/cad-rendering';
+import { CadCanvasAdapter } from '@occt-draw/cad-render-adapter';
+import { renderCanvasSceneToGraph } from '@occt-draw/canvas';
 import type { CadDocument } from '@occt-draw/cad-model';
 import type { RenderGraph, RenderHighlightState } from '@occt-draw/webgl-engine';
 import type { EditorState } from '../state/editorState';
 
-const cadRenderAdapter = new CadRenderAdapter();
+const cadCanvasAdapter = new CadCanvasAdapter();
 
 export function getEditorDisplayDocument(state: EditorState): CadDocument {
     return state.draft?.workingDocument ?? state.document;
 }
 
 export function createEditorRenderGraph(state: EditorState): RenderGraph {
-    return renderCadDocumentToGraph(
-        cadRenderAdapter.createDocument({
+    return renderCanvasSceneToGraph(
+        cadCanvasAdapter.createScene({
             activeSketchFeatureId: state.activeSketchSession?.sketchFeatureId ?? null,
             document: getEditorDisplayDocument(state),
             draft: state.draft,
