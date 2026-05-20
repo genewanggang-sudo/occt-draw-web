@@ -1,15 +1,4 @@
-import {
-    referencePlaneToPlane,
-    type CadDocument,
-    type CadObject,
-    type PartStudio,
-    type ReferenceOriginObject,
-    type ReferencePlaneObject,
-} from '@occt-draw/cad-model';
-import type { DraftLineSegmentObject, DraftPointObject, EditDraft } from '@occt-draw/core';
-import { LineSegment3, Vec2, Vec3 } from '@occt-draw/math';
-import { getSketchForFeature } from '@occt-draw/cad-model';
-import { SketchDisplayBuilder, type SketchEntityRef } from '@occt-draw/sketch';
+import { LineSegment3, Plane3, Vec2, Vec3, type Vector3 } from '@occt-draw/math';
 import {
     EdgeGeometry,
     EdgeSet,
@@ -31,47 +20,33 @@ import {
     type LabelText,
     type RenderObject,
 } from '@occt-draw/webgl-engine';
+import type {
+    CadRenderActiveSketchPlane,
+    CadRenderDocument,
+    CadRenderDraft,
+    CadRenderObject,
+    CadRenderPartStudio,
+    CadRenderPickRef,
+    CadRenderPlaneKind,
+    CadRenderReferenceOrigin,
+    CadRenderReferencePlane,
+    CadRenderSketch,
+} from './cadRenderTypes';
 
 const MODEL_LAYER_NAME = 'model';
 const SKETCH_DRAFT_LAYER_NAME = 'sketch-draft';
 const LABEL_HELPER_LAYER_NAME = 'label-helper';
 const ACTIVE_SKETCH_PLANE_WIDTH_SCALE = 1.72;
 const ACTIVE_SKETCH_PLANE_HEIGHT_SCALE = 1.28;
-
-export interface DisplayProjectorOptions {
-    readonly activeSketchFeatureId?: string | null;
-}
+const CAD_RENDER_METADATA_SOURCE = 'cad-render';
+const CAD_RENDER_PICK_REF_METADATA_KEY = 'pickRef';
 
 export class DisplayProjector {
-    public projectDocument(
-        document: CadDocument,
-        draft: EditDraft | null = null,
-        options: DisplayProjectorOptions = {},
-    ): RenderGraph {
-        return this.projectDocumentToGraph(document, draft, options);
+    public projectDocumentToGraph(document: CadRenderDocument): RenderGraph {
+        return this.projectPartStudioToGraph(document.partStudio);
     }
 
-    public projectDocumentToGraph(
-        document: CadDocument,
-        draft: EditDraft | null = null,
-        options: DisplayProjectorOptions = {},
-    ): RenderGraph {
-        return this.projectPartStudioToGraph(document.getActivePartStudio(), draft, options);
-    }
-
-    public projectPartStudio(
-        partStudio: PartStudio,
-        draft: EditDraft | null = null,
-        options: DisplayProjectorOptions = {},
-    ): RenderGraph {
-        return this.projectPartStudioToGraph(partStudio, draft, options);
-    }
-
-    public projectPartStudioToGraph(
-        partStudio: PartStudio,
-        draft: EditDraft | null = null,
-        options: DisplayProjectorOptions = {},
-    ): RenderGraph {
+    public projectPartStudioToGraph(partStudio: CadRenderPartStudio): RenderGraph {
         const graph = new RenderGraph();
         const modelLayer = new RenderLayer(MODEL_LAYER_NAME);
         const sketchDraftLayer = new RenderLayer(SKETCH_DRAFT_LAYER_NAME);
@@ -84,7 +59,7 @@ export class DisplayProjector {
             addObjectsToLayers(this.toRenderObjects(object), modelLayer, labelHelperLayer);
         }
 
-        for (const object of this.projectActiveSketchPlane(partStudio, options)) {
+        for (const object of this.projectActiveSketchPlane(partStudio.activeSketchPlane)) {
             if (object instanceof TextLabelSet) {
                 labelHelperLayer.add(object);
             } else {
@@ -92,11 +67,11 @@ export class DisplayProjector {
             }
         }
 
-        for (const object of this.projectSketchFeatures(partStudio)) {
+        for (const object of partStudio.sketches.flatMap(projectSketch)) {
             sketchDraftLayer.add(object);
         }
 
-        for (const object of this.projectDraftObjects(draft)) {
+        for (const object of projectDraft(partStudio.draft ?? null)) {
             sketchDraftLayer.add(object);
         }
 
@@ -107,7 +82,7 @@ export class DisplayProjector {
         return graph;
     }
 
-    public toRenderObject(object: CadObject): RenderObject {
+    public toRenderObject(object: CadRenderObject): RenderObject {
         const [renderObject] = this.toRenderObjects(object);
 
         if (!renderObject) {
@@ -117,7 +92,7 @@ export class DisplayProjector {
         return renderObject;
     }
 
-    public toRenderObjects(object: CadObject): readonly RenderObject[] {
+    public toRenderObjects(object: CadRenderObject): readonly RenderObject[] {
         if (object.kind === 'reference-origin') {
             return [projectReferenceOriginObject(object)];
         }
@@ -125,201 +100,26 @@ export class DisplayProjector {
         return projectReferencePlaneObject(object);
     }
 
-    private projectSketchFeatures(partStudio: PartStudio): readonly RenderObject[] {
-        return partStudio.features.flatMap((feature) => {
-            if (feature.type !== 'sketch' || !feature.payloadRef) {
-                return [];
-            }
-
-            const sketch = getSketchForFeature(partStudio, feature);
-
-            if (!sketch) {
-                return [];
-            }
-
-            const sketchPlane = findReferencePlaneById(partStudio, sketch.planeRef);
-
-            if (!sketchPlane) {
-                return [];
-            }
-
-            const plane = referencePlaneToPlane(sketchPlane);
-            const objects: RenderObject[] = [];
-            const display = new SketchDisplayBuilder().build(sketch, plane);
-            const segments = display.edges.map((edge) => edge.segment);
-            const segmentMetadata = display.edges.map((edge) =>
-                createSketchPrimitiveMetadata(edge.ref),
-            );
-            const points = display.vertices.map((vertex) => vertex.point);
-            const pointMetadata = display.vertices.map((vertex) =>
-                createSketchPrimitiveMetadata(vertex.ref),
-            );
-
-            if (segments.length > 0) {
-                objects.push(
-                    new EdgeSet(
-                        new EdgeGeometry(segments, segmentMetadata),
-                        new EdgeStyle({ color: Vec3.of(0.05, 0.38, 0.85) }),
-                        {
-                            depthRole: 'primary',
-                            id: feature.id,
-                            interactionId: sketch.id,
-                            name: feature.name,
-                            visible: !feature.suppressed,
-                        },
-                    ),
-                );
-            }
-
-            if (points.length > 0) {
-                objects.push(
-                    new PointSet(
-                        new PointGeometry(points, pointMetadata),
-                        new PointStyle({
-                            color: Vec3.of(0.05, 0.38, 0.85),
-                            sizePixels: 7,
-                        }),
-                        {
-                            depthRole: 'primary',
-                            id: `${feature.id}:points`,
-                            interactionId: sketch.id,
-                            name: `${feature.name} points`,
-                            visible: !feature.suppressed,
-                        },
-                    ),
-                );
-            }
-
-            return objects;
-        });
-    }
-
     private projectActiveSketchPlane(
-        partStudio: PartStudio,
-        options: DisplayProjectorOptions,
+        activeSketchPlane: CadRenderActiveSketchPlane | null | undefined,
     ): readonly RenderObject[] {
-        if (!options.activeSketchFeatureId) {
-            return [];
-        }
-
-        const feature = partStudio.features.find(
-            (candidate) => candidate.id === options.activeSketchFeatureId,
-        );
-
-        if (feature?.type !== 'sketch') {
-            return [];
-        }
-
-        const sketch = getSketchForFeature(partStudio, feature);
-
-        if (!sketch) {
-            return [];
-        }
-
-        const sketchPlane = findReferencePlaneById(partStudio, sketch.planeRef);
-
-        if (!sketchPlane) {
-            return [];
-        }
-
-        return projectActiveSketchPlaneObject({
-            planeObject: sketchPlane,
-            sketchFeatureId: feature.id,
-            sketchName: feature.name,
-        });
-    }
-
-    private projectDraftObjects(draft: EditDraft | null): readonly RenderObject[] {
-        if (!draft) {
-            return [];
-        }
-
-        const temporaryLineSegments = draft.temporaryObjects.filter(isDraftLineSegmentObject);
-        const temporaryPoints = draft.temporaryObjects.filter(isDraftPointObject);
-
-        if (temporaryLineSegments.length === 0 && temporaryPoints.length === 0) {
-            return [];
-        }
-
-        const segments = temporaryLineSegments.map((object) => object.segment);
-        const linePoints = segments.flatMap((segment) => [segment.start, segment.end]);
-        const objects: RenderObject[] = [];
-
-        if (segments.length > 0) {
-            objects.push(
-                new EdgeSet(
-                    new EdgeGeometry(segments),
-                    new EdgeStyle({ color: Vec3.of(0.35, 0.72, 1) }),
-                    {
-                        depthRole: 'primary',
-                        id: `${draft.id}:temporary-lines`,
-                        name: 'temporary lines',
-                        pickable: false,
-                        visible: true,
-                    },
-                ),
-            );
-        }
-
-        if (linePoints.length > 0) {
-            objects.push(
-                new PointSet(
-                    new PointGeometry(linePoints),
-                    new PointStyle({
-                        color: Vec3.of(0.35, 0.72, 1),
-                        sizePixels: 7,
-                    }),
-                    {
-                        depthRole: 'primary',
-                        id: `${draft.id}:temporary-points`,
-                        name: 'temporary points',
-                        pickable: false,
-                        visible: true,
-                    },
-                ),
-            );
-        }
-
-        for (const [index, point] of temporaryPoints.entries()) {
-            objects.push(
-                new PointSet(
-                    new PointGeometry([point.point]),
-                    new PointStyle({
-                        color: point.color ?? Vec3.of(0.35, 0.72, 1),
-                        sizePixels: 10,
-                    }),
-                    {
-                        depthRole: 'primary',
-                        id: `${draft.id}:temporary-point:${String(index)}`,
-                        name: 'temporary point',
-                        pickable: false,
-                        visible: true,
-                    },
-                ),
-            );
-        }
-
-        return objects;
+        return activeSketchPlane ? projectActiveSketchPlaneObject(activeSketchPlane) : [];
     }
 }
 
-export function projectDocumentToRenderGraph(
-    document: CadDocument,
-    draft: EditDraft | null = null,
-    options: DisplayProjectorOptions = {},
-): RenderGraph {
-    return new DisplayProjector().projectDocumentToGraph(document, draft, options);
+export function renderCadDocumentToGraph(document: CadRenderDocument): RenderGraph {
+    return new DisplayProjector().projectDocumentToGraph(document);
 }
 
-export function projectPartStudioToRenderGraph(
-    partStudio: PartStudio,
-    draft: EditDraft | null = null,
-    options: DisplayProjectorOptions = {},
-): RenderGraph {
-    return new DisplayProjector().projectPartStudioToGraph(partStudio, draft, options);
+export function renderCadPartStudioToGraph(partStudio: CadRenderPartStudio): RenderGraph {
+    return new DisplayProjector().projectPartStudioToGraph(partStudio);
 }
 
-function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerSet {
+export function projectPartStudioToRenderGraph(partStudio: CadRenderPartStudio): RenderGraph {
+    return renderCadPartStudioToGraph(partStudio);
+}
+
+function projectReferenceOriginObject(object: CadRenderReferenceOrigin): MarkerSet {
     return new MarkerSet(
         new MarkerGeometry([
             {
@@ -339,7 +139,7 @@ function projectReferenceOriginObject(object: ReferenceOriginObject): MarkerSet 
     );
 }
 
-function projectReferencePlaneObject(object: ReferencePlaneObject): readonly RenderObject[] {
+function projectReferencePlaneObject(object: CadRenderReferencePlane): readonly RenderObject[] {
     const plane = referencePlaneToPlane(object);
     const halfSize = object.size / 2;
     const labelYAxis = Vec3.scale(plane.yAxis, -1);
@@ -402,14 +202,14 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Ren
                         x: 0,
                         y: 0,
                     },
-                    paddingPixels: {
-                        x: 6,
-                        y: 6,
-                    },
                     justify: {
                         baseline: 'alphabetic',
                         horizontal: 'left',
                         vertical: 'top',
+                    },
+                    paddingPixels: {
+                        x: 6,
+                        y: 6,
                     },
                     text: getReferencePlaneLabel(object.planeKind),
                 },
@@ -426,18 +226,61 @@ function projectReferencePlaneObject(object: ReferencePlaneObject): readonly Ren
     ];
 }
 
-function projectActiveSketchPlaneObject({
-    planeObject,
-    sketchFeatureId,
-    sketchName,
-}: {
-    readonly planeObject: ReferencePlaneObject;
-    readonly sketchFeatureId: string;
-    readonly sketchName: string;
-}): readonly RenderObject[] {
-    const plane = referencePlaneToPlane(planeObject);
-    const halfWidth = (planeObject.size * ACTIVE_SKETCH_PLANE_WIDTH_SCALE) / 2;
-    const halfHeight = (planeObject.size * ACTIVE_SKETCH_PLANE_HEIGHT_SCALE) / 2;
+function projectSketch(sketch: CadRenderSketch): readonly RenderObject[] {
+    const objects: RenderObject[] = [];
+    const segments = sketch.edges.map((edge) => edge.segment);
+    const segmentMetadata = sketch.edges.map((edge) =>
+        createCadRenderPrimitiveMetadata(edge.pickRef),
+    );
+    const points = sketch.vertices.map((vertex) => vertex.point);
+    const pointMetadata = sketch.vertices.map((vertex) =>
+        createCadRenderPrimitiveMetadata(vertex.pickRef),
+    );
+
+    if (segments.length > 0) {
+        objects.push(
+            new EdgeSet(
+                new EdgeGeometry(segments, segmentMetadata),
+                new EdgeStyle({ color: Vec3.of(0.05, 0.38, 0.85) }),
+                {
+                    depthRole: 'primary',
+                    id: sketch.featureId,
+                    interactionId: sketch.id,
+                    name: sketch.name,
+                    visible: sketch.visible,
+                },
+            ),
+        );
+    }
+
+    if (points.length > 0) {
+        objects.push(
+            new PointSet(
+                new PointGeometry(points, pointMetadata),
+                new PointStyle({
+                    color: Vec3.of(0.05, 0.38, 0.85),
+                    sizePixels: 7,
+                }),
+                {
+                    depthRole: 'primary',
+                    id: `${sketch.featureId}:points`,
+                    interactionId: sketch.id,
+                    name: `${sketch.name} points`,
+                    visible: sketch.visible,
+                },
+            ),
+        );
+    }
+
+    return objects;
+}
+
+function projectActiveSketchPlaneObject(
+    activeSketchPlane: CadRenderActiveSketchPlane,
+): readonly RenderObject[] {
+    const plane = referencePlaneToPlane(activeSketchPlane);
+    const halfWidth = (activeSketchPlane.size * ACTIVE_SKETCH_PLANE_WIDTH_SCALE) / 2;
+    const halfHeight = (activeSketchPlane.size * ACTIVE_SKETCH_PLANE_HEIGHT_SCALE) / 2;
     const corners = [
         plane.localToWorld(Vec2.of(-halfWidth, -halfHeight)),
         plane.localToWorld(Vec2.of(halfWidth, -halfHeight)),
@@ -465,10 +308,10 @@ function projectActiveSketchPlaneObject({
             }),
             {
                 depthRole: 'primary',
-                id: `${sketchFeatureId}:sketch-plane-overlay`,
-                name: `${sketchName} sketch plane overlay`,
+                id: `${activeSketchPlane.featureId}:sketch-plane-overlay`,
+                name: `${activeSketchPlane.name} sketch plane overlay`,
                 pickable: false,
-                visible: planeObject.visible,
+                visible: activeSketchPlane.visible,
             },
         ),
         new EdgeSet(
@@ -476,10 +319,10 @@ function projectActiveSketchPlaneObject({
             new EdgeStyle({ color: Vec3.of(0.25, 0.68, 0.96) }),
             {
                 depthRole: 'primary',
-                id: `${sketchFeatureId}:sketch-plane-outline`,
-                name: `${sketchName} sketch plane outline`,
+                id: `${activeSketchPlane.featureId}:sketch-plane-outline`,
+                name: `${activeSketchPlane.name} sketch plane outline`,
                 pickable: false,
-                visible: planeObject.visible,
+                visible: activeSketchPlane.visible,
             },
         ),
         new TextLabelSet(
@@ -497,28 +340,98 @@ function projectActiveSketchPlaneObject({
                         x: 0,
                         y: 0,
                     },
-                    paddingPixels: {
-                        x: 6,
-                        y: 6,
-                    },
                     justify: {
                         baseline: 'alphabetic',
                         horizontal: 'left',
                         vertical: 'top',
                     },
-                    text: sketchName,
+                    paddingPixels: {
+                        x: 6,
+                        y: 6,
+                    },
+                    text: activeSketchPlane.name,
                 },
             ]),
             new TextStyle(),
             {
                 depthRole: 'excluded',
-                id: `${sketchFeatureId}:sketch-plane-label`,
-                name: `${sketchName} sketch plane label`,
+                id: `${activeSketchPlane.featureId}:sketch-plane-label`,
+                name: `${activeSketchPlane.name} sketch plane label`,
                 pickable: false,
-                visible: planeObject.visible,
+                visible: activeSketchPlane.visible,
             },
         ),
     ];
+}
+
+function projectDraft(draft: CadRenderDraft | null): readonly RenderObject[] {
+    if (!draft) {
+        return [];
+    }
+
+    if (draft.temporaryLineSegments.length === 0 && draft.temporaryPoints.length === 0) {
+        return [];
+    }
+
+    const segments = draft.temporaryLineSegments.map((object) => object.segment);
+    const linePoints = segments.flatMap((segment) => [segment.start, segment.end]);
+    const objects: RenderObject[] = [];
+
+    if (segments.length > 0) {
+        objects.push(
+            new EdgeSet(
+                new EdgeGeometry(segments),
+                new EdgeStyle({ color: Vec3.of(0.35, 0.72, 1) }),
+                {
+                    depthRole: 'primary',
+                    id: `${draft.id}:temporary-lines`,
+                    name: 'temporary lines',
+                    pickable: false,
+                    visible: true,
+                },
+            ),
+        );
+    }
+
+    if (linePoints.length > 0) {
+        objects.push(
+            new PointSet(
+                new PointGeometry(linePoints),
+                new PointStyle({
+                    color: Vec3.of(0.35, 0.72, 1),
+                    sizePixels: 7,
+                }),
+                {
+                    depthRole: 'primary',
+                    id: `${draft.id}:temporary-points`,
+                    name: 'temporary points',
+                    pickable: false,
+                    visible: true,
+                },
+            ),
+        );
+    }
+
+    for (const [index, point] of draft.temporaryPoints.entries()) {
+        objects.push(
+            new PointSet(
+                new PointGeometry([point.point]),
+                new PointStyle({
+                    color: point.color ?? Vec3.of(0.35, 0.72, 1),
+                    sizePixels: 10,
+                }),
+                {
+                    depthRole: 'primary',
+                    id: `${draft.id}:temporary-point:${String(index)}`,
+                    name: 'temporary point',
+                    pickable: false,
+                    visible: point.visible,
+                },
+            ),
+        );
+    }
+
+    return objects;
 }
 
 function addObjectsToLayers(
@@ -535,7 +448,7 @@ function addObjectsToLayers(
     }
 }
 
-function getReferencePlaneLabel(planeKind: ReferencePlaneObject['planeKind']): LabelText {
+function getReferencePlaneLabel(planeKind: CadRenderPlaneKind): LabelText {
     if (planeKind === 'xy') {
         return 'Top';
     }
@@ -547,28 +460,17 @@ function getReferencePlaneLabel(planeKind: ReferencePlaneObject['planeKind']): L
     return 'Front';
 }
 
-function findReferencePlaneById(
-    partStudio: PartStudio,
-    planeRef: string,
-): ReferencePlaneObject | null {
-    const object = partStudio.findObjectById(planeRef);
-
-    return object?.kind === 'reference-plane' ? object : null;
+function referencePlaneToPlane(object: {
+    readonly normal: Vector3;
+    readonly origin: Vector3;
+    readonly xAxis: Vector3;
+}): Plane3 {
+    return new Plane3(object.origin, object.normal, object.xAxis);
 }
 
-function isDraftLineSegmentObject(object: {
-    readonly kind: string;
-}): object is DraftLineSegmentObject {
-    return object.kind === 'line-segment';
-}
-
-function isDraftPointObject(object: { readonly kind: string }): object is DraftPointObject {
-    return object.kind === 'point';
-}
-
-function createSketchPrimitiveMetadata(ref: SketchEntityRef): ReadonlyMap<string, unknown> {
+function createCadRenderPrimitiveMetadata(pickRef: CadRenderPickRef): ReadonlyMap<string, unknown> {
     return new Map<string, unknown>([
-        ['source', 'sketch'],
-        ['sketchEntityRef', ref],
+        ['source', CAD_RENDER_METADATA_SOURCE],
+        [CAD_RENDER_PICK_REF_METADATA_KEY, pickRef],
     ]);
 }

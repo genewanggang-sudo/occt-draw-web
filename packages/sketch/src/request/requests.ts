@@ -3,7 +3,12 @@ import { Line2D, Point2D } from '../geometry/geometry';
 import type { Sketch } from '../model/sketch';
 import { Edge, Vertex } from '../topology/topology';
 import { SketchTransaction } from '../transaction/transaction';
-import type { SketchEdgeId, SketchEntityRef, SketchVertexId } from '../types';
+import {
+    SketchEntityKind,
+    type SketchEdgeId,
+    type SketchEntityRef,
+    type SketchVertexId,
+} from '../types';
 
 export abstract class SketchRequest {
     public abstract readonly label: string;
@@ -202,13 +207,13 @@ export class DeleteSketchEntityRequest extends SketchRequest {
     }
 
     public apply(sketch: Sketch): void {
-        if (this.entityRef.kind === 'edge') {
-            deleteEdge(sketch, this.entityRef.edgeId);
+        if (this.entityRef.kind === SketchEntityKind.Edge) {
+            deleteEdge(sketch, this.entityRef.entityId);
             return;
         }
 
-        if (this.entityRef.kind === 'vertex') {
-            deleteVertex(sketch, this.entityRef.vertexId);
+        if (this.entityRef.kind === SketchEntityKind.Vertex) {
+            deleteVertex(sketch, this.entityRef.entityId);
         }
     }
 }

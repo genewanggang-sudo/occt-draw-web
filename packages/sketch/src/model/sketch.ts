@@ -6,18 +6,19 @@ import {
 } from '../changes/changeTracking';
 import { curveFromSnapshot, Point2D, type Curve2D } from '../geometry/geometry';
 import { Edge, Vertex } from '../topology/topology';
-import type {
-    SketchCurveId,
-    SketchEdgeId,
-    SketchEntityRef,
-    SketchEntitySnapshot,
-    SketchId,
-    SketchPlaneKind,
-    SketchPlaneInput,
-    SketchPointId,
-    SketchPropertyValue,
-    SketchStateSnapshot,
-    SketchVertexId,
+import {
+    SketchEntityKind,
+    type SketchCurveId,
+    type SketchEdgeId,
+    type SketchEntityRef,
+    type SketchEntitySnapshot,
+    type SketchId,
+    type SketchPlaneKind,
+    type SketchPlaneInput,
+    type SketchPointId,
+    type SketchPropertyValue,
+    type SketchStateSnapshot,
+    type SketchVertexId,
 } from '../types';
 
 export class SketchPlane {
@@ -92,23 +93,23 @@ export class Sketch {
     }
 
     public removeEntity(entityRef: SketchEntityRef): void {
-        if (entityRef.kind === 'point') {
-            this.entities.geometry.points.remove(entityRef.pointId);
+        if (entityRef.kind === SketchEntityKind.Point) {
+            this.entities.geometry.points.remove(entityRef.entityId);
             return;
         }
 
-        if (entityRef.kind === 'curve') {
-            this.entities.geometry.curves.remove(entityRef.curveId);
+        if (entityRef.kind === SketchEntityKind.Curve) {
+            this.entities.geometry.curves.remove(entityRef.entityId);
             return;
         }
 
-        if (entityRef.kind === 'vertex') {
-            this.entities.topology.vertices.remove(entityRef.vertexId);
+        if (entityRef.kind === SketchEntityKind.Vertex) {
+            this.entities.topology.vertices.remove(entityRef.entityId);
             return;
         }
 
-        if (entityRef.kind === 'edge') {
-            this.entities.topology.edges.remove(entityRef.edgeId);
+        if (entityRef.kind === SketchEntityKind.Edge) {
+            this.entities.topology.edges.remove(entityRef.entityId);
         }
     }
 
@@ -141,8 +142,12 @@ export class Sketch {
         propertyPath: readonly string[],
         value: SketchPropertyValue,
     ): void {
-        if (entityRef.kind === 'point' && propertyPath[0] === 'position' && isVector2(value)) {
-            const point = this.entities.geometry.points.get(entityRef.pointId);
+        if (
+            entityRef.kind === SketchEntityKind.Point &&
+            propertyPath[0] === 'position' &&
+            isVector2(value)
+        ) {
+            const point = this.entities.geometry.points.get(entityRef.entityId);
 
             if (point) {
                 point.position = value;
@@ -150,7 +155,7 @@ export class Sketch {
             return;
         }
 
-        if (entityRef.kind === 'sketch-state') {
+        if (entityRef.kind === SketchEntityKind.SketchState) {
             this.state.setTrackedProperty(propertyPath, value);
         }
     }
@@ -577,7 +582,8 @@ export class SketchState {
             after: next,
             before,
             entityRef: {
-                kind: 'sketch-state',
+                entityId: this.sketchId,
+                kind: SketchEntityKind.SketchState,
                 sketchId: this.sketchId,
             },
             propertyPath: [propertyName],

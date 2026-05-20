@@ -87,11 +87,14 @@ importers:
         specifier: workspace:*
         version: link:../sketch
 
-  packages/cad-rendering:
+  packages/cad-render-adapter:
     dependencies:
       '@occt-draw/cad-model':
         specifier: workspace:*
         version: link:../cad-model
+      '@occt-draw/cad-rendering':
+        specifier: workspace:*
+        version: link:../cad-rendering
       '@occt-draw/core':
         specifier: workspace:*
         version: link:../core
@@ -101,6 +104,12 @@ importers:
       '@occt-draw/sketch':
         specifier: workspace:*
         version: link:../sketch
+
+  packages/cad-rendering:
+    dependencies:
+      '@occt-draw/math':
+        specifier: workspace:*
+        version: link:../math
       '@occt-draw/webgl-engine':
         specifier: workspace:*
         version: link:../webgl-engine
@@ -128,6 +137,9 @@ importers:
       '@occt-draw/cad-model':
         specifier: workspace:*
         version: link:../cad-model
+      '@occt-draw/cad-render-adapter':
+        specifier: workspace:*
+        version: link:../cad-render-adapter
       '@occt-draw/cad-rendering':
         specifier: workspace:*
         version: link:../cad-rendering

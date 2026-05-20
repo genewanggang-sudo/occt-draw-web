@@ -13,6 +13,7 @@ import { Measurement } from '@occt-draw/math';
 import {
     DeleteSketchEntityRequest,
     MoveVertexRequest,
+    SketchEntityKind,
     type Sketch,
     type SketchEntityRef,
 } from '@occt-draw/sketch';
@@ -43,14 +44,14 @@ type PendingSelectionPointer =
           readonly point: ScreenPoint;
       }
     | {
-          readonly entityRef: Extract<SketchEntityRef, { readonly kind: 'vertex' }>;
+          readonly entityRef: Extract<SketchEntityRef, { readonly kind: SketchEntityKind.Vertex }>;
           readonly kind: 'vertex-drag-candidate';
           readonly pointerId: number;
           readonly point: ScreenPoint;
           readonly target: SelectionTarget;
       }
     | {
-          readonly entityRef: Extract<SketchEntityRef, { readonly kind: 'vertex' }>;
+          readonly entityRef: Extract<SketchEntityRef, { readonly kind: SketchEntityKind.Vertex }>;
           readonly kind: 'vertex-dragging';
           readonly pointerId: number;
           readonly target: SelectionTarget;
@@ -104,7 +105,7 @@ export class SelectCommand extends CadCommand {
 
         if (
             target &&
-            entityRef?.kind === 'vertex' &&
+            entityRef?.kind === SketchEntityKind.Vertex &&
             activeSketch?.sketch.id === entityRef.sketchId
         ) {
             this.pendingSelectionPointer = {
@@ -303,7 +304,7 @@ function findActiveSketch(state: EditorState): { readonly sketch: Sketch } | nul
 }
 
 function isDeletableSketchRef(ref: SketchEntityRef): boolean {
-    return ref.kind === 'edge' || ref.kind === 'vertex';
+    return ref.kind === SketchEntityKind.Edge || ref.kind === SketchEntityKind.Vertex;
 }
 
 function createSetSketchPayloadTransaction(
@@ -325,7 +326,7 @@ function createSetSketchPayloadTransaction(
 
 function createVertexMoveDraft(
     state: EditorState,
-    entityRef: Extract<SketchEntityRef, { readonly kind: 'vertex' }>,
+    entityRef: Extract<SketchEntityRef, { readonly kind: SketchEntityKind.Vertex }>,
     event: CommandPointerEvent,
 ) {
     const transaction = createMoveVertexTransactionFromPointer(state, entityRef, event);
@@ -342,7 +343,7 @@ function createVertexMoveDraft(
 
 function createMoveVertexTransactionFromPointer(
     state: EditorState,
-    entityRef: Extract<SketchEntityRef, { readonly kind: 'vertex' }>,
+    entityRef: Extract<SketchEntityRef, { readonly kind: SketchEntityKind.Vertex }>,
     event: CommandPointerEvent,
 ): DocumentTransaction<CadDocument> | null {
     const activeSketch = findActiveSketch(state);
@@ -366,7 +367,7 @@ function createMoveVertexTransactionFromPointer(
     const sketch = activeSketch.sketch.clone();
     const request = new MoveVertexRequest({
         target,
-        vertexId: entityRef.vertexId,
+        vertexId: entityRef.entityId,
     });
     const transaction = request.createTransaction();
 

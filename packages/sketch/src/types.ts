@@ -10,6 +10,16 @@ export type SketchConstraintId = string;
 export type SketchDimensionId = string;
 export type SketchProfileId = string;
 export type SketchEdgeRole = 'construction' | 'normal';
+export enum SketchEntityKind {
+    Constraint = 'constraint',
+    Curve = 'curve',
+    Dimension = 'dimension',
+    Edge = 'edge',
+    Point = 'point',
+    Profile = 'profile',
+    SketchState = 'sketch-state',
+    Vertex = 'vertex',
+}
 export type SketchEntityStoreName =
     | 'constraints'
     | 'curves'
@@ -27,43 +37,44 @@ export interface SketchPlaneInput {
 
 export type SketchEntityRef =
     | {
-          readonly kind: 'constraint';
-          readonly constraintId: SketchConstraintId;
+          readonly entityId: SketchConstraintId;
+          readonly kind: SketchEntityKind.Constraint;
           readonly sketchId: SketchId;
       }
     | {
-          readonly curveId: SketchCurveId;
-          readonly kind: 'curve';
+          readonly entityId: SketchCurveId;
+          readonly kind: SketchEntityKind.Curve;
           readonly sketchId: SketchId;
       }
     | {
-          readonly dimensionId: SketchDimensionId;
-          readonly kind: 'dimension';
+          readonly entityId: SketchDimensionId;
+          readonly kind: SketchEntityKind.Dimension;
           readonly sketchId: SketchId;
       }
     | {
-          readonly edgeId: SketchEdgeId;
-          readonly kind: 'edge';
+          readonly entityId: SketchEdgeId;
+          readonly kind: SketchEntityKind.Edge;
           readonly sketchId: SketchId;
       }
     | {
-          readonly kind: 'point';
-          readonly pointId: SketchPointId;
+          readonly entityId: SketchPointId;
+          readonly kind: SketchEntityKind.Point;
           readonly sketchId: SketchId;
       }
     | {
-          readonly kind: 'profile';
-          readonly profileId: SketchProfileId;
+          readonly entityId: SketchProfileId;
+          readonly kind: SketchEntityKind.Profile;
           readonly sketchId: SketchId;
       }
     | {
-          readonly kind: 'sketch-state';
+          readonly entityId: SketchId;
+          readonly kind: SketchEntityKind.SketchState;
           readonly sketchId: SketchId;
       }
     | {
-          readonly kind: 'vertex';
+          readonly entityId: SketchVertexId;
+          readonly kind: SketchEntityKind.Vertex;
           readonly sketchId: SketchId;
-          readonly vertexId: SketchVertexId;
       };
 
 export interface Point2DSnapshot {

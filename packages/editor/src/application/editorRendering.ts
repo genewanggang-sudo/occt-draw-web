@@ -1,20 +1,22 @@
-import { getActivePartStudio } from '@occt-draw/cad-model';
-import { projectPartStudioToRenderGraph } from '@occt-draw/cad-rendering';
+import { CadRenderAdapter } from '@occt-draw/cad-render-adapter';
+import { renderCadDocumentToGraph } from '@occt-draw/cad-rendering';
 import type { CadDocument } from '@occt-draw/cad-model';
 import type { RenderGraph, RenderHighlightState } from '@occt-draw/webgl-engine';
 import type { EditorState } from '../state/editorState';
+
+const cadRenderAdapter = new CadRenderAdapter();
 
 export function getEditorDisplayDocument(state: EditorState): CadDocument {
     return state.draft?.workingDocument ?? state.document;
 }
 
 export function createEditorRenderGraph(state: EditorState): RenderGraph {
-    return projectPartStudioToRenderGraph(
-        getActivePartStudio(getEditorDisplayDocument(state)),
-        state.draft,
-        {
+    return renderCadDocumentToGraph(
+        cadRenderAdapter.createDocument({
             activeSketchFeatureId: state.activeSketchSession?.sketchFeatureId ?? null,
-        },
+            document: getEditorDisplayDocument(state),
+            draft: state.draft,
+        }),
     );
 }
 

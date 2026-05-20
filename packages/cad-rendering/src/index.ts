@@ -1,9 +1,28 @@
 export {
     DisplayProjector,
-    projectDocumentToRenderGraph,
     projectPartStudioToRenderGraph,
-    type DisplayProjectorOptions,
+    renderCadDocumentToGraph,
+    renderCadPartStudioToGraph,
 } from './displayProjector';
+export type {
+    CadRenderActiveSketchPlane,
+    CadRenderDocument,
+    CadRenderDraft,
+    CadRenderDraftLineSegment,
+    CadRenderDraftPoint,
+    CadRenderObject,
+    CadRenderObjectKind,
+    CadRenderPartStudio,
+    CadRenderPickDomain,
+    CadRenderPickEntityKind,
+    CadRenderPickRef,
+    CadRenderPlaneKind,
+    CadRenderReferenceOrigin,
+    CadRenderReferencePlane,
+    CadRenderSketch,
+    CadRenderSketchEdge,
+    CadRenderSketchVertex,
+} from './cadRenderTypes';
 export type {
     RenderDepthRole,
     RenderGraph,

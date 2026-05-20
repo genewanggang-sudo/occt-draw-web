@@ -11,7 +11,7 @@ import type {
     ReferencePlaneObject,
 } from '@occt-draw/cad-model';
 import type { SelectionTarget, SelectionTargetKind } from '@occt-draw/core';
-import type { Sketch, SketchEntityRef } from '@occt-draw/sketch';
+import { SketchEntityKind, type Sketch, type SketchEntityRef } from '@occt-draw/sketch';
 import { evaluateCommandAvailabilityMap } from '../commands/commandRegistry';
 import type { CommandAvailabilityMap } from '../commands/commandTypes';
 import type { EditorState, SketchEditSession } from '../state/editorState';
@@ -286,31 +286,31 @@ function getPickTargetKindLabel(kind: SelectionTargetKind): string {
 }
 
 function getSketchEntityKindLabel(ref: SketchEntityRef): string {
-    if (ref.kind === 'edge') {
+    if (ref.kind === SketchEntityKind.Edge) {
         return '草图边';
     }
 
-    if (ref.kind === 'vertex') {
+    if (ref.kind === SketchEntityKind.Vertex) {
         return '草图顶点';
     }
 
-    if (ref.kind === 'point') {
+    if (ref.kind === SketchEntityKind.Point) {
         return '草图点';
     }
 
-    if (ref.kind === 'curve') {
+    if (ref.kind === SketchEntityKind.Curve) {
         return '草图曲线';
     }
 
-    if (ref.kind === 'constraint') {
+    if (ref.kind === SketchEntityKind.Constraint) {
         return '草图约束';
     }
 
-    if (ref.kind === 'dimension') {
+    if (ref.kind === SketchEntityKind.Dimension) {
         return '草图尺寸';
     }
 
-    if (ref.kind === 'profile') {
+    if (ref.kind === SketchEntityKind.Profile) {
         return '草图区域';
     }
 
@@ -318,33 +318,5 @@ function getSketchEntityKindLabel(ref: SketchEntityRef): string {
 }
 
 function getSketchEntityId(ref: SketchEntityRef): string {
-    if (ref.kind === 'edge') {
-        return ref.edgeId;
-    }
-
-    if (ref.kind === 'vertex') {
-        return ref.vertexId;
-    }
-
-    if (ref.kind === 'point') {
-        return ref.pointId;
-    }
-
-    if (ref.kind === 'curve') {
-        return ref.curveId;
-    }
-
-    if (ref.kind === 'constraint') {
-        return ref.constraintId;
-    }
-
-    if (ref.kind === 'dimension') {
-        return ref.dimensionId;
-    }
-
-    if (ref.kind === 'profile') {
-        return ref.profileId;
-    }
-
-    return ref.sketchId;
+    return ref.entityId;
 }

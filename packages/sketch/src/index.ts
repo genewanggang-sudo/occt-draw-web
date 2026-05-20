@@ -35,6 +35,7 @@ export {
     SketchRequest,
 } from './request/requests';
 export { HistoryManager, SketchTransaction } from './transaction/transaction';
+export { SketchEntityKind } from './types';
 export {
     SketchDisplayBuilder,
     SketchDisplayModel,

@@ -116,17 +116,27 @@ module.exports = {
                 path: '^packages/editor/src',
             },
             to: {
-                path: '^packages/(?!math|core|cad-model|sketch|sketch-snapping|cad-rendering|webgl-engine|editor)',
+                path: '^packages/(?!math|core|cad-model|sketch|sketch-snapping|cad-render-adapter|cad-rendering|webgl-engine|editor)',
             },
         },
         {
-            name: 'cad-rendering-only-cad-model-sketch-core-webgl-math',
+            name: 'cad-rendering-only-webgl-math',
             severity: 'error',
             from: {
                 path: '^packages/cad-rendering/src',
             },
             to: {
-                path: '^packages/(?!math|core|cad-model|sketch|webgl-engine|cad-rendering)',
+                path: '^packages/(?!math|webgl-engine|cad-rendering)',
+            },
+        },
+        {
+            name: 'cad-render-adapter-only-model-sketch-core-rendering-math',
+            severity: 'error',
+            from: {
+                path: '^packages/cad-render-adapter/src',
+            },
+            to: {
+                path: '^packages/(?!math|core|cad-model|sketch|cad-rendering|cad-render-adapter)',
             },
         },
     ],

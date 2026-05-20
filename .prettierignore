@@ -2,6 +2,7 @@ node_modules
 dist
 coverage
 .turbo
+.tmp
 pnpm-lock.yaml
 docs/webgl.*.js
 docs/woolsthorpe.*.js

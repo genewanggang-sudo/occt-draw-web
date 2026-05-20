@@ -1,13 +1,14 @@
-import type {
-    EdgeSnapshot,
-    SketchCurveId,
-    SketchEdgeId,
-    SketchEdgeRole,
-    SketchEntityRef,
-    SketchId,
-    SketchPointId,
-    SketchVertexId,
-    VertexSnapshot,
+import {
+    SketchEntityKind,
+    type EdgeSnapshot,
+    type SketchCurveId,
+    type SketchEdgeId,
+    type SketchEdgeRole,
+    type SketchEntityRef,
+    type SketchId,
+    type SketchPointId,
+    type SketchVertexId,
+    type VertexSnapshot,
 } from '../types';
 
 export class Vertex {
@@ -27,9 +28,9 @@ export class Vertex {
 
     public get ref(): SketchEntityRef {
         return {
-            kind: 'vertex',
+            entityId: this.id,
+            kind: SketchEntityKind.Vertex,
             sketchId: this.sketchId,
-            vertexId: this.id,
         };
     }
 
@@ -76,8 +77,8 @@ export class Edge {
 
     public get ref(): SketchEntityRef {
         return {
-            edgeId: this.id,
-            kind: 'edge',
+            entityId: this.id,
+            kind: SketchEntityKind.Edge,
             sketchId: this.sketchId,
         };
     }

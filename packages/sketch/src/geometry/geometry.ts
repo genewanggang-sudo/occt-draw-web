@@ -1,15 +1,16 @@
 import { Vec2, type Vector2 } from '@occt-draw/math';
 import { recordSketchPropertySet } from '../changes/changeTracking';
-import type {
-    Arc2DSnapshot,
-    Circle2DSnapshot,
-    Curve2DSnapshot,
-    Line2DSnapshot,
-    Point2DSnapshot,
-    SketchCurveId,
-    SketchEntityRef,
-    SketchId,
-    SketchPointId,
+import {
+    SketchEntityKind,
+    type Arc2DSnapshot,
+    type Circle2DSnapshot,
+    type Curve2DSnapshot,
+    type Line2DSnapshot,
+    type Point2DSnapshot,
+    type SketchCurveId,
+    type SketchEntityRef,
+    type SketchId,
+    type SketchPointId,
 } from '../types';
 
 export class Point2D {
@@ -45,8 +46,8 @@ export class Point2D {
 
     public get ref(): SketchEntityRef {
         return {
-            kind: 'point',
-            pointId: this.id,
+            entityId: this.id,
+            kind: SketchEntityKind.Point,
             sketchId: this.sketchId,
         };
     }
@@ -79,8 +80,8 @@ export abstract class Curve2D {
 
     public get ref(): SketchEntityRef {
         return {
-            curveId: this.id,
-            kind: 'curve',
+            entityId: this.id,
+            kind: SketchEntityKind.Curve,
             sketchId: this.sketchId,
         };
     }

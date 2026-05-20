@@ -10,6 +10,7 @@ import {
     AddLineSegmentRequest,
     AddPointRequest,
     DeleteSketchEntityRequest,
+    SketchEntityKind,
     sketchPointToWorldOnPlane,
     type Sketch,
     type SketchEntityRef,
@@ -102,9 +103,9 @@ export class SketchLineCommand extends CadCommand {
             const sketch = activeSketch.sketch.clone();
             const request = new DeleteSketchEntityRequest({
                 entityRef: {
-                    kind: 'vertex',
+                    entityId: session.pendingLineStartVertexId,
+                    kind: SketchEntityKind.Vertex,
                     sketchId: sketch.id,
-                    vertexId: session.pendingLineStartVertexId,
                 },
             });
             const transaction = request.createTransaction();
@@ -486,5 +487,5 @@ function isVertexUsedByEdge(sketch: Sketch, vertexId: SketchVertexId): boolean {
 }
 
 function getSnappedVertexId(snap: SketchSnapResult<SketchEntityRef> | null): SketchVertexId | null {
-    return snap?.sourceRef?.kind === 'vertex' ? snap.sourceRef.vertexId : null;
+    return snap?.sourceRef?.kind === SketchEntityKind.Vertex ? snap.sourceRef.entityId : null;
 }
