@@ -1,8 +1,4 @@
-export {
-    Classification,
-    type ClassificationResult,
-    type ClassificationStatus,
-} from './classification';
+export { ClassificationStatus } from './classification';
 export { Containment, type ContainmentResult } from './containment';
 export { Distance, type ClosestPointResult, type DistanceResult } from './distance';
 export {

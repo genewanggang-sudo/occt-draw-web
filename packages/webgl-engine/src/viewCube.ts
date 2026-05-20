@@ -17,7 +17,6 @@ import {
     Circle2,
     Containment,
     Coord3,
-    CurveSampler,
     DEFAULT_TOLERANCE,
     Measurement,
     Vec2,
@@ -467,11 +466,9 @@ function createViewCubeLayout(camera: CameraState): ViewCubeLayout {
             yAxis: v,
             zAxis: normal,
         });
-        const circlePoints3 = CurveSampler.sampleCurve2(
-            new Circle2(Vec2.zero(), corner.radius),
-            CIRCLE_SEGMENTS,
-            { includeEnd: false },
-        ).map((point) => circleFrame.localToWorld(Vec3.of(point.x, point.y, 0)));
+        const circlePoints3 = new Circle2(Vec2.zero(), corner.radius)
+            .sample({ includeEnd: false, samples: CIRCLE_SEGMENTS })
+            .map((point) => circleFrame.localToWorld(Vec3.of(point.x, point.y, 0)));
         const circlePoints = circlePoints3.map((point) => projectLocalPoint(point, basis));
         const projectedCenter = projectLocalPoint(corner.position, basis);
         const projectedCirclePoints = circlePoints.map((point) => toScreenPoint(point.point));
@@ -1087,9 +1084,9 @@ function createRoundedRectangle3(
         );
 
         points.push(
-            ...CurveSampler.sampleCurve2(arc, ROUNDED_RECT_SEGMENTS + 1).map((point) =>
-                frame.localToWorld(Vec3.of(point.x, point.y, 0)),
-            ),
+            ...arc
+                .sample({ samples: ROUNDED_RECT_SEGMENTS + 1 })
+                .map((point) => frame.localToWorld(Vec3.of(point.x, point.y, 0))),
         );
     }
 
@@ -1109,14 +1106,12 @@ function createAnnularSectorPoints(
 ): { readonly inner: readonly ScreenPoint[]; readonly outer: readonly ScreenPoint[] } {
     const start = Angle.fromRadians(startAngle);
     const end = Angle.fromRadians(endAngle);
-    const inner = CurveSampler.sampleCurve2(
-        new Arc2(new Circle2(center, innerRadius), start, end),
-        ARC_SEGMENTS + 1,
-    );
-    const outer = CurveSampler.sampleCurve2(
-        new Arc2(new Circle2(center, outerRadius), start, end),
-        ARC_SEGMENTS + 1,
-    );
+    const inner = new Arc2(new Circle2(center, innerRadius), start, end).sample({
+        samples: ARC_SEGMENTS + 1,
+    });
+    const outer = new Arc2(new Circle2(center, outerRadius), start, end).sample({
+        samples: ARC_SEGMENTS + 1,
+    });
 
     return { inner, outer };
 }

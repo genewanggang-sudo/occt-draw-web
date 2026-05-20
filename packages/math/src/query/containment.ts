@@ -3,12 +3,12 @@ import { Polygon2, type PolygonPointClassification } from '../geometry-2d/polygo
 import type { BBox3 } from '../geometry-3d/bbox3';
 import type { Vector2 } from '../linear/vec2';
 import type { Vector3 } from '../linear/vec3';
-import { Classification, type ClassificationResult } from './classification';
+import { ClassificationStatus } from './classification';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
 
 export interface ContainmentResult {
-    readonly classification: ClassificationResult;
     readonly contains: boolean;
+    readonly status: ClassificationStatus;
 }
 
 export class Containment {
@@ -64,13 +64,15 @@ export class Containment {
 }
 
 function containmentResult(status: PolygonPointClassification): ContainmentResult {
+    const classificationStatus =
+        status === 'inside'
+            ? ClassificationStatus.Inside
+            : status === 'on-boundary'
+              ? ClassificationStatus.OnBoundary
+              : ClassificationStatus.Outside;
+
     return {
-        classification:
-            status === 'inside'
-                ? Classification.inside()
-                : status === 'on-boundary'
-                  ? Classification.onBoundary()
-                  : Classification.outside(),
         contains: status !== 'outside',
+        status: classificationStatus,
     };
 }
