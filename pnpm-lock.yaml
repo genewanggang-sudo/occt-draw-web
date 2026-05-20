@@ -114,18 +114,6 @@ importers:
         specifier: workspace:*
         version: link:../webgl-engine
 
-  packages/constraints:
-    dependencies:
-      '@occt-draw/core':
-        specifier: workspace:*
-        version: link:../core
-      '@occt-draw/math':
-        specifier: workspace:*
-        version: link:../math
-      '@occt-draw/sketch':
-        specifier: workspace:*
-        version: link:../sketch
-
   packages/core:
     dependencies:
       '@occt-draw/math':
@@ -160,12 +148,6 @@ importers:
         version: link:../webgl-engine
 
   packages/math: {}
-
-  packages/parametrics:
-    dependencies:
-      '@occt-draw/core':
-        specifier: workspace:*
-        version: link:../core
 
   packages/sketch:
     dependencies:

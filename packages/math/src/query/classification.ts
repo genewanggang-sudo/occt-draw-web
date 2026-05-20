@@ -4,24 +4,46 @@ export interface ClassificationResult {
     readonly status: ClassificationStatus;
 }
 
-export const Classification = {
-    inside(): ClassificationResult {
+export class Classification {
+    private static readonly defaultClassifier = new Classification();
+
+    public static inside(): ClassificationResult {
+        return Classification.defaultClassifier.inside();
+    }
+
+    public static outside(): ClassificationResult {
+        return Classification.defaultClassifier.outside();
+    }
+
+    public static onBoundary(): ClassificationResult {
+        return Classification.defaultClassifier.onBoundary();
+    }
+
+    public static unknown(): ClassificationResult {
+        return Classification.defaultClassifier.unknown();
+    }
+
+    public static fromContainment(contains: boolean): ClassificationResult {
+        return Classification.defaultClassifier.fromContainment(contains);
+    }
+
+    public inside(): ClassificationResult {
         return { status: 'inside' };
-    },
+    }
 
-    outside(): ClassificationResult {
+    public outside(): ClassificationResult {
         return { status: 'outside' };
-    },
+    }
 
-    onBoundary(): ClassificationResult {
+    public onBoundary(): ClassificationResult {
         return { status: 'on-boundary' };
-    },
+    }
 
-    unknown(): ClassificationResult {
+    public unknown(): ClassificationResult {
         return { status: 'unknown' };
-    },
+    }
 
-    fromContainment(contains: boolean): ClassificationResult {
-        return contains ? Classification.inside() : Classification.outside();
-    },
-} as const;
+    public fromContainment(contains: boolean): ClassificationResult {
+        return contains ? this.inside() : this.outside();
+    }
+}

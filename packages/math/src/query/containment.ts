@@ -11,8 +11,22 @@ export interface ContainmentResult {
     readonly contains: boolean;
 }
 
-export const Containment = {
-    bbox2ContainsPoint(bounds: BBox2, point: Vector2): ContainmentResult {
+export class Containment {
+    private static readonly defaultContainment = new Containment();
+
+    public static bbox2ContainsPoint(bounds: BBox2, point: Vector2): ContainmentResult {
+        return Containment.defaultContainment.bbox2ContainsPoint(bounds, point);
+    }
+
+    public static bbox3ContainsPoint(bounds: BBox3, point: Vector3): ContainmentResult {
+        return Containment.defaultContainment.bbox3ContainsPoint(bounds, point);
+    }
+
+    public static pointInPolygon2(point: Vector2, polygon: readonly Vector2[]): ContainmentResult {
+        return Containment.defaultContainment.pointInPolygon2(point, polygon);
+    }
+
+    public bbox2ContainsPoint(bounds: BBox2, point: Vector2): ContainmentResult {
         if (!bounds.contains(point)) {
             return containmentResult('outside');
         }
@@ -25,9 +39,9 @@ export const Containment = {
                 ? 'on-boundary'
                 : 'inside',
         );
-    },
+    }
 
-    bbox3ContainsPoint(bounds: BBox3, point: Vector3): ContainmentResult {
+    public bbox3ContainsPoint(bounds: BBox3, point: Vector3): ContainmentResult {
         if (!bounds.contains(point)) {
             return containmentResult('outside');
         }
@@ -42,12 +56,12 @@ export const Containment = {
                 ? 'on-boundary'
                 : 'inside',
         );
-    },
+    }
 
-    pointInPolygon2(point: Vector2, polygon: readonly Vector2[]): ContainmentResult {
+    public pointInPolygon2(point: Vector2, polygon: readonly Vector2[]): ContainmentResult {
         return containmentResult(new Polygon2(polygon).classifyPoint(point));
-    },
-} as const;
+    }
+}
 
 function containmentResult(status: PolygonPointClassification): ContainmentResult {
     return {

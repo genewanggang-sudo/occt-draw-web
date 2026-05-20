@@ -14,8 +14,18 @@ export interface DistanceResult<TPoint> {
     readonly success: boolean;
 }
 
-export const Distance = {
-    pointToSegment2(point: Vector2, segment: LineSegment2): DistanceResult<Vec2> {
+export class Distance {
+    private static readonly defaultDistance = new Distance();
+
+    public static pointToSegment2(point: Vector2, segment: LineSegment2): DistanceResult<Vec2> {
+        return Distance.defaultDistance.pointToSegment2(point, segment);
+    }
+
+    public static pointToSegment3(point: Vector3, segment: LineSegment3): DistanceResult<Vec3> {
+        return Distance.defaultDistance.pointToSegment3(point, segment);
+    }
+
+    public pointToSegment2(point: Vector2, segment: LineSegment2): DistanceResult<Vec2> {
         const vector = segment.start.vectorTo(segment.end);
         const lengthSquared = vector.dot(vector);
         const parameter = DEFAULT_TOLERANCE.isNearZeroSquared(lengthSquared)
@@ -33,9 +43,9 @@ export const Distance = {
             status,
             success: status === 'success',
         };
-    },
+    }
 
-    pointToSegment3(point: Vector3, segment: LineSegment3): DistanceResult<Vec3> {
+    public pointToSegment3(point: Vector3, segment: LineSegment3): DistanceResult<Vec3> {
         const vector = segment.start.vectorTo(segment.end);
         const lengthSquared = vector.dot(vector);
         const parameter = DEFAULT_TOLERANCE.isNearZeroSquared(lengthSquared)
@@ -53,7 +63,7 @@ export const Distance = {
             status,
             success: status === 'success',
         };
-    },
-} as const;
+    }
+}
 
 export type ClosestPointResult<TPoint> = DistanceResult<TPoint>;

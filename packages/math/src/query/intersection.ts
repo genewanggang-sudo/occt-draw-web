@@ -26,8 +26,25 @@ export type SegmentSegment2Intersection =
     | SegmentSegment2OverlapIntersection
     | SegmentSegment2PointIntersection;
 
-export const Intersection = {
-    segments2(left: LineSegment2, right: LineSegment2): IntersectionResult<Vec2> {
+export class Intersection {
+    private static readonly defaultIntersection = new Intersection();
+
+    public static segments2(left: LineSegment2, right: LineSegment2): IntersectionResult<Vec2> {
+        return Intersection.defaultIntersection.segments2(left, right);
+    }
+
+    public static segmentSegment2Detailed(
+        left: LineSegment2,
+        right: LineSegment2,
+    ): IntersectionResult<SegmentSegment2Intersection> {
+        return Intersection.defaultIntersection.segmentSegment2Detailed(left, right);
+    }
+
+    public static rayTriangle3(ray: Ray3, triangle: Triangle3): IntersectionResult<Vec3> {
+        return Intersection.defaultIntersection.rayTriangle3(ray, triangle);
+    }
+
+    public segments2(left: LineSegment2, right: LineSegment2): IntersectionResult<Vec2> {
         if (!left.isValid() || !right.isValid()) {
             return GeometryResult.degenerate();
         }
@@ -57,9 +74,9 @@ export const Intersection = {
         }
 
         return GeometryResult.success(left.pointAt(clampUnitParameter(t)));
-    },
+    }
 
-    segmentSegment2Detailed(
+    public segmentSegment2Detailed(
         left: LineSegment2,
         right: LineSegment2,
     ): IntersectionResult<SegmentSegment2Intersection> {
@@ -96,9 +113,9 @@ export const Intersection = {
             point: left.pointAt(clampedLeftParameter),
             rightParameters: [clampedRightParameter, clampedRightParameter],
         });
-    },
+    }
 
-    rayTriangle3(ray: Ray3, triangle: Triangle3): IntersectionResult<Vec3> {
+    public rayTriangle3(ray: Ray3, triangle: Triangle3): IntersectionResult<Vec3> {
         if (!ray.isValid()) {
             return GeometryResult.degenerate();
         }
@@ -138,8 +155,8 @@ export const Intersection = {
         return distance < -DEFAULT_TOLERANCE.distance
             ? GeometryResult.empty()
             : GeometryResult.success(ray.pointAt(Math.max(distance, 0)));
-    },
-} as const;
+    }
+}
 
 function isUnitParameter(value: number): boolean {
     return value >= -DEFAULT_TOLERANCE.parameter && value <= 1 + DEFAULT_TOLERANCE.parameter;

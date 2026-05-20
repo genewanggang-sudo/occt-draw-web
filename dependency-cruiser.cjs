@@ -70,16 +70,6 @@ module.exports = {
             },
         },
         {
-            name: 'constraints-only-sketch-core-math',
-            severity: 'error',
-            from: {
-                path: '^packages/constraints/src',
-            },
-            to: {
-                path: '^packages/(?!math|core|sketch|constraints)',
-            },
-        },
-        {
             name: 'sketch-snapping-only-math',
             severity: 'error',
             from: {
@@ -87,16 +77,6 @@ module.exports = {
             },
             to: {
                 path: '^packages/(?!math|sketch-snapping)',
-            },
-        },
-        {
-            name: 'parametrics-only-core',
-            severity: 'error',
-            from: {
-                path: '^packages/parametrics/src',
-            },
-            to: {
-                path: '^packages/(?!core|parametrics)',
             },
         },
         {

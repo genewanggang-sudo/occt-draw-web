@@ -1,4 +1,4 @@
-import { clampNumber, Measurement, Scalar, Vec3, type Vector3 } from '@occt-draw/math';
+import { Measurement, Scalar, Vec3, type Vector3 } from '@occt-draw/math';
 import {
     calculateCameraBasis,
     screenPointToWorldOnViewPlane,
@@ -84,7 +84,7 @@ export function interpolateCameraState(
     endCamera: CameraState,
     progress: number,
 ): CameraState {
-    const t = clampNumber(progress, 0, 1);
+    const t = Scalar.clamp(progress, 0, 1);
     const startTarget = startCamera.target;
     const endTarget = endCamera.target;
     const target = Vec3.of(
@@ -334,7 +334,7 @@ export function zoomViewNavigation(
     );
     const minHeight = Math.max(state.sceneRadius / 1000, 0.001);
     const maxHeight = Math.max(state.sceneRadius * 80, 10);
-    const nextHeight = clampNumber(
+    const nextHeight = Scalar.clamp(
         state.camera.orthographicHeight * Math.exp(wheel.deltaY * ZOOM_SENSITIVITY),
         minHeight,
         maxHeight,

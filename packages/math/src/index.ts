@@ -9,9 +9,6 @@ export {
     RIGHT_ANGLE,
     Scalar,
     Tolerance,
-    areNumbersEqual,
-    clampNumber,
-    isNearlyZero,
     type GeometryResultStatus,
 } from './value';
 export {

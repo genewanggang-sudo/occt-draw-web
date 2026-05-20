@@ -1,4 +1,4 @@
-import { MATH_EPSILON, areNumbersEqual } from '../value/tolerance';
+import { DEFAULT_TOLERANCE, MATH_EPSILON } from '../value/tolerance';
 
 export interface Vector2 {
     readonly x: number;
@@ -75,8 +75,8 @@ export class Vec2 implements Vector2 {
 
     public equals(value: Vector2, tolerance = MATH_EPSILON): boolean {
         return (
-            areNumbersEqual(this.x, value.x, tolerance) &&
-            areNumbersEqual(this.y, value.y, tolerance)
+            DEFAULT_TOLERANCE.equals(this.x, value.x, tolerance) &&
+            DEFAULT_TOLERANCE.equals(this.y, value.y, tolerance)
         );
     }
 

@@ -79,11 +79,3 @@ export class Tolerance {
 
 export const DEFAULT_TOLERANCE = new Tolerance();
 export const MATH_EPSILON = DEFAULT_TOLERANCE.distance;
-
-export function isNearlyZero(value: number, tolerance = MATH_EPSILON): boolean {
-    return Math.abs(value) <= tolerance;
-}
-
-export function areNumbersEqual(left: number, right: number, tolerance = MATH_EPSILON): boolean {
-    return Math.abs(left - right) <= tolerance;
-}
