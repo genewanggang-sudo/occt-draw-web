@@ -3,10 +3,10 @@
     "private": true,
     "version": "0.1.0",
     "dependencies": {
+        "@occt-draw/canvas": "workspace:*",
         "@occt-draw/core": "workspace:*",
         "@occt-draw/math": "workspace:*",
-        "@occt-draw/snapping": "workspace:*",
-        "@occt-draw/webgl-engine": "workspace:*"
+        "@occt-draw/snapping": "workspace:*"
     },
     "types": "./src/index.ts",
     "exports": {

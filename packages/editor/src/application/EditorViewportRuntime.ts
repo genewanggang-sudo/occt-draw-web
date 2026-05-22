@@ -10,7 +10,7 @@ import {
     type StandardCameraView,
     type ViewCubeArrowCommand,
     type ViewCubeTargetId,
-} from '@occt-draw/webgl-engine';
+} from '@occt-draw/canvas';
 import { Measurement } from '@occt-draw/math';
 import { createDefaultCadDocument } from '@occt-draw/cad-model';
 import {

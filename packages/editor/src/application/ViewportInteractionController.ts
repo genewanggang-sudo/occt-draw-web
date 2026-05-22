@@ -8,7 +8,7 @@ import {
     type NavigationDepthSampleInput,
     type RenderGraph,
     type StandardCameraView,
-} from '@occt-draw/webgl-engine';
+} from '@occt-draw/canvas';
 import {
     BBox3,
     DEFAULT_TOLERANCE,

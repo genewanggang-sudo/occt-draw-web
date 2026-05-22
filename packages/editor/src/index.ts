@@ -92,5 +92,4 @@ export { SketchLineCommand } from './commands/SketchLineCommand';
 export { SketchRectangleCommand } from './commands/SketchRectangleCommand';
 export { createInitialEditorState } from './state/createInitialEditorState';
 export type { EditorState, SketchEditSession } from './state/editorState';
-export type { ViewCubeArrowCommand } from '@occt-draw/webgl-engine';
-export type { StandardCameraView } from '@occt-draw/webgl-engine';
+export type { StandardCameraView, ViewCubeArrowCommand } from '@occt-draw/canvas';

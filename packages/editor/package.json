@@ -9,7 +9,6 @@
         "@occt-draw/canvas": "workspace:*",
         "@occt-draw/math": "workspace:*",
         "@occt-draw/platform": "workspace:*",
-        "@occt-draw/webgl-engine": "workspace:*",
         "@occt-draw/sketch": "workspace:*",
         "@occt-draw/snapping": "workspace:*"
     },

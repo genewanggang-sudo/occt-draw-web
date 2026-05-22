@@ -146,14 +146,14 @@ importers:
       '@occt-draw/snapping':
         specifier: workspace:*
         version: link:../snapping
-      '@occt-draw/webgl-engine':
-        specifier: workspace:*
-        version: link:../webgl-engine
 
   packages/math: {}
 
   packages/platform:
     dependencies:
+      '@occt-draw/canvas':
+        specifier: workspace:*
+        version: link:../canvas
       '@occt-draw/core':
         specifier: workspace:*
         version: link:../core
@@ -163,9 +163,6 @@ importers:
       '@occt-draw/snapping':
         specifier: workspace:*
         version: link:../snapping
-      '@occt-draw/webgl-engine':
-        specifier: workspace:*
-        version: link:../webgl-engine
 
   packages/sketch:
     dependencies:

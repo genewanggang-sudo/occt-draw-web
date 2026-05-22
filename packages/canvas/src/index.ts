@@ -1,4 +1,11 @@
 export { CanvasRenderGraphProjector, renderCanvasSceneToGraph } from './canvasRenderGraphProjector';
+export {
+    CanvasPickService,
+    type CanvasPickTarget,
+    type CanvasPickTargetKind,
+    type PickCanvasTargetInput,
+} from './application/CanvasPickService';
+export { ViewNavigationController } from './application/ViewNavigationController';
 export type {
     CanvasEdgeObject,
     CanvasFaceObject,
@@ -13,13 +20,52 @@ export type {
     CanvasPrimitiveMetadata,
     CanvasScene,
 } from './canvasTypes';
+export {
+    calculateBoundingSphere,
+    createStandardCameraState,
+    projectBoundsToScreenRect,
+    projectWorldToScreen,
+    RenderEngine,
+    RenderLayer,
+    screenPointToWorldRay,
+    ViewCube,
+} from '@occt-draw/webgl-engine';
 export type {
+    BoundingBox3,
+    BoundingSphere,
+    CameraState,
     LabelDisplayItem,
     LabelFontWeight,
     LabelText,
     MarkerDisplayItem,
     MarkerShape,
+    NavigationDepthGraphSampleInput,
+    NavigationDepthSample,
+    NavigationDepthSampleInput,
     RenderDepthRole,
     RenderGraph,
+    RenderHighlightState,
+    StandardCameraView,
     SurfaceTriangle,
+    ViewCubeArrowCommand,
+    ViewCubeTargetId,
+    ViewportSize,
 } from '@occt-draw/webgl-engine';
+export {
+    beginViewNavigation,
+    createFramedStandardCamera,
+    createViewNavigationState,
+    endViewNavigation,
+    interpolateCameraState,
+    rotateCameraByScreenDelta,
+    rotateCameraByViewCubeArrow,
+    updateViewNavigation,
+    updateViewNavigationCamera,
+    updateViewNavigationViewport,
+    zoomViewNavigation,
+    type ScreenPoint,
+    type ViewCubeRotationStep,
+    type ViewNavigationPointer,
+    type ViewNavigationState,
+    type ViewNavigationWheel,
+} from './view-navigation/viewNavigation';

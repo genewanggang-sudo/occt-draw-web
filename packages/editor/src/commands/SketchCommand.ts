@@ -9,7 +9,7 @@ import { DocumentTransaction } from '@occt-draw/core';
 import { Vec3 } from '@occt-draw/math';
 import { createSketchOnReferencePlane } from '@occt-draw/sketch';
 import { clearSelection } from '@occt-draw/platform';
-import type { CameraState } from '@occt-draw/webgl-engine';
+import type { CameraState } from '@occt-draw/canvas';
 import {
     CadCommand,
     createHandledCommandResult,

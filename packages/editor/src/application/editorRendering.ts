@@ -1,7 +1,7 @@
 import { CadCanvasAdapter } from '@occt-draw/cad-render-adapter';
 import { renderCanvasSceneToGraph } from '@occt-draw/canvas';
 import type { CadDocument } from '@occt-draw/cad-model';
-import type { RenderGraph, RenderHighlightState } from '@occt-draw/webgl-engine';
+import type { RenderGraph, RenderHighlightState } from '@occt-draw/canvas';
 import type { EditorState } from '../state/editorState';
 
 const cadCanvasAdapter = new CadCanvasAdapter();

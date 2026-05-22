@@ -17,7 +17,7 @@ import {
     type SketchVertexId,
 } from '@occt-draw/sketch';
 import { SnapService, type SnapResult, type SnapSource } from '@occt-draw/snapping';
-import { projectWorldToScreen } from '@occt-draw/webgl-engine';
+import { projectWorldToScreen } from '@occt-draw/canvas';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
     CadCommand,

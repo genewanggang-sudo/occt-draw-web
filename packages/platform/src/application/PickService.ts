@@ -1,34 +1,22 @@
 import type { SelectionTarget } from '@occt-draw/core';
-import {
-    RenderObjectPicker,
-    type CameraState,
-    type RenderGraph,
-    type ViewportSize,
-} from '@occt-draw/webgl-engine';
-import type { ScreenPoint } from '../view-navigation/viewNavigation';
+import { CanvasPickService, type PickCanvasTargetInput } from '@occt-draw/canvas';
 
-export interface PickSelectionTargetInput {
-    readonly camera: CameraState;
-    readonly graph: RenderGraph;
-    readonly point: ScreenPoint;
-    readonly thresholdPixels: number;
-    readonly viewportSize: ViewportSize;
-}
+export type PickSelectionTargetInput = PickCanvasTargetInput;
 
 export class PickService {
-    private readonly renderObjectPicker = new RenderObjectPicker();
+    private readonly canvasPickService = new CanvasPickService();
 
     public pickSelectionTarget(input: PickSelectionTargetInput): SelectionTarget | null {
-        const pickResult = this.renderObjectPicker.pick(input);
+        const pickResult = this.canvasPickService.pickCanvasTarget(input);
 
         if (!pickResult) {
             return null;
         }
 
         const target = {
-            objectId: pickResult.key.objectId,
-            primitiveId: pickResult.key.primitiveId ?? null,
-            targetKind: pickResult.key.kind,
+            objectId: pickResult.objectId,
+            primitiveId: pickResult.primitiveId,
+            targetKind: pickResult.targetKind,
         };
 
         return pickResult.metadata ? { ...target, metadata: pickResult.metadata } : target;

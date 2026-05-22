@@ -1,7 +1,6 @@
 export { CommandManager } from './application/CommandManager';
 export { PickService, type PickSelectionTargetInput } from './application/PickService';
 export { SelectionManager } from './application/SelectionManager';
-export { ViewNavigationController } from './application/ViewNavigationController';
 export {
     ViewportInputAdapter,
     type ViewportInputAdapterHandlers,
@@ -27,10 +26,11 @@ export {
     updateViewNavigation,
     updateViewNavigationCamera,
     updateViewNavigationViewport,
+    ViewNavigationController,
     zoomViewNavigation,
     type ScreenPoint,
     type ViewCubeRotationStep,
     type ViewNavigationPointer,
     type ViewNavigationState,
     type ViewNavigationWheel,
-} from './view-navigation/viewNavigation';
+} from '@occt-draw/canvas';

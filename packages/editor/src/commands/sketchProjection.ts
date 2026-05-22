@@ -1,9 +1,5 @@
 import { referencePlaneToPlane, type PartStudio } from '@occt-draw/cad-model';
-import {
-    screenPointToWorldRay,
-    type CameraState,
-    type ViewportSize,
-} from '@occt-draw/webgl-engine';
+import { screenPointToWorldRay, type CameraState, type ViewportSize } from '@occt-draw/canvas';
 import { worldPointToSketchPointOnPlane } from '@occt-draw/sketch';
 import type { ScreenPoint } from '@occt-draw/platform';
 
