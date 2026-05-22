@@ -1,4 +1,4 @@
-import { CadCanvasAdapter } from '@occt-draw/cad-render-adapter';
+import { CadCanvasAdapter } from '@occt-draw/cad-canvas';
 import { renderCanvasSceneToGraph } from '@occt-draw/canvas';
 import type { CadDocument } from '@occt-draw/cad-model';
 import type { RenderGraph, RenderHighlightState } from '@occt-draw/canvas';

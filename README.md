@@ -77,15 +77,15 @@
 职责：CAD 文档业务模型，管理 CadDocument、PartStudio、Feature、payload、基准对象、默认文档、文档查询和文档操作。
 依赖：core, math, sketch。
 
-### `@occt-draw/cad-render-adapter`
+### `@occt-draw/cad-canvas`
 
-职责：CAD 到 canvas 的业务适配层，读取 cad-model / sketch / EditDraft，把基准面、原点、草图、临时编辑对象翻译成通用 CanvasScene/CanvasObject。
+职责：CAD 到 canvas 的业务显示翻译层，读取 cad-model / sketch / EditDraft，把基准面、原点、草图、临时编辑对象翻译成通用 CanvasScene/CanvasObject。
 依赖：cad-model, canvas, core, math, sketch。
 
 ### `@occt-draw/editor`
 
 职责：CAD 编辑器运行时，管理具体命令、草图会话、渲染编排和 workbench view model；把 CAD 业务模型、adapter、canvas、platform 和 UI 状态接起来。
-依赖：core, cad-model, cad-render-adapter, canvas, math, platform, sketch, snapping。
+依赖：core, cad-model, cad-canvas, canvas, math, platform, sketch, snapping。
 
 ### `@occt-draw/ui`
 

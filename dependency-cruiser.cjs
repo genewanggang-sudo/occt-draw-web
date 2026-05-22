@@ -106,7 +106,7 @@ module.exports = {
                 path: '^packages/editor/src',
             },
             to: {
-                path: '^packages/(?!math|core|cad-model|sketch|snapping|platform|cad-render-adapter|canvas|editor)',
+                path: '^packages/(?!math|core|cad-model|sketch|snapping|platform|cad-canvas|canvas|editor)',
             },
         },
         {
@@ -120,13 +120,13 @@ module.exports = {
             },
         },
         {
-            name: 'cad-render-adapter-only-model-sketch-core-canvas-math',
+            name: 'cad-canvas-only-model-sketch-core-canvas-math',
             severity: 'error',
             from: {
-                path: '^packages/cad-render-adapter/src',
+                path: '^packages/cad-canvas/src',
             },
             to: {
-                path: '^packages/(?!math|core|cad-model|sketch|canvas|cad-render-adapter)',
+                path: '^packages/(?!math|core|cad-model|sketch|canvas|cad-canvas)',
             },
         },
     ],

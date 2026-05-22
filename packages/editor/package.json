@@ -5,7 +5,7 @@
     "dependencies": {
         "@occt-draw/core": "workspace:*",
         "@occt-draw/cad-model": "workspace:*",
-        "@occt-draw/cad-render-adapter": "workspace:*",
+        "@occt-draw/cad-canvas": "workspace:*",
         "@occt-draw/canvas": "workspace:*",
         "@occt-draw/math": "workspace:*",
         "@occt-draw/platform": "workspace:*",

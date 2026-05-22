@@ -75,8 +75,14 @@ importers:
         specifier: ^19.2.0
         version: 19.2.5(react@19.2.5)
 
-  packages/cad-model:
+  packages/cad-canvas:
     dependencies:
+      '@occt-draw/cad-model':
+        specifier: workspace:*
+        version: link:../cad-model
+      '@occt-draw/canvas':
+        specifier: workspace:*
+        version: link:../canvas
       '@occt-draw/core':
         specifier: workspace:*
         version: link:../core
@@ -87,14 +93,8 @@ importers:
         specifier: workspace:*
         version: link:../sketch
 
-  packages/cad-render-adapter:
+  packages/cad-model:
     dependencies:
-      '@occt-draw/cad-model':
-        specifier: workspace:*
-        version: link:../cad-model
-      '@occt-draw/canvas':
-        specifier: workspace:*
-        version: link:../canvas
       '@occt-draw/core':
         specifier: workspace:*
         version: link:../core
@@ -122,12 +122,12 @@ importers:
 
   packages/editor:
     dependencies:
+      '@occt-draw/cad-canvas':
+        specifier: workspace:*
+        version: link:../cad-canvas
       '@occt-draw/cad-model':
         specifier: workspace:*
         version: link:../cad-model
-      '@occt-draw/cad-render-adapter':
-        specifier: workspace:*
-        version: link:../cad-render-adapter
       '@occt-draw/canvas':
         specifier: workspace:*
         version: link:../canvas
