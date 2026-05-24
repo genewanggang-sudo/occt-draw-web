@@ -62,6 +62,7 @@ export class SelectCommand extends CadCommand {
                 activeSketchSession: {
                     ...state.activeSketchSession,
                     activeTool: 'select',
+                    pendingCircleCenter: null,
                     pendingLineStart: null,
                     pendingRectangleStart: null,
                 },

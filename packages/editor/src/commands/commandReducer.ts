@@ -7,7 +7,7 @@ import type {
     CommandSession,
 } from './commandTypes';
 
-const SELECT_MESSAGE = '选择对象或子元素，查看属性并作为后续命令输入。';
+const SELECT_MESSAGE = 'Select an object or sub-element.';
 
 export function createInitialCommandSession(): CommandSession {
     return {
@@ -29,7 +29,7 @@ export function activateCommandSession(
         return {
             ...current,
             status: 'blocked',
-            message: availability.reason ?? `${getCommandLabel(commandId)} 当前不可用。`,
+            message: availability.reason ?? `${getCommandLabel(commandId)} is unavailable.`,
         };
     }
 
@@ -45,7 +45,7 @@ export function cancelCommandSession(current: CommandSession): CommandSession {
     return {
         id: 'select',
         status: current.id === 'select' ? 'idle' : 'cancelled',
-        message: current.id === 'select' ? SELECT_MESSAGE : '命令已取消，已回到选择模式。',
+        message: current.id === 'select' ? SELECT_MESSAGE : 'Command cancelled.',
         selectionContext: current.selectionContext,
     };
 }
@@ -54,7 +54,7 @@ export function completeCommandSession(current: CommandSession): CommandSession 
     return {
         ...current,
         status: 'completed',
-        message: `${getCommandLabel(current.id)}命令已完成。`,
+        message: `${getCommandLabel(current.id)} command completed.`,
     };
 }
 
@@ -87,7 +87,7 @@ export function consumeSelectionForCommandSession(
         return {
             ...current,
             status: 'idle',
-            message: selection.isEmpty() ? SELECT_MESSAGE : '已选择对象或子元素。',
+            message: selection.isEmpty() ? SELECT_MESSAGE : 'Selection updated.',
             selectionContext,
         };
     }
@@ -113,19 +113,23 @@ function createCommandSelectionContext(selection: SelectionSet): CommandSelectio
 
 function getCommandRunningMessage(commandId: CommandId): string {
     if (commandId === 'sketch') {
-        return '选择基准面后进入草图。';
+        return 'Select a reference plane to enter sketch.';
     }
 
     if (commandId === 'sketch-line') {
-        return '指定直线起点。';
+        return 'Specify line start point.';
     }
 
     if (commandId === 'sketch-rectangle') {
-        return '指定矩形第一个角点。';
+        return 'Specify rectangle first corner.';
+    }
+
+    if (commandId === 'sketch-circle') {
+        return 'Specify circle center.';
     }
 
     if (commandId === 'extrude') {
-        return '拉伸命令已进入。';
+        return 'Extrude command is active.';
     }
 
     return SELECT_MESSAGE;

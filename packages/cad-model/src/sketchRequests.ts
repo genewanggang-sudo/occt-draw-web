@@ -8,6 +8,7 @@ import {
 } from '@occt-draw/core';
 import type { Vector2 } from '@occt-draw/math';
 import {
+    AddCircleEdit,
     AddCornerRectangleEdit,
     AddLineSegmentEdit,
     DeleteSketchEntityEdit,
@@ -172,6 +173,51 @@ export class AddCornerRectangleRequest
     ): AddCornerRectangleRequestResult {
         return {
             createdEdgeIds: edit.createdEdgeIds,
+            partStudioId: this.partStudioId,
+            payloadId: sketch.id,
+            sketchFeatureId: this.sketchFeatureId,
+        };
+    }
+}
+
+export interface AddCircleRequestResult extends SketchDocumentRequestContext {
+    readonly createdCurveId: string | null;
+    readonly payloadId: FeaturePayloadId;
+}
+
+export class AddCircleRequest
+    extends SketchDocumentRequest<AddCircleRequestResult, AddCircleEdit>
+    implements Request<CadDocument, AddCircleRequestResult>
+{
+    private readonly center: Vector2;
+    private readonly radius: number;
+
+    constructor(
+        input: SketchDocumentRequestContext & {
+            readonly center: Vector2;
+            readonly radius: number;
+        },
+    ) {
+        super({
+            label: 'Add sketch circle',
+            partStudioId: input.partStudioId,
+            sketchFeatureId: input.sketchFeatureId,
+            transactionId: `add-sketch-circle:${input.sketchFeatureId}`,
+        });
+        this.center = input.center;
+        this.radius = input.radius;
+    }
+
+    protected createEdit(): AddCircleEdit {
+        return new AddCircleEdit({
+            center: this.center,
+            radius: this.radius,
+        });
+    }
+
+    protected readResult(sketch: Sketch, edit: AddCircleEdit): AddCircleRequestResult {
+        return {
+            createdCurveId: edit.createdCurveId,
             partStudioId: this.partStudioId,
             payloadId: sketch.id,
             sketchFeatureId: this.sketchFeatureId,

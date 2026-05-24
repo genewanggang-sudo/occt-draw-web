@@ -8,12 +8,14 @@ export {
 } from './documentRequests';
 export {
     AddCornerRectangleRequest,
+    AddCircleRequest,
     AddLineSegmentRequest,
     DeleteSketchEntityRequest,
     MoveVertexRequest,
     isEditableSketchEntityRef,
     predictLineSegmentEndVertexId,
     type AddCornerRectangleRequestResult,
+    type AddCircleRequestResult,
     type AddLineSegmentRequestResult,
     type DeleteSketchEntityRequestResult,
     type LineSegmentEditInput,

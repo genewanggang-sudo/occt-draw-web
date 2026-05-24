@@ -272,11 +272,19 @@ export class Circle2D extends Curve2D {
 
     public snapshot(): Circle2DSnapshot {
         return {
-            center: this.getVector2Property(CIRCLE_CENTER_PROPERTY),
+            center: this.center,
             id: this.id,
             kind: this.kind,
-            radius: this.getNumberProperty(CIRCLE_RADIUS_PROPERTY.key),
+            radius: this.radius,
         };
+    }
+
+    public get center(): Vector2 {
+        return this.getVector2Property(CIRCLE_CENTER_PROPERTY);
+    }
+
+    public get radius(): number {
+        return this.getNumberProperty(CIRCLE_RADIUS_PROPERTY.key);
     }
 
     public static fromSnapshot(sketchId: SketchId, snapshot: Circle2DSnapshot): Circle2D {

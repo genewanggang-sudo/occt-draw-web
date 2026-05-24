@@ -16,7 +16,8 @@ export type SketchLineStart =
       };
 
 export interface SketchEditSession {
-    readonly activeTool: 'line' | 'rectangle' | 'select';
+    readonly activeTool: 'circle' | 'line' | 'rectangle' | 'select';
+    readonly pendingCircleCenter: Vector2 | null;
     readonly pendingLineStart: SketchLineStart | null;
     readonly pendingRectangleStart: Vector2 | null;
     readonly sketchFeatureId: string;

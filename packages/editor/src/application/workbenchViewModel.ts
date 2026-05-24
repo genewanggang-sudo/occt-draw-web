@@ -232,13 +232,30 @@ function createInspectorSketchSession(
     session: SketchEditSession,
 ): InspectorSketchSession {
     return {
-        activeToolLabel: session.activeTool === 'line' ? '直线' : '选择',
+        activeToolLabel: getSketchToolLabel(session.activeTool),
         entityCount:
             sketch.entities.geometry.points.list().length +
+            sketch.entities.geometry.curves.list().length +
             sketch.entities.topology.edges.list().length,
         name: sketch.name,
         planeKind: sketch.planeKind.toUpperCase(),
     };
+}
+
+function getSketchToolLabel(tool: SketchEditSession['activeTool']): string {
+    if (tool === 'line') {
+        return 'Line';
+    }
+
+    if (tool === 'rectangle') {
+        return 'Rectangle';
+    }
+
+    if (tool === 'circle') {
+        return 'Circle';
+    }
+
+    return 'Select';
 }
 
 function findOrigin(objects: readonly CadObject[]): ReferenceOriginObject | null {

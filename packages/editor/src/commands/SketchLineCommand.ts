@@ -52,6 +52,7 @@ export class SketchLineCommand extends CadCommand {
             activeSketchSession: {
                 ...state.activeSketchSession,
                 activeTool: 'line',
+                pendingCircleCenter: null,
                 pendingLineStart: null,
                 pendingRectangleStart: null,
             },

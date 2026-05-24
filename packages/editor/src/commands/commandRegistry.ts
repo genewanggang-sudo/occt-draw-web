@@ -9,27 +9,32 @@ import type {
 export const commandDefinitions: readonly CommandDefinition[] = [
     {
         id: 'select',
-        label: '选择',
+        label: 'Select',
         kind: 'modal',
     },
     {
         id: 'sketch',
-        label: '草图',
+        label: 'Sketch',
         kind: 'modal',
     },
     {
         id: 'sketch-line',
-        label: '直线',
+        label: 'Line',
         kind: 'modal',
     },
     {
         id: 'sketch-rectangle',
-        label: '矩形',
+        label: 'Rectangle',
+        kind: 'modal',
+    },
+    {
+        id: 'sketch-circle',
+        label: 'Circle',
         kind: 'modal',
     },
     {
         id: 'extrude',
-        label: '拉伸',
+        label: 'Extrude',
         kind: 'modal',
     },
 ] as const;
@@ -39,7 +44,7 @@ export function getCommandDefinition(commandId: CommandId): CommandDefinition | 
 }
 
 export function getCommandLabel(commandId: CommandId): string {
-    return getCommandDefinition(commandId)?.label ?? '选择';
+    return getCommandDefinition(commandId)?.label ?? 'Select';
 }
 
 export function evaluateCommandAvailability(
@@ -57,34 +62,33 @@ export function evaluateCommandAvailability(
         return {
             enabled: context.selectedReferencePlaneCount === 1,
             reason:
-                context.selectedReferencePlaneCount === 1 ? null : '请选择一个基准面后再进入草图。',
+                context.selectedReferencePlaneCount === 1
+                    ? null
+                    : 'Select one reference plane before entering sketch.',
         };
     }
 
-    if (commandId === 'sketch-line') {
+    if (
+        commandId === 'sketch-line' ||
+        commandId === 'sketch-rectangle' ||
+        commandId === 'sketch-circle'
+    ) {
         return {
             enabled: context.isEditingSketch,
-            reason: context.isEditingSketch ? null : '进入草图后才能使用直线。',
-        };
-    }
-
-    if (commandId === 'sketch-rectangle') {
-        return {
-            enabled: context.isEditingSketch,
-            reason: context.isEditingSketch ? null : '进入草图后才能使用矩形。',
+            reason: context.isEditingSketch ? null : 'Enter sketch before using sketch tools.',
         };
     }
 
     if (!context.hasSketchProfile) {
         return {
             enabled: false,
-            reason: '需要先有可拉伸的草图轮廓。',
+            reason: 'Create a sketch profile before extrusion.',
         };
     }
 
     return {
         enabled: context.selectionObjectIds.length > 0,
-        reason: context.selectionObjectIds.length > 0 ? null : '需要先选择一个可拉伸的草图轮廓。',
+        reason: context.selectionObjectIds.length > 0 ? null : 'Select a sketch profile first.',
     };
 }
 
@@ -96,6 +100,7 @@ export function evaluateCommandAvailabilityMap(
         sketch: evaluateCommandAvailability('sketch', context),
         'sketch-line': evaluateCommandAvailability('sketch-line', context),
         'sketch-rectangle': evaluateCommandAvailability('sketch-rectangle', context),
+        'sketch-circle': evaluateCommandAvailability('sketch-circle', context),
         extrude: evaluateCommandAvailability('extrude', context),
     };
 }

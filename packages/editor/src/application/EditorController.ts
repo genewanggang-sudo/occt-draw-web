@@ -243,7 +243,11 @@ function createCommandAvailabilityContext(state: EditorState) {
 }
 
 function shouldExitSketchSession(state: EditorState): boolean {
-    return state.activeSketchSession?.pendingLineStart === null;
+    return (
+        state.activeSketchSession?.pendingCircleCenter === null &&
+        state.activeSketchSession.pendingLineStart === null &&
+        state.activeSketchSession.pendingRectangleStart === null
+    );
 }
 
 function reconcileSketchEditScope(

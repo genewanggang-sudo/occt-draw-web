@@ -1,5 +1,5 @@
 import type { Vector2 } from '@occt-draw/math';
-import { Line2D, Point2D } from '../geometry/geometry';
+import { Circle2D, Line2D, Point2D } from '../geometry/geometry';
 import type { Sketch } from '../model/sketch';
 import { Edge, Vertex } from '../topology/topology';
 import {
@@ -216,6 +216,37 @@ export class AddCornerRectangleEdit extends SketchEdit {
             sketch.entities.topology.edges.add(edge);
             this.createdEdgeIds.push(edgeId);
         }
+    }
+}
+
+export class AddCircleEdit extends SketchEdit {
+    public readonly kind = 'add-circle';
+    public readonly label = 'Add sketch circle';
+    public createdCurveId: string | null = null;
+    private readonly center: Vector2;
+    private readonly radius: number;
+
+    constructor(input: { readonly center: Vector2; readonly radius: number }) {
+        super();
+        this.center = input.center;
+        this.radius = input.radius;
+    }
+
+    public apply(sketch: Sketch): void {
+        if (this.radius <= 0) {
+            return;
+        }
+
+        const curveId = sketch.state.allocateCurveId();
+        const circle = new Circle2D({
+            center: this.center,
+            id: curveId,
+            radius: this.radius,
+            sketchId: sketch.id,
+        });
+
+        sketch.entities.geometry.curves.add(circle);
+        this.createdCurveId = curveId;
     }
 }
 
