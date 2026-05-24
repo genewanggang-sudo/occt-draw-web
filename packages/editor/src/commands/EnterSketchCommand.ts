@@ -19,7 +19,7 @@ import {
 
 const SKETCH_WORKSPACE_CAMERA_HEIGHT_SCALE = 1.55;
 
-export class SketchCommand extends CadCommand {
+export class EnterSketchCommand extends CadCommand {
     public readonly id = 'sketch';
 
     public override enter(context: CommandContext): CommandResult {

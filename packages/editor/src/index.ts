@@ -87,7 +87,7 @@ export type {
     CommandStatus,
 } from './commands/commandTypes';
 export { SelectCommand } from './commands/SelectCommand';
-export { SketchCommand } from './commands/SketchCommand';
+export { EnterSketchCommand } from './commands/EnterSketchCommand';
 export { SketchLineCommand } from './commands/SketchLineCommand';
 export { SketchRectangleCommand } from './commands/SketchRectangleCommand';
 export { createInitialEditorState } from './state/createInitialEditorState';

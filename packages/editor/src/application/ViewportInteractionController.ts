@@ -32,7 +32,7 @@ import {
     type CommandResult,
 } from '../commands/CadCommand';
 import { SelectCommand } from '../commands/SelectCommand';
-import { SketchCommand } from '../commands/SketchCommand';
+import { EnterSketchCommand } from '../commands/EnterSketchCommand';
 import { SketchLineCommand } from '../commands/SketchLineCommand';
 import { SketchRectangleCommand } from '../commands/SketchRectangleCommand';
 import type { CommandId } from '../commands/commandTypes';
@@ -80,7 +80,7 @@ export class ViewportInteractionController {
         CommandResult,
         CommandPointerEvent,
         CommandKeyEvent,
-        SelectCommand | SketchCommand | SketchLineCommand | SketchRectangleCommand
+        SelectCommand | EnterSketchCommand | SketchLineCommand | SketchRectangleCommand
     >;
     private readonly context: ViewportInteractionContext;
 
@@ -90,7 +90,7 @@ export class ViewportInteractionController {
             activeCommandId: context.getActiveCommandId(),
             commands: [
                 new SelectCommand(),
-                new SketchCommand(),
+                new EnterSketchCommand(),
                 new SketchLineCommand(),
                 new SketchRectangleCommand(),
             ],
