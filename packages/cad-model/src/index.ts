@@ -12,6 +12,20 @@ export {
     type CreateFeaturePayloadRequestResult,
     type SetFeaturePayloadRequestResult,
 } from './documentRequests';
+export {
+    AddCornerRectangleRequest,
+    AddLineSegmentRequest,
+    DeleteSketchEntityRequest,
+    MoveVertexRequest,
+    isEditableSketchEntityRef,
+    predictLineSegmentEndVertexId,
+    type AddCornerRectangleRequestResult,
+    type AddLineSegmentRequestResult,
+    type DeleteSketchEntityRequestResult,
+    type LineSegmentEditInput,
+    type MoveVertexRequestResult,
+    type SketchDocumentRequestContext,
+} from './sketchRequests';
 export { createDefaultCadDocument } from './defaultDocument';
 export { findCadObjectById, getActivePartStudio, listVisibleCadObjects } from './documentQueries';
 export {

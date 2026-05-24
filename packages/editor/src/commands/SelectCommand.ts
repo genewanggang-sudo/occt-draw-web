@@ -1,17 +1,13 @@
 ﻿import { createEditDraft, type SelectionTarget } from '@occt-draw/core';
 import {
+    DeleteSketchEntityRequest,
     findSketchByFeatureId,
-    SetFeaturePayloadRequest,
+    isEditableSketchEntityRef,
+    MoveVertexRequest,
     type CadDocument,
 } from '@occt-draw/cad-model';
 import { Measurement } from '@occt-draw/math';
-import {
-    DeleteSketchEntityRequest,
-    MoveVertexRequest,
-    SketchEntityKind,
-    type Sketch,
-    type SketchEntityRef,
-} from '@occt-draw/sketch';
+import { SketchEntityKind, type Sketch, type SketchEntityRef } from '@occt-draw/sketch';
 import {
     clearSelection,
     replaceSelection,
@@ -257,28 +253,27 @@ export class SelectCommand extends CadCommand {
             state.selection.selection.primaryTarget,
         );
 
-        if (!entityRef || !isDeletableSketchRef(entityRef)) {
+        if (!entityRef || !isEditableSketchEntityRef(entityRef)) {
             return createUnhandledCommandResult();
         }
 
         const activeSketch = findActiveSketch(state);
+        const activeSketchSession = state.activeSketchSession;
 
-        if (activeSketch?.sketch.id !== entityRef.sketchId) {
+        if (!activeSketchSession || activeSketch?.sketch.id !== entityRef.sketchId) {
             return createUnhandledCommandResult();
         }
-
-        const sketch = activeSketch.sketch.clone();
-        const request = new DeleteSketchEntityRequest({ entityRef });
-        const operation = request.createOperation();
-
-        operation.apply(sketch);
 
         return createHandledCommandResult({
             commandSession: consumeSelectionForCommandSession(
                 state.commandSession,
                 clearSelection(state.selection).selection,
             ),
-            documentRequest: createSetSketchPayloadRequest(state, sketch),
+            documentRequest: new DeleteSketchEntityRequest({
+                entityRef,
+                partStudioId: state.document.getActivePartStudio().id,
+                sketchFeatureId: activeSketchSession.sketchFeatureId,
+            }),
             draft: null,
             selection: clearSelection(state.selection),
         });
@@ -296,25 +291,6 @@ function findActiveSketch(state: EditorState): { readonly sketch: Sketch } | nul
     const sketch = findSketchByFeatureId(partStudio, session.sketchFeatureId);
 
     return sketch ? { sketch } : null;
-}
-
-function isDeletableSketchRef(ref: SketchEntityRef): boolean {
-    return ref.kind === SketchEntityKind.Edge || ref.kind === SketchEntityKind.Vertex;
-}
-
-function createSetSketchPayloadRequest(
-    state: EditorState,
-    sketch: Sketch,
-): SetFeaturePayloadRequest {
-    const partStudio = state.document.getActivePartStudio();
-
-    return new SetFeaturePayloadRequest({
-        label: `Update ${sketch.name}`,
-        partStudioId: partStudio.id,
-        payload: sketch,
-        payloadId: sketch.id,
-        transactionId: `set-sketch-payload:${sketch.id}`,
-    });
 }
 
 function createVertexMoveDraft(
@@ -342,10 +318,10 @@ function createMoveVertexRequestFromPointer(
     state: EditorState,
     entityRef: Extract<SketchEntityRef, { readonly kind: SketchEntityKind.Vertex }>,
     event: CommandPointerEvent,
-): SetFeaturePayloadRequest | null {
+): MoveVertexRequest | null {
     const activeSketch = findActiveSketch(state);
 
-    if (activeSketch?.sketch.id !== entityRef.sketchId) {
+    if (!state.activeSketchSession || activeSketch?.sketch.id !== entityRef.sketchId) {
         return null;
     }
 
@@ -361,14 +337,10 @@ function createMoveVertexRequestFromPointer(
         return null;
     }
 
-    const sketch = activeSketch.sketch.clone();
-    const request = new MoveVertexRequest({
+    return new MoveVertexRequest({
+        partStudioId: state.document.getActivePartStudio().id,
+        sketchFeatureId: state.activeSketchSession.sketchFeatureId,
         target,
         vertexId: entityRef.id,
     });
-    const operation = request.createOperation();
-
-    operation.apply(sketch);
-
-    return createSetSketchPayloadRequest(state, sketch);
 }

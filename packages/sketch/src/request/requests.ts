@@ -2,7 +2,6 @@ import type { Vector2 } from '@occt-draw/math';
 import { Line2D, Point2D } from '../geometry/geometry';
 import type { Sketch } from '../model/sketch';
 import { Edge, Vertex } from '../topology/topology';
-import { SketchChangeOperation } from '../transaction/transaction';
 import {
     SketchEntityKind,
     type SketchEdgeId,
@@ -10,21 +9,14 @@ import {
     type SketchVertexId,
 } from '../types';
 
-export abstract class SketchRequest {
+export abstract class SketchEdit {
     public abstract readonly kind: string;
     public abstract readonly label: string;
-
-    public createOperation(): SketchChangeOperation {
-        return new SketchChangeOperation({
-            label: this.label,
-            request: this,
-        });
-    }
 
     public abstract apply(sketch: Sketch): void;
 }
 
-export class AddPointRequest extends SketchRequest {
+export class AddPointEdit extends SketchEdit {
     public readonly kind = 'add-point';
     public readonly label = 'Add sketch point';
     public createdPointId: string | null = null;
@@ -57,7 +49,7 @@ export class AddPointRequest extends SketchRequest {
     }
 }
 
-export class AddLineSegmentRequest extends SketchRequest {
+export class AddLineSegmentEdit extends SketchEdit {
     public readonly kind = 'add-line-segment';
     public readonly label = 'Add sketch line';
     public createdEdgeId: SketchEdgeId | null = null;
@@ -161,7 +153,7 @@ export class AddLineSegmentRequest extends SketchRequest {
     }
 }
 
-export class AddCornerRectangleRequest extends SketchRequest {
+export class AddCornerRectangleEdit extends SketchEdit {
     public readonly kind = 'add-corner-rectangle';
     public readonly label = 'Add sketch rectangle';
     public readonly createdEdgeIds: SketchEdgeId[] = [];
@@ -227,7 +219,7 @@ export class AddCornerRectangleRequest extends SketchRequest {
     }
 }
 
-export class DeleteSketchEntityRequest extends SketchRequest {
+export class DeleteSketchEntityEdit extends SketchEdit {
     public readonly kind = 'delete-entity';
     public readonly label = 'Delete sketch entity';
     private readonly entityRef: SketchEntityRef;
@@ -249,7 +241,7 @@ export class DeleteSketchEntityRequest extends SketchRequest {
     }
 }
 
-export class MoveVertexRequest extends SketchRequest {
+export class MoveVertexEdit extends SketchEdit {
     public readonly kind = 'move-vertex';
     public readonly label = 'Move sketch vertex';
     private readonly target: Vector2;

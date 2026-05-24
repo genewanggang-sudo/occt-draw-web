@@ -1,16 +1,12 @@
 ﻿import { createEditDraft } from '@occt-draw/core';
 import {
+    AddCornerRectangleRequest,
     findSketchByFeatureId,
     referencePlaneToPlane,
-    SetFeaturePayloadRequest,
     type CadDocument,
 } from '@occt-draw/cad-model';
 import { LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
-import {
-    AddCornerRectangleRequest,
-    sketchPointToWorldOnPlane,
-    type Sketch,
-} from '@occt-draw/sketch';
+import { sketchPointToWorldOnPlane, type Sketch } from '@occt-draw/sketch';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
     CadCommand,
@@ -189,7 +185,7 @@ export class SketchRectangleCommand extends CadCommand {
 
     private createRectangleResult(
         context: CommandContext,
-        sourceSketch: Sketch,
+        _sourceSketch: Sketch,
         session: SketchEditSession,
         point: Vector2,
         event: CommandPointerEvent,
@@ -209,15 +205,6 @@ export class SketchRectangleCommand extends CadCommand {
             return createHandledCommandResult();
         }
 
-        const sketch = sourceSketch.clone();
-        const request = new AddCornerRectangleRequest({
-            firstCorner,
-            oppositeCorner,
-        });
-        const operation = request.createOperation();
-
-        operation.apply(sketch);
-
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
@@ -229,7 +216,12 @@ export class SketchRectangleCommand extends CadCommand {
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
-            documentRequest: createSetSketchPayloadRequest(state, sketch),
+            documentRequest: new AddCornerRectangleRequest({
+                firstCorner,
+                oppositeCorner,
+                partStudioId: state.document.getActivePartStudio().id,
+                sketchFeatureId: session.sketchFeatureId,
+            }),
             draft: null,
         });
     }
@@ -307,21 +299,6 @@ function projectPointerToSketch(
         planeObjectRef: sketch.plane.planeObjectRef,
         point: event.point,
         viewportSize: state.navigation.viewportSize,
-    });
-}
-
-function createSetSketchPayloadRequest(
-    state: EditorState,
-    sketch: Sketch,
-): SetFeaturePayloadRequest {
-    const partStudio = state.document.getActivePartStudio();
-
-    return new SetFeaturePayloadRequest({
-        label: `Update ${sketch.name}`,
-        partStudioId: partStudio.id,
-        payload: sketch,
-        payloadId: sketch.id,
-        transactionId: `set-sketch-payload:${sketch.id}`,
     });
 }
 

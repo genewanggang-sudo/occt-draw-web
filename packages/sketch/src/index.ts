@@ -20,12 +20,12 @@ export {
 } from './model/sketch';
 export { SketchChangeRecorder } from './changes/changeTracking';
 export {
-    AddCornerRectangleRequest,
-    AddLineSegmentRequest,
-    AddPointRequest,
-    DeleteSketchEntityRequest,
-    MoveVertexRequest,
-    SketchRequest,
+    AddCornerRectangleEdit,
+    AddLineSegmentEdit,
+    AddPointEdit,
+    DeleteSketchEntityEdit,
+    MoveVertexEdit,
+    SketchEdit,
 } from './request/requests';
 export { SketchChangeOperation } from './transaction/transaction';
 export { SketchEntityKind } from './types';

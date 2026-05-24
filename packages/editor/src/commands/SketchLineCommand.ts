@@ -1,13 +1,13 @@
 import { createEditDraft } from '@occt-draw/core';
 import {
+    AddLineSegmentRequest,
     findSketchByFeatureId,
+    predictLineSegmentEndVertexId,
     referencePlaneToPlane,
-    SetFeaturePayloadRequest,
     type CadDocument,
 } from '@occt-draw/cad-model';
 import { LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
 import {
-    AddLineSegmentRequest,
     SketchEntityKind,
     sketchPointToWorldOnPlane,
     type Sketch,
@@ -309,8 +309,7 @@ export class SketchLineCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const sketch = sourceSketch.clone();
-        const startPoint = resolveLineStartPoint(sketch, start);
+        const startPoint = resolveLineStartPoint(sourceSketch, start);
 
         if (!startPoint || Vec2.distance(startPoint.position, point) <= MIN_LINE_LENGTH) {
             return createHandledCommandResult({
@@ -323,12 +322,10 @@ export class SketchLineCommand extends CadCommand {
             });
         }
 
-        const request = createAddLineSegmentRequest(start, point, snappedEndVertexId);
-        const operation = request.createOperation();
+        const input = createAddLineSegmentRequestInput(start, point, snappedEndVertexId);
+        const createdEndVertexId = predictLineSegmentEndVertexId(sourceSketch, input);
 
-        operation.apply(sketch);
-
-        if (!request.createdEndVertexId) {
+        if (!createdEndVertexId) {
             return createUnhandledCommandResult();
         }
 
@@ -337,7 +334,7 @@ export class SketchLineCommand extends CadCommand {
                 ...session,
                 pendingLineStart: {
                     kind: 'vertex',
-                    vertexId: request.createdEndVertexId,
+                    vertexId: createdEndVertexId,
                 },
             },
             commandSession: {
@@ -346,25 +343,14 @@ export class SketchLineCommand extends CadCommand {
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
-            documentRequest: createSetSketchPayloadRequest(state, sketch),
+            documentRequest: new AddLineSegmentRequest({
+                ...input,
+                partStudioId: state.document.getActivePartStudio().id,
+                sketchFeatureId: session.sketchFeatureId,
+            }),
             draft: null,
         });
     }
-}
-
-function createSetSketchPayloadRequest(
-    state: EditorState,
-    sketch: Sketch,
-): SetFeaturePayloadRequest {
-    const partStudio = state.document.getActivePartStudio();
-
-    return new SetFeaturePayloadRequest({
-        label: `Update ${sketch.name}`,
-        partStudioId: partStudio.id,
-        payload: sketch,
-        payloadId: sketch.id,
-        transactionId: `set-sketch-payload:${sketch.id}`,
-    });
 }
 
 function resolveLineStartPoint(
@@ -380,32 +366,36 @@ function getPendingLineStartVertexId(start: SketchLineStart): SketchVertexId | n
     return start.kind === 'vertex' ? start.vertexId : null;
 }
 
-function createAddLineSegmentRequest(
+function createAddLineSegmentRequestInput(
     start: SketchLineStart,
     endPosition: Vector2,
     endVertexId: SketchVertexId | null,
-): AddLineSegmentRequest {
+):
+    | { readonly endPosition: Vector2; readonly startPosition: Vector2 }
+    | { readonly endPosition: Vector2; readonly startVertexId: SketchVertexId }
+    | { readonly endVertexId: SketchVertexId; readonly startPosition: Vector2 }
+    | { readonly endVertexId: SketchVertexId; readonly startVertexId: SketchVertexId } {
     if (start.kind === 'vertex') {
         return endVertexId
-            ? new AddLineSegmentRequest({
+            ? {
                   endVertexId,
                   startVertexId: start.vertexId,
-              })
-            : new AddLineSegmentRequest({
+              }
+            : {
                   endPosition,
                   startVertexId: start.vertexId,
-              });
+              };
     }
 
     return endVertexId
-        ? new AddLineSegmentRequest({
+        ? {
               endVertexId,
               startPosition: start.point,
-          })
-        : new AddLineSegmentRequest({
+          }
+        : {
               endPosition,
               startPosition: start.point,
-          });
+          };
 }
 
 function findActiveSketch(

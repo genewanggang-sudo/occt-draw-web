@@ -1,22 +1,22 @@
 import { createOperationId, type Operation, type OperationId } from '@occt-draw/core';
 import { SketchChangeRecorder, withActiveSketchChangeRecorder } from '../changes/changeTracking';
 import type { Sketch } from '../model/sketch';
-import type { SketchRequest } from '../request/requests';
+import type { SketchEdit } from '../request/requests';
 
 export class SketchChangeOperation implements Operation<Sketch> {
     public readonly id: OperationId;
     public readonly label: string;
-    public readonly request: SketchRequest;
+    public readonly edit: SketchEdit;
     private transactionValue: Operation<Sketch> | null = null;
 
     constructor(input: {
         readonly id?: OperationId | undefined;
         readonly label: string;
-        readonly request: SketchRequest;
+        readonly edit: SketchEdit;
     }) {
-        this.id = input.id ?? createOperationId('sketch-request', input.request.kind);
+        this.id = input.id ?? createOperationId('sketch-edit', input.edit.kind);
         this.label = input.label;
-        this.request = input.request;
+        this.edit = input.edit;
     }
 
     public get transaction(): Operation<Sketch> {
@@ -35,7 +35,7 @@ export class SketchChangeOperation implements Operation<Sketch> {
         const recorder = new SketchChangeRecorder(this.label);
 
         withActiveSketchChangeRecorder(recorder, () => {
-            this.request.apply(sketch);
+            this.edit.apply(sketch);
             sketch.state.incrementRevision();
         });
         this.transactionValue = recorder.toTransaction({ id: this.id });
