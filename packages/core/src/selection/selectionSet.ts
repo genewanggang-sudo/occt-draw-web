@@ -1,4 +1,4 @@
-import type { ObjectId } from './ids';
+import type { ObjectId } from '../ids';
 
 export type SelectionTargetKind = 'edge' | 'face' | 'object' | 'vertex';
 export type SelectionObjectId = ObjectId;

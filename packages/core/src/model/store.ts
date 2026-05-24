@@ -1,6 +1,6 @@
-import type { OperationId } from './editing';
-import type { ChangeRecorder } from './editing/changeRecorder';
-import type { IdentifiedModelEntity } from './model';
+import type { ChangeRecorder } from '../editing/changeRecorder';
+import type { OperationId } from '../editing/operation';
+import type { IdentifiedModelEntity } from './base';
 
 export class ModelEntityStore<
     TEntity extends IdentifiedModelEntity<TId>,

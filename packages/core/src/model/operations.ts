@@ -1,11 +1,11 @@
-import type { Operation, OperationId } from './editing';
+import type { Operation, OperationId } from '../editing/operation';
 import type {
     ModelPropertyBag,
     ModelPropertyKey,
     ModelPropertyPath,
     ModelPropertyValue,
-    ModelRef,
-} from './model';
+} from './properties';
+import type { ModelRef } from './refs';
 
 export type ModelEntityChangeAction = 'add' | 'remove';
 

@@ -1,7 +1,7 @@
-import { EditingSession } from './editing/editingSession';
-import type { HistoryRecordLabels } from './editing/history';
-import type { Request, RequestExecution } from './editing/request';
-import type { Transaction } from './editing/transaction';
+import { EditingSession } from '../editing/editingSession';
+import type { HistoryRecordLabels } from '../editing/history';
+import type { Request, RequestExecution } from '../editing/request';
+import type { Transaction } from '../editing/transaction';
 
 export interface DocumentSessionChange<TDocument = unknown> {
     readonly document: TDocument;
