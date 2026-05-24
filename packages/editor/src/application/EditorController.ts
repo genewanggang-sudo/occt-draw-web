@@ -274,7 +274,7 @@ function reconcileSketchEditScope(
         if (snapshot.hasActiveScope) {
             documentSession.confirmScope({
                 id: `sketch-edit:${previousSketchSession.sketchFeatureId}`,
-                record: `Edit ${previousSketchSession.sketchFeatureId}`,
+                label: `Edit ${previousSketchSession.sketchFeatureId}`,
             });
         }
 

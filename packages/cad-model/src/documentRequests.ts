@@ -1,7 +1,7 @@
 import {
     createRequestExecution,
     Transaction,
-    type HistoryRecordLabels,
+    type HistoryLabels,
     type Request,
     type RequestContext,
     type RequestExecution,
@@ -30,12 +30,12 @@ export class CreateFeaturePayloadRequest implements Request<
     public readonly partStudioId: PartStudioId;
     public readonly payload: FeaturePayload;
     public readonly payloadId: FeaturePayloadId;
-    private readonly history: HistoryRecordLabels | null;
+    private readonly history: HistoryLabels | null;
     private readonly transactionId: TransactionId | null;
 
     constructor(input: {
         readonly feature: Feature;
-        readonly history?: HistoryRecordLabels | null;
+        readonly history?: HistoryLabels | null;
         readonly label?: string;
         readonly partStudioId: PartStudioId;
         readonly payload: FeaturePayload;
@@ -98,11 +98,11 @@ export class SetFeaturePayloadRequest implements Request<
     public readonly partStudioId: PartStudioId;
     public readonly payload: FeaturePayload;
     public readonly payloadId: FeaturePayloadId;
-    private readonly history: HistoryRecordLabels | null;
+    private readonly history: HistoryLabels | null;
     private readonly transactionId: TransactionId | null;
 
     constructor(input: {
-        readonly history?: HistoryRecordLabels | null;
+        readonly history?: HistoryLabels | null;
         readonly label?: string;
         readonly partStudioId: PartStudioId;
         readonly payload: FeaturePayload;

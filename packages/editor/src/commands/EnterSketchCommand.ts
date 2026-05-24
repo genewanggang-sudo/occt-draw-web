@@ -77,7 +77,7 @@ export class EnterSketchCommand extends CadCommand {
             documentRequest: new CreateFeaturePayloadRequest({
                 feature,
                 history: {
-                    record: `Create ${sketchName}`,
+                    label: `Create ${sketchName}`,
                 },
                 label: `Create ${sketchName}`,
                 partStudioId: partStudio.id,

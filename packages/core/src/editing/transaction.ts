@@ -10,16 +10,20 @@ export class Transaction<TDocument = unknown> {
     public readonly label: string;
     public readonly mergeKey: TransactionMergeKey | null;
     public readonly operations: readonly Operation<TDocument>[];
+    private readonly appliedDocumentRevision: number | null;
+    private lastAppliedDocumentRevision: number | null = null;
     private readonly previousDocumentRevision: number | null;
     private readonly revisionStack: number[] = [];
 
     constructor(input: {
+        readonly appliedDocumentRevision?: number | null;
         readonly id: TransactionId;
         readonly label: string;
         readonly mergeKey?: TransactionMergeKey | null;
         readonly operations: readonly Operation<TDocument>[];
         readonly previousDocumentRevision?: number | null;
     }) {
+        this.appliedDocumentRevision = input.appliedDocumentRevision ?? null;
         this.id = input.id;
         this.label = input.label;
         this.mergeKey = input.mergeKey ?? null;
@@ -38,9 +42,13 @@ export class Transaction<TDocument = unknown> {
             this.revisionStack.push(previousRevision);
         }
 
-        return this.isEmpty()
-            ? nextDocument
-            : setNextDocumentRevision(nextDocument, previousRevision);
+        const appliedRevision = this.resolveAppliedRevision(previousRevision);
+
+        if (appliedRevision !== null) {
+            this.lastAppliedDocumentRevision = appliedRevision;
+        }
+
+        return this.isEmpty() ? nextDocument : setDocumentRevision(nextDocument, appliedRevision);
     }
 
     public revert(document: TDocument): TDocument {
@@ -76,6 +84,7 @@ export class Transaction<TDocument = unknown> {
                         replace: input.replace,
                     }),
             ),
+            appliedDocumentRevision: this.appliedDocumentRevision,
             previousDocumentRevision: this.previousDocumentRevision,
         });
     }
@@ -99,9 +108,27 @@ export class Transaction<TDocument = unknown> {
             label: input?.label ?? transaction.label,
             mergeKey: this.mergeKey,
             operations: [...this.operations, ...transaction.operations],
+            appliedDocumentRevision: this.resolveMergedAppliedRevision(transaction),
             previousDocumentRevision:
                 this.previousDocumentRevision ?? transaction.previousDocumentRevision,
         });
+    }
+
+    private resolveAppliedRevision(previousRevision: number | null): number | null {
+        if (this.appliedDocumentRevision !== null) {
+            return this.appliedDocumentRevision;
+        }
+
+        return previousRevision === null ? null : getNextModelRevision(previousRevision);
+    }
+
+    private resolveMergedAppliedRevision(transaction: Transaction<TDocument>): number | null {
+        return (
+            transaction.appliedDocumentRevision ??
+            transaction.lastAppliedDocumentRevision ??
+            this.appliedDocumentRevision ??
+            this.lastAppliedDocumentRevision
+        );
     }
 }
 
@@ -113,12 +140,9 @@ function readDocumentRevision(document: unknown): number | null {
     return isRevisionedDocument(document) ? document.revision : null;
 }
 
-function setNextDocumentRevision<TDocument>(
-    document: TDocument,
-    previousRevision: number | null,
-): TDocument {
-    if (previousRevision !== null && isRevisionedDocument(document)) {
-        document.withRevision(getNextModelRevision(previousRevision));
+function setDocumentRevision<TDocument>(document: TDocument, revision: number | null): TDocument {
+    if (revision !== null && isRevisionedDocument(document)) {
+        document.withRevision(revision);
     }
 
     return document;

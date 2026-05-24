@@ -7,18 +7,12 @@ export {
 } from './document/session';
 
 export { ChangeRecorder, ChangeRecordingScope } from './editing/changeRecorder';
-export {
-    EditingSession,
-    type EditingSessionChange,
-    type EditingSessionRequestResult,
-    type EditingSessionSnapshot,
-} from './editing/editingSession';
 export { EditScope, type EditScopeId, type EditScopeMoveResult } from './editing/editScope';
 export {
     History,
     HistoryRecord,
     type HistoryMoveResult,
-    type HistoryRecordLabels,
+    type HistoryLabels,
 } from './editing/history';
 export {
     FunctionalOperation,
@@ -36,11 +30,6 @@ export {
     type RequestContext,
     type RequestExecution,
 } from './editing/request';
-export {
-    RequestExecutor,
-    type RequestExecutorResult,
-    type ScopeCommitResult,
-} from './editing/requestExecutor';
 export {
     Transaction,
     createTransactionId,

@@ -1,35 +1,31 @@
 import type { Transaction } from './transaction';
 
-export interface HistoryRecordLabels {
-    readonly record?: string | undefined;
+export interface HistoryLabels {
+    readonly label?: string | undefined;
     readonly redoLabel?: string | undefined;
     readonly undoLabel?: string | undefined;
 }
 
 export class HistoryRecord<TDocument = unknown> {
-    public readonly record: string;
+    public readonly label: string;
     public readonly redoLabel: string;
     public readonly transaction: Transaction<TDocument>;
     public readonly undoLabel: string;
 
     constructor(input: {
-        readonly record?: string | undefined;
+        readonly label?: string | undefined;
         readonly redoLabel?: string | undefined;
         readonly transaction: Transaction<TDocument>;
         readonly undoLabel?: string | undefined;
     }) {
-        this.record = input.record ?? input.transaction.label;
-        this.redoLabel = input.redoLabel ?? `Redo ${this.record}`;
+        this.label = input.label ?? input.transaction.label;
+        this.redoLabel = input.redoLabel ?? `Redo ${this.label}`;
         this.transaction = input.transaction;
-        this.undoLabel = input.undoLabel ?? `Undo ${this.record}`;
+        this.undoLabel = input.undoLabel ?? `Undo ${this.label}`;
     }
 
     public get id(): string {
         return this.transaction.id;
-    }
-
-    public get label(): string {
-        return this.record;
     }
 
     public apply(document: TDocument): TDocument {
@@ -46,13 +42,13 @@ export class HistoryRecord<TDocument = unknown> {
 
     public mergeWith(
         record: HistoryRecord<TDocument>,
-        labels: HistoryRecordLabels = {},
+        labels: HistoryLabels = {},
     ): HistoryRecord<TDocument> {
         return new HistoryRecord({
-            record: labels.record ?? record.record,
+            label: labels.label ?? record.label,
             redoLabel: labels.redoLabel ?? record.redoLabel,
             transaction: this.transaction.mergeWith(record.transaction, {
-                label: labels.record ?? record.record,
+                label: labels.label ?? record.label,
             }),
             undoLabel: labels.undoLabel ?? record.undoLabel,
         });
@@ -129,10 +125,6 @@ export class History<TDocument = unknown> {
 
     public peekUndo(): HistoryRecord<TDocument> | null {
         return this.undoStack.at(-1) ?? null;
-    }
-
-    public push(record: HistoryRecord<TDocument> | Transaction<TDocument>): boolean {
-        return this.record(record);
     }
 
     public record(record: HistoryRecord<TDocument> | Transaction<TDocument>): boolean {

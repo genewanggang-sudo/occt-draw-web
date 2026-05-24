@@ -1,10 +1,5 @@
 import { EditScope, type EditScopeId, type EditScopeMoveResult } from './editScope';
-import {
-    History,
-    HistoryRecord,
-    type HistoryMoveResult,
-    type HistoryRecordLabels,
-} from './history';
+import { History, HistoryRecord, type HistoryMoveResult, type HistoryLabels } from './history';
 import type { Request, RequestExecution } from './request';
 import type { Transaction } from './transaction';
 
@@ -74,17 +69,17 @@ export class RequestExecutor<TDocument = unknown> {
         input: {
             readonly id?: string | undefined;
             readonly label?: string | undefined;
-        } & HistoryRecordLabels = {},
+        } & HistoryLabels = {},
     ): ScopeCommitResult<TDocument> {
         const scope = this.requireActiveScope();
         const transaction = scope.confirm({
             id: input.id,
-            label: input.record ?? input.label,
+            label: input.label,
         });
         const record = transaction.isEmpty()
             ? null
             : new HistoryRecord({
-                  record: input.record,
+                  label: input.label,
                   redoLabel: input.redoLabel,
                   transaction,
                   undoLabel: input.undoLabel,
@@ -136,7 +131,7 @@ export class RequestExecutor<TDocument = unknown> {
     private recordTransaction(
         transaction: Transaction<TDocument>,
         document: TDocument,
-        history?: HistoryRecordLabels | null,
+        history?: HistoryLabels | null,
     ): EditScopeMoveResult<TDocument> {
         if (this.activeScopeValue) {
             return this.activeScopeValue.push(transaction, document, history);
@@ -147,7 +142,7 @@ export class RequestExecutor<TDocument = unknown> {
         }
 
         const record = new HistoryRecord({
-            record: history?.record,
+            label: history?.label,
             redoLabel: history?.redoLabel,
             transaction,
             undoLabel: history?.undoLabel,

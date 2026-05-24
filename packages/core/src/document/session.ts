@@ -1,10 +1,12 @@
-import { EditingSession } from '../editing/editingSession';
-import type { HistoryRecordLabels } from '../editing/history';
+import type { EditScope } from '../editing/editScope';
+import type { History, HistoryLabels, HistoryRecord } from '../editing/history';
 import type { Request, RequestExecution } from '../editing/request';
+import { RequestExecutor } from '../editing/requestExecutor';
 import type { Transaction } from '../editing/transaction';
 
 export interface DocumentSessionChange<TDocument = unknown> {
     readonly document: TDocument;
+    readonly record: HistoryRecord<TDocument> | null;
     readonly transaction: Transaction<TDocument> | null;
 }
 
@@ -15,6 +17,7 @@ export interface DocumentSessionRequestResult<TDocument = unknown, TResult = voi
 }
 
 export interface DocumentSessionScopeCommitResult<TDocument = unknown> {
+    readonly record: HistoryRecord<TDocument> | null;
     readonly recorded: boolean;
     readonly transaction: Transaction<TDocument>;
 }
@@ -31,106 +34,110 @@ export interface DocumentSessionSnapshot<TDocument = unknown> {
 }
 
 export class DocumentSession<TDocument = unknown> {
-    private readonly session: EditingSession<TDocument>;
+    private documentValue: TDocument;
+    private executor: RequestExecutor<TDocument>;
 
-    constructor(document: TDocument, session?: EditingSession<TDocument>) {
-        this.session = session ?? new EditingSession({ document });
+    constructor(document: TDocument) {
+        this.documentValue = document;
+        this.executor = new RequestExecutor<TDocument>();
     }
 
-    public static fromEditingSession<TDocument>(
-        session: EditingSession<TDocument>,
-    ): DocumentSession<TDocument> {
-        return new DocumentSession(session.document, session);
+    public get activeScope(): EditScope<TDocument> | null {
+        return this.executor.activeScope;
     }
 
     public get canRedo(): boolean {
-        return this.session.canRedo;
+        return this.activeScope?.canRedo ?? this.history.canRedo;
     }
 
     public get canUndo(): boolean {
-        return this.session.canUndo;
+        return this.activeScope?.canUndo ?? this.history.canUndo;
     }
 
     public get document(): TDocument {
-        return this.session.document;
+        return this.documentValue;
+    }
+
+    public get history(): History<TDocument> {
+        return this.executor.history;
     }
 
     public get redoLabel(): string | null {
-        return this.session.redoLabel;
+        return this.activeScope?.redoLabel ?? this.history.redoLabel;
     }
 
     public get undoLabel(): string | null {
-        return this.session.undoLabel;
+        return this.activeScope?.undoLabel ?? this.history.undoLabel;
     }
 
     public clone(): DocumentSession<TDocument> {
-        return DocumentSession.fromEditingSession(this.session.clone());
+        const session = new DocumentSession(this.documentValue);
+
+        session.executor = this.executor.clone();
+
+        return session;
     }
 
-    public beginScope(input: { readonly id: string; readonly label: string }): void {
-        this.session.beginScope(input);
+    public beginScope(input: {
+        readonly id: string;
+        readonly label: string;
+    }): EditScope<TDocument> {
+        return this.executor.beginScope(input);
     }
 
     public cancelScope(): DocumentSessionChange<TDocument> {
-        return toDocumentSessionChange(this.session.cancelScope());
+        return this.applyChange(this.executor.cancelScope(this.documentValue));
     }
 
     public confirmScope(
         input: {
             readonly id?: string | undefined;
             readonly label?: string | undefined;
-        } & HistoryRecordLabels = {},
+        } & HistoryLabels = {},
     ): DocumentSessionScopeCommitResult<TDocument> {
-        const result = this.session.confirmScope(input);
-
-        return {
-            recorded: result.recorded,
-            transaction: result.transaction,
-        };
+        return this.executor.confirmScope(input);
     }
 
     public execute<TResult>(
         request: Request<TDocument, TResult>,
     ): DocumentSessionRequestResult<TDocument, TResult> {
-        return this.session.execute(request);
+        const result = this.executor.execute(request, this.documentValue);
+
+        this.documentValue = result.document;
+
+        return result;
     }
 
     public executeRequest<TResult>(
         request: Request<TDocument, TResult>,
     ): RequestExecution<TDocument, TResult> {
-        return this.session.executeRequest(request);
+        return this.execute(request).execution;
     }
 
     public getSnapshot(): DocumentSessionSnapshot<TDocument> {
-        const snapshot = this.session.getSnapshot();
-
         return {
-            canRedo: snapshot.canRedo,
-            canUndo: snapshot.canUndo,
-            document: snapshot.document,
-            hasActiveScope: snapshot.activeScope !== null,
-            redoDepth: snapshot.redoDepth,
-            redoLabel: snapshot.redoLabel,
-            undoDepth: snapshot.undoDepth,
-            undoLabel: snapshot.undoLabel,
+            canRedo: this.canRedo,
+            canUndo: this.canUndo,
+            document: this.documentValue,
+            hasActiveScope: this.activeScope !== null,
+            redoDepth: this.activeScope?.redoDepth ?? this.history.redoDepth,
+            redoLabel: this.redoLabel,
+            undoDepth: this.activeScope?.transactionDepth ?? this.history.undoDepth,
+            undoLabel: this.undoLabel,
         };
     }
 
     public redo(): DocumentSessionChange<TDocument> {
-        return toDocumentSessionChange(this.session.redo());
+        return this.applyChange(this.executor.redo(this.documentValue));
     }
 
     public undo(): DocumentSessionChange<TDocument> {
-        return toDocumentSessionChange(this.session.undo());
+        return this.applyChange(this.executor.undo(this.documentValue));
     }
-}
 
-function toDocumentSessionChange<TDocument>(input: {
-    readonly document: TDocument;
-    readonly transaction: Transaction<TDocument> | null;
-}): DocumentSessionChange<TDocument> {
-    return {
-        document: input.document,
-        transaction: input.transaction,
-    };
+    private applyChange(input: DocumentSessionChange<TDocument>): DocumentSessionChange<TDocument> {
+        this.documentValue = input.document;
+
+        return input;
+    }
 }

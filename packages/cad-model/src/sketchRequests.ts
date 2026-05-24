@@ -1,7 +1,7 @@
 import {
     createRequestExecution,
     Transaction,
-    type HistoryRecordLabels,
+    type HistoryLabels,
     type Request,
     type RequestContext,
     type RequestExecution,
@@ -33,7 +33,7 @@ abstract class SketchDocumentRequest<TResult> implements Request<CadDocument, TR
     public readonly label: string;
     protected readonly partStudioId: PartStudioId;
     protected readonly sketchFeatureId: FeatureId;
-    private readonly history: HistoryRecordLabels;
+    private readonly history: HistoryLabels;
     private readonly transactionId: TransactionId;
 
     protected constructor(input: {
@@ -42,7 +42,7 @@ abstract class SketchDocumentRequest<TResult> implements Request<CadDocument, TR
         readonly sketchFeatureId: FeatureId;
         readonly transactionId: TransactionId;
     }) {
-        this.history = { record: input.label };
+        this.history = { label: input.label };
         this.label = input.label;
         this.partStudioId = input.partStudioId;
         this.sketchFeatureId = input.sketchFeatureId;

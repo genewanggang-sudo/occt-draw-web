@@ -1,4 +1,4 @@
-import { HistoryRecord, type HistoryRecordLabels } from './history';
+import { HistoryRecord, type HistoryLabels } from './history';
 import type { Transaction, TransactionId } from './transaction';
 import { createTransactionId, Transaction as CoreTransaction } from './transaction';
 
@@ -15,11 +15,13 @@ export class EditScope<TDocument = unknown> {
     public readonly label: string;
     private closed: boolean;
     private initialDocumentRevision: number | null;
+    private currentDocumentRevision: number | null;
     private readonly redoStack: HistoryRecord<TDocument>[];
     private readonly records: HistoryRecord<TDocument>[];
 
     constructor(input: {
         readonly closed?: boolean;
+        readonly currentDocumentRevision?: number | null;
         readonly id: EditScopeId;
         readonly initialDocumentRevision?: number | null;
         readonly label: string;
@@ -27,6 +29,7 @@ export class EditScope<TDocument = unknown> {
         readonly redoStack?: readonly HistoryRecord<TDocument>[];
     }) {
         this.closed = input.closed ?? false;
+        this.currentDocumentRevision = input.currentDocumentRevision ?? null;
         this.id = input.id;
         this.initialDocumentRevision = input.initialDocumentRevision ?? null;
         this.label = input.label;
@@ -105,6 +108,7 @@ export class EditScope<TDocument = unknown> {
     public clone(): EditScope<TDocument> {
         return new EditScope({
             closed: this.closed,
+            currentDocumentRevision: this.currentDocumentRevision,
             id: this.id,
             initialDocumentRevision: this.initialDocumentRevision,
             label: this.label,
@@ -124,7 +128,7 @@ export class EditScope<TDocument = unknown> {
     public push(
         transaction: Transaction<TDocument>,
         document: TDocument,
-        history?: HistoryRecordLabels | null,
+        history?: HistoryLabels | null,
     ): EditScopeMoveResult<TDocument> {
         this.ensureOpen();
 
@@ -134,12 +138,13 @@ export class EditScope<TDocument = unknown> {
 
         this.initialDocumentRevision ??= readDocumentRevision(document);
         const record = new HistoryRecord({
-            record: history?.record,
+            label: history?.label,
             redoLabel: history?.redoLabel,
             transaction,
             undoLabel: history?.undoLabel,
         });
         const nextDocument = record.apply(document);
+        this.currentDocumentRevision = readDocumentRevision(nextDocument);
         const previous = this.records.at(-1);
 
         if (previous?.canMergeWith(record)) {
@@ -162,6 +167,7 @@ export class EditScope<TDocument = unknown> {
         }
 
         const nextDocument = record.apply(document);
+        this.currentDocumentRevision = readDocumentRevision(nextDocument);
 
         this.records.push(record);
 
@@ -178,6 +184,7 @@ export class EditScope<TDocument = unknown> {
         }
 
         const nextDocument = record.revert(document);
+        this.currentDocumentRevision = readDocumentRevision(nextDocument);
 
         this.redoStack.push(record);
 
@@ -189,6 +196,7 @@ export class EditScope<TDocument = unknown> {
         readonly label: string;
     }): Transaction<TDocument> {
         return new CoreTransaction({
+            appliedDocumentRevision: this.currentDocumentRevision,
             id: input.id,
             label: input.label,
             operations: this.records.flatMap((record) => record.transaction.operations),
