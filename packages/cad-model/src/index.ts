@@ -1,5 +1,6 @@
 export { CadDocument, FeaturePayloadStore, PartStudio, type FeaturePayload } from './document';
 export {
+    ApplySketchTransactionOperation,
     AppendFeatureOperation,
     ReplaceActivePartStudioOperation,
     ReplacePartStudioOperation,

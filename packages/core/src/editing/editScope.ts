@@ -1,14 +1,9 @@
-import { HistoryRecord, type HistoryLabels } from './history';
+import { HistoryRecord } from './history';
+import type { DocumentEditLabels, DocumentEditResult } from './result';
 import type { Transaction, TransactionId } from './transaction';
 import { createTransactionId, Transaction as CoreTransaction } from './transaction';
 
 export type EditScopeId = string;
-
-export interface EditScopeMoveResult<TDocument = unknown> {
-    readonly document: TDocument;
-    readonly record: HistoryRecord<TDocument> | null;
-    readonly transaction: Transaction<TDocument> | null;
-}
 
 export class EditScope<TDocument = unknown> {
     public readonly id: EditScopeId;
@@ -65,7 +60,7 @@ export class EditScope<TDocument = unknown> {
         return this.peekUndo()?.undoLabel ?? null;
     }
 
-    public cancel(document: TDocument): EditScopeMoveResult<TDocument> {
+    public cancel(document: TDocument): DocumentEditResult<TDocument> {
         this.ensureOpen();
 
         const transaction = this.createCombinedTransaction({
@@ -128,8 +123,8 @@ export class EditScope<TDocument = unknown> {
     public push(
         transaction: Transaction<TDocument>,
         document: TDocument,
-        history?: HistoryLabels | null,
-    ): EditScopeMoveResult<TDocument> {
+        history?: DocumentEditLabels | null,
+    ): DocumentEditResult<TDocument> {
         this.ensureOpen();
 
         if (transaction.isEmpty()) {
@@ -157,7 +152,7 @@ export class EditScope<TDocument = unknown> {
         return { document: nextDocument, record, transaction };
     }
 
-    public redo(document: TDocument): EditScopeMoveResult<TDocument> {
+    public redo(document: TDocument): DocumentEditResult<TDocument> {
         this.ensureOpen();
 
         const record = this.redoStack.pop();
@@ -174,7 +169,7 @@ export class EditScope<TDocument = unknown> {
         return { document: nextDocument, record, transaction: record.transaction };
     }
 
-    public undo(document: TDocument): EditScopeMoveResult<TDocument> {
+    public undo(document: TDocument): DocumentEditResult<TDocument> {
         this.ensureOpen();
 
         const record = this.records.pop();

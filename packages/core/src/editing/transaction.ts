@@ -10,9 +10,8 @@ export class Transaction<TDocument = unknown> {
     public readonly label: string;
     public readonly mergeKey: TransactionMergeKey | null;
     public readonly operations: readonly Operation<TDocument>[];
-    private readonly appliedDocumentRevision: number | null;
+    private readonly revisionPolicy: TransactionRevisionPolicy;
     private lastAppliedDocumentRevision: number | null = null;
-    private readonly previousDocumentRevision: number | null;
     private readonly revisionStack: number[] = [];
 
     constructor(input: {
@@ -23,26 +22,25 @@ export class Transaction<TDocument = unknown> {
         readonly operations: readonly Operation<TDocument>[];
         readonly previousDocumentRevision?: number | null;
     }) {
-        this.appliedDocumentRevision = input.appliedDocumentRevision ?? null;
+        this.revisionPolicy = new TransactionRevisionPolicy({
+            appliedDocumentRevision: input.appliedDocumentRevision ?? null,
+            previousDocumentRevision: input.previousDocumentRevision ?? null,
+        });
         this.id = input.id;
         this.label = input.label;
         this.mergeKey = input.mergeKey ?? null;
         this.operations = [...input.operations];
-        this.previousDocumentRevision = input.previousDocumentRevision ?? null;
     }
 
     public apply(document: TDocument): TDocument {
         const previousRevision = readDocumentRevision(document);
-        const nextDocument = this.operations.reduce(
-            (currentDocument, operation) => operation.apply(currentDocument),
-            document,
-        );
+        const nextDocument = this.applyOperations(document);
 
         if (previousRevision !== null) {
             this.revisionStack.push(previousRevision);
         }
 
-        const appliedRevision = this.resolveAppliedRevision(previousRevision);
+        const appliedRevision = this.revisionPolicy.resolveAppliedRevision(previousRevision);
 
         if (appliedRevision !== null) {
             this.lastAppliedDocumentRevision = appliedRevision;
@@ -52,13 +50,11 @@ export class Transaction<TDocument = unknown> {
     }
 
     public revert(document: TDocument): TDocument {
-        const nextDocument = [...this.operations]
-            .reverse()
-            .reduce((currentDocument, operation) => operation.revert(currentDocument), document);
+        const nextDocument = this.revertOperations(document);
 
         return restoreDocumentRevision(
             nextDocument,
-            this.previousDocumentRevision ?? this.revisionStack.pop() ?? null,
+            this.revisionPolicy.resolvePreviousRevision(this.revisionStack.pop() ?? null),
         );
     }
 
@@ -84,8 +80,8 @@ export class Transaction<TDocument = unknown> {
                         replace: input.replace,
                     }),
             ),
-            appliedDocumentRevision: this.appliedDocumentRevision,
-            previousDocumentRevision: this.previousDocumentRevision,
+            appliedDocumentRevision: this.revisionPolicy.appliedDocumentRevision,
+            previousDocumentRevision: this.revisionPolicy.previousDocumentRevision,
         });
     }
 
@@ -110,23 +106,29 @@ export class Transaction<TDocument = unknown> {
             operations: [...this.operations, ...transaction.operations],
             appliedDocumentRevision: this.resolveMergedAppliedRevision(transaction),
             previousDocumentRevision:
-                this.previousDocumentRevision ?? transaction.previousDocumentRevision,
+                this.revisionPolicy.previousDocumentRevision ??
+                transaction.revisionPolicy.previousDocumentRevision,
         });
     }
 
-    private resolveAppliedRevision(previousRevision: number | null): number | null {
-        if (this.appliedDocumentRevision !== null) {
-            return this.appliedDocumentRevision;
-        }
+    private applyOperations(document: TDocument): TDocument {
+        return this.operations.reduce(
+            (currentDocument, operation) => operation.apply(currentDocument),
+            document,
+        );
+    }
 
-        return previousRevision === null ? null : getNextModelRevision(previousRevision);
+    private revertOperations(document: TDocument): TDocument {
+        return [...this.operations]
+            .reverse()
+            .reduce((currentDocument, operation) => operation.revert(currentDocument), document);
     }
 
     private resolveMergedAppliedRevision(transaction: Transaction<TDocument>): number | null {
         return (
-            transaction.appliedDocumentRevision ??
+            transaction.revisionPolicy.appliedDocumentRevision ??
             transaction.lastAppliedDocumentRevision ??
-            this.appliedDocumentRevision ??
+            this.revisionPolicy.appliedDocumentRevision ??
             this.lastAppliedDocumentRevision
         );
     }
@@ -170,4 +172,29 @@ function isRevisionedDocument(document: unknown): document is {
         'withRevision' in document &&
         typeof document.withRevision === 'function'
     );
+}
+
+class TransactionRevisionPolicy {
+    public readonly appliedDocumentRevision: number | null;
+    public readonly previousDocumentRevision: number | null;
+
+    constructor(input: {
+        readonly appliedDocumentRevision: number | null;
+        readonly previousDocumentRevision: number | null;
+    }) {
+        this.appliedDocumentRevision = input.appliedDocumentRevision;
+        this.previousDocumentRevision = input.previousDocumentRevision;
+    }
+
+    public resolveAppliedRevision(previousRevision: number | null): number | null {
+        if (this.appliedDocumentRevision !== null) {
+            return this.appliedDocumentRevision;
+        }
+
+        return previousRevision === null ? null : getNextModelRevision(previousRevision);
+    }
+
+    public resolvePreviousRevision(runtimePreviousRevision: number | null): number | null {
+        return this.previousDocumentRevision ?? runtimePreviousRevision;
+    }
 }

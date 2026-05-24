@@ -1,19 +1,6 @@
-export {
-    DocumentSession,
-    type DocumentSessionChange,
-    type DocumentSessionRequestResult,
-    type DocumentSessionScopeCommitResult,
-    type DocumentSessionSnapshot,
-} from './document/session';
+export { DocumentSession, type DocumentSessionSnapshot } from './document/session';
 
 export { ChangeRecorder, ChangeRecordingScope } from './editing/changeRecorder';
-export { EditScope, type EditScopeId, type EditScopeMoveResult } from './editing/editScope';
-export {
-    History,
-    HistoryRecord,
-    type HistoryMoveResult,
-    type HistoryLabels,
-} from './editing/history';
 export {
     FunctionalOperation,
     MapOperation,
@@ -30,6 +17,12 @@ export {
     type RequestContext,
     type RequestExecution,
 } from './editing/request';
+export type {
+    DocumentEditLabels,
+    DocumentEditResult,
+    DocumentRequestResult,
+    DocumentScopeCommitResult,
+} from './editing/result';
 export {
     Transaction,
     createTransactionId,

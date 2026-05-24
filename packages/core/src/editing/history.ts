@@ -1,10 +1,5 @@
 import type { Transaction } from './transaction';
-
-export interface HistoryLabels {
-    readonly label?: string | undefined;
-    readonly redoLabel?: string | undefined;
-    readonly undoLabel?: string | undefined;
-}
+import type { DocumentEditLabels, DocumentEditResult } from './result';
 
 export class HistoryRecord<TDocument = unknown> {
     public readonly label: string;
@@ -42,7 +37,7 @@ export class HistoryRecord<TDocument = unknown> {
 
     public mergeWith(
         record: HistoryRecord<TDocument>,
-        labels: HistoryLabels = {},
+        labels: DocumentEditLabels = {},
     ): HistoryRecord<TDocument> {
         return new HistoryRecord({
             label: labels.label ?? record.label,
@@ -57,12 +52,6 @@ export class HistoryRecord<TDocument = unknown> {
     public revert(document: TDocument): TDocument {
         return this.transaction.revert(document);
     }
-}
-
-export interface HistoryMoveResult<TDocument = unknown> {
-    readonly document: TDocument;
-    readonly record: HistoryRecord<TDocument> | null;
-    readonly transaction: Transaction<TDocument> | null;
 }
 
 export class History<TDocument = unknown> {
@@ -146,7 +135,7 @@ export class History<TDocument = unknown> {
         return true;
     }
 
-    public redo(document: TDocument): HistoryMoveResult<TDocument> {
+    public redo(document: TDocument): DocumentEditResult<TDocument> {
         const transaction = this.redoStack.pop();
 
         if (!transaction) {
@@ -164,7 +153,7 @@ export class History<TDocument = unknown> {
         };
     }
 
-    public undo(document: TDocument): HistoryMoveResult<TDocument> {
+    public undo(document: TDocument): DocumentEditResult<TDocument> {
         const transaction = this.undoStack.pop();
 
         if (!transaction) {

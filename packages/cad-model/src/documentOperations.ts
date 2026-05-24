@@ -2,9 +2,11 @@ import {
     type ModelElement,
     type Operation,
     type OperationId,
+    type Transaction,
     createOperationId,
     setNextModelRevision,
 } from '@occt-draw/core';
+import { Sketch } from '@occt-draw/sketch';
 import type { CadDocument, FeaturePayload, PartStudio } from './document';
 import type { Feature } from './features';
 import type { FeaturePayloadId, PartStudioId } from './ids';
@@ -143,6 +145,57 @@ export class SetFeaturePayloadOperation implements Operation<CadDocument> {
     }
 }
 
+export class ApplySketchTransactionOperation implements Operation<CadDocument> {
+    public readonly id: OperationId;
+    public readonly label: string;
+    public readonly partStudioId: PartStudioId;
+    public readonly payloadId: FeaturePayloadId;
+    public readonly sketchTransaction: Transaction<Sketch>;
+    private previousPartStudioRevision: number | null = null;
+
+    constructor(input: {
+        readonly id?: OperationId;
+        readonly label?: string;
+        readonly partStudioId: PartStudioId;
+        readonly payloadId: FeaturePayloadId;
+        readonly sketchTransaction: Transaction<Sketch>;
+    }) {
+        this.id = input.id ?? createOperationId('apply-sketch-transaction', input.payloadId);
+        this.label = input.label ?? `Apply sketch transaction: ${input.payloadId}`;
+        this.partStudioId = input.partStudioId;
+        this.payloadId = input.payloadId;
+        this.sketchTransaction = input.sketchTransaction;
+    }
+
+    public apply(document: CadDocument): CadDocument {
+        const partStudio = findPartStudioOrThrow(document, this.partStudioId);
+        const sketch = findSketchPayloadOrThrow(partStudio, this.payloadId);
+
+        this.previousPartStudioRevision = partStudio.revision;
+
+        return withPartStudio(
+            document,
+            partStudio.setFeaturePayload(this.payloadId, this.sketchTransaction.apply(sketch)),
+        );
+    }
+
+    public revert(document: CadDocument): CadDocument {
+        const partStudio = findPartStudioOrThrow(document, this.partStudioId);
+        const sketch = findSketchPayloadOrThrow(partStudio, this.payloadId);
+        const revertedPartStudio = partStudio.setFeaturePayload(
+            this.payloadId,
+            this.sketchTransaction.revert(sketch),
+        );
+
+        return withPartStudio(
+            document,
+            this.previousPartStudioRevision === null
+                ? revertedPartStudio
+                : revertedPartStudio.withRevision(this.previousPartStudioRevision),
+        );
+    }
+}
+
 function withPartStudio(document: CadDocument, partStudio: PartStudio): CadDocument {
     return document.withPartStudioStore(document.partStudioStore.set(partStudio));
 }
@@ -155,6 +208,16 @@ function findPartStudioOrThrow(document: CadDocument, partStudioId: PartStudioId
     }
 
     return partStudio;
+}
+
+function findSketchPayloadOrThrow(partStudio: PartStudio, payloadId: FeaturePayloadId): Sketch {
+    const payload = partStudio.findFeaturePayload(payloadId);
+
+    if (!(payload instanceof Sketch)) {
+        throw new Error(`Document edit failed: Sketch payload ${payloadId} was not found.`);
+    }
+
+    return payload;
 }
 
 function nextPayloadRevision(
