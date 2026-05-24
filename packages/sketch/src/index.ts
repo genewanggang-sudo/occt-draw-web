@@ -27,7 +27,7 @@ export {
     MoveVertexEdit,
     SketchEdit,
 } from './request/requests';
-export { SketchChangeOperation, createSketchEditTransaction } from './transaction/transaction';
+export { createSketchEditTransaction } from './transaction/transaction';
 export { SketchEntityKind } from './types';
 export {
     SketchDisplayBuilder,

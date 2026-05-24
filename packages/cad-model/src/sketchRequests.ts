@@ -1,6 +1,5 @@
 import {
     createRequestExecution,
-    Transaction,
     type DocumentEditLabels,
     type Request,
     type RequestContext,
@@ -22,7 +21,7 @@ import {
     type SketchVertexId,
 } from '@occt-draw/sketch';
 import type { CadDocument, PartStudio } from './document';
-import { ApplySketchTransactionOperation } from './documentOperations';
+import { withPartStudio } from './documentChanges';
 import type { Feature } from './features';
 import type { FeatureId, FeaturePayloadId, PartStudioId } from './ids';
 
@@ -65,19 +64,22 @@ abstract class SketchDocumentRequest<TResult, TEdit extends SketchEdit> implemen
             readResult: (appliedEdit) => this.readResult(sketch, appliedEdit),
             sketch,
         });
-        const transaction = new Transaction<CadDocument>({
+        const transaction = sketchEdit.transaction.map<CadDocument>({
+            get: (document) =>
+                findSketchPayloadOrThrow(
+                    findPartStudioOrThrow(document, this.partStudioId),
+                    this.sketchFeatureId,
+                ).sketch,
             id: this.transactionId,
             label: this.label,
-            operations: sketchEdit.transaction.isEmpty()
-                ? []
-                : [
-                      new ApplySketchTransactionOperation({
-                          label: this.label,
-                          partStudioId: this.partStudioId,
-                          payloadId,
-                          sketchTransaction: sketchEdit.transaction,
-                      }),
-                  ],
+            replace: (document, nextSketch) => {
+                const nextPartStudio = findPartStudioOrThrow(
+                    document,
+                    this.partStudioId,
+                ).setFeaturePayload(payloadId, nextSketch);
+
+                return withPartStudio(document, nextPartStudio);
+            },
         });
 
         return createRequestExecution({

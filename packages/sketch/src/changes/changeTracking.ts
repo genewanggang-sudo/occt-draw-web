@@ -1,10 +1,10 @@
 import {
     ChangeRecorder,
     ChangeRecordingScope,
-    ModelElementChangeOperation,
-    ModelPropertyChangeOperation,
-    createOperationId,
+    createModelChangeId,
+    type ModelElementChangeTarget,
     type ModelPropertyPath,
+    type ModelPropertyChangeTarget,
     type Transaction,
 } from '@occt-draw/core';
 import { Vec2 } from '@occt-draw/math';
@@ -26,17 +26,13 @@ export class SketchChangeRecorder {
             return;
         }
 
-        this.recorder.record(
-            new ModelElementChangeOperation<Sketch, SketchEntitySnapshot, SketchEntityRef>({
-                action: 'add',
-                addEntity: restoreSketchEntity,
-                entity: snapshot,
-                id: createSketchEntityOperationId('add-entity', entityRef),
-                label: `Add sketch ${entityRef.kind}`,
-                modelRef: entityRef,
-                removeEntity: removeSketchEntity,
-            }),
-        );
+        this.recorder.recordAdd({
+            id: createSketchEntityChangeId('add-entity', entityRef),
+            label: `Add sketch ${entityRef.kind}`,
+            ref: entityRef,
+            target: sketchEntityTarget,
+            value: snapshot,
+        });
     }
 
     public recordRemove(entityRef: SketchEntityRef, snapshot: SketchEntitySnapshot): void {
@@ -44,17 +40,13 @@ export class SketchChangeRecorder {
             return;
         }
 
-        this.recorder.record(
-            new ModelElementChangeOperation<Sketch, SketchEntitySnapshot, SketchEntityRef>({
-                action: 'remove',
-                addEntity: restoreSketchEntity,
-                entity: snapshot,
-                id: createSketchEntityOperationId('remove-entity', entityRef),
-                label: `Remove sketch ${entityRef.kind}`,
-                modelRef: entityRef,
-                removeEntity: removeSketchEntity,
-            }),
-        );
+        this.recorder.recordDelete({
+            id: createSketchEntityChangeId('remove-entity', entityRef),
+            label: `Remove sketch ${entityRef.kind}`,
+            ref: entityRef,
+            target: sketchEntityTarget,
+            value: snapshot,
+        });
     }
 
     public recordSet(input: {
@@ -70,20 +62,18 @@ export class SketchChangeRecorder {
             return;
         }
 
-        this.recorder.record(
-            new ModelPropertyChangeOperation<Sketch, SketchEntityRef, SketchPropertyValue>({
-                applyPropertyChange: applySketchPropertyChange,
-                id: createOperationId(
-                    `sketch-set-property:${input.propertyPath.join('.')}`,
-                    `${input.entityRef.kind}:${input.entityRef.id}`,
-                ),
-                label: `Set sketch ${input.entityRef.kind} property`,
-                modelRef: input.entityRef,
-                nextValue: copySketchPropertyValue(input.after),
-                previousValue: copySketchPropertyValue(input.before),
-                propertyPath: input.propertyPath,
-            }),
-        );
+        this.recorder.recordUpdate({
+            id: createModelChangeId(
+                `sketch-set-property:${input.propertyPath.join('.')}`,
+                `${input.entityRef.kind}:${input.entityRef.id}`,
+            ),
+            label: `Set sketch ${input.entityRef.kind} property`,
+            ref: input.entityRef,
+            target: sketchPropertyTarget,
+            after: copySketchPropertyValue(input.after),
+            before: copySketchPropertyValue(input.before),
+            propertyPath: input.propertyPath,
+        });
     }
 
     public toTransaction(input: { readonly id: string }): Transaction<Sketch> {
@@ -94,8 +84,8 @@ export class SketchChangeRecorder {
     }
 }
 
-function createSketchEntityOperationId(action: string, entityRef: SketchEntityRef): string {
-    return createOperationId(`sketch-${action}`, `${entityRef.kind}:${entityRef.id}`);
+function createSketchEntityChangeId(action: string, entityRef: SketchEntityRef): string {
+    return createModelChangeId(`sketch-${action}`, `${entityRef.kind}:${entityRef.id}`);
 }
 
 export function getActiveSketchChangeRecorder(): SketchChangeRecorder | null {
@@ -147,6 +137,20 @@ function removeSketchEntity(sketch: Sketch, entityRef: SketchEntityRef): Sketch 
         return sketch;
     });
 }
+
+const sketchEntityTarget: ModelElementChangeTarget<Sketch, SketchEntityRef, SketchEntitySnapshot> =
+    {
+        add: (sketch, _entityRef, snapshot) => restoreSketchEntity(sketch, snapshot),
+        remove: removeSketchEntity,
+    };
+
+const sketchPropertyTarget: ModelPropertyChangeTarget<
+    Sketch,
+    SketchEntityRef,
+    SketchPropertyValue
+> = {
+    set: applySketchPropertyChange,
+};
 
 function restoreSketchEntity(sketch: Sketch, snapshot: SketchEntitySnapshot): Sketch {
     return withSketchChangeRecordingSuppressed(() => {

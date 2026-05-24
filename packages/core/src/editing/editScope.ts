@@ -2,6 +2,7 @@ import { HistoryRecord } from './history';
 import type { DocumentEditLabels, DocumentEditResult } from './result';
 import type { Transaction, TransactionId } from './transaction';
 import { createTransactionId, Transaction as CoreTransaction } from './transaction';
+import { ModelChangeSet } from './changeSet';
 
 export type EditScopeId = string;
 
@@ -192,9 +193,14 @@ export class EditScope<TDocument = unknown> {
     }): Transaction<TDocument> {
         return new CoreTransaction({
             appliedDocumentRevision: this.currentDocumentRevision,
+            changeSet: this.records
+                .map((record) => record.transaction.changeSet)
+                .reduce(
+                    (changeSet, nextChangeSet) => changeSet.mergeWith(nextChangeSet),
+                    ModelChangeSet.empty<TDocument>(),
+                ),
             id: input.id,
             label: input.label,
-            operations: this.records.flatMap((record) => record.transaction.operations),
             previousDocumentRevision: this.initialDocumentRevision,
         });
     }

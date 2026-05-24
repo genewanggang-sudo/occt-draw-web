@@ -8,7 +8,10 @@ import {
     type TransactionId,
 } from '@occt-draw/core';
 import type { CadDocument, FeaturePayload } from './document';
-import { AppendFeatureOperation, SetFeaturePayloadOperation } from './documentOperations';
+import {
+    createFeaturePayloadChangeSet,
+    createFeaturePayloadCreationChangeSet,
+} from './documentChanges';
 import type { Feature } from './features';
 import type { FeaturePayloadId, PartStudioId } from './ids';
 
@@ -54,24 +57,17 @@ export class CreateFeaturePayloadRequest implements Request<
     public execute(
         context: RequestContext<CadDocument>,
     ): RequestExecution<CadDocument, CreateFeaturePayloadRequestResult> {
-        const partStudio = findPartStudioOrThrow(context.document, this.partStudioId);
         const transaction = new Transaction<CadDocument>({
+            changeSet: createFeaturePayloadCreationChangeSet({
+                document: context.document,
+                feature: this.feature,
+                label: this.label,
+                partStudioId: this.partStudioId,
+                payload: this.payload,
+                payloadId: this.payloadId,
+            }),
             id: this.transactionId ?? `create-feature-payload:${this.feature.id}`,
             label: this.label,
-            operations: [
-                new AppendFeatureOperation({
-                    feature: this.feature,
-                    label: `Append ${this.feature.name}`,
-                    partStudioId: this.partStudioId,
-                }),
-                new SetFeaturePayloadOperation({
-                    label: `Set ${this.feature.name} payload`,
-                    partStudioId: this.partStudioId,
-                    payload: this.payload,
-                    payloadId: this.payloadId,
-                    previousPayload: partStudio.findFeaturePayload(this.payloadId),
-                }),
-            ],
         });
 
         return createRequestExecution({
@@ -120,19 +116,16 @@ export class SetFeaturePayloadRequest implements Request<
     public execute(
         context: RequestContext<CadDocument>,
     ): RequestExecution<CadDocument, SetFeaturePayloadRequestResult> {
-        const partStudio = findPartStudioOrThrow(context.document, this.partStudioId);
         const transaction = new Transaction<CadDocument>({
+            changeSet: createFeaturePayloadChangeSet({
+                document: context.document,
+                label: this.label,
+                partStudioId: this.partStudioId,
+                payload: this.payload,
+                payloadId: this.payloadId,
+            }),
             id: this.transactionId ?? `set-feature-payload:${this.payloadId}`,
             label: this.label,
-            operations: [
-                new SetFeaturePayloadOperation({
-                    label: this.label,
-                    partStudioId: this.partStudioId,
-                    payload: this.payload,
-                    payloadId: this.payloadId,
-                    previousPayload: partStudio.findFeaturePayload(this.payloadId),
-                }),
-            ],
         });
 
         return createRequestExecution({
@@ -144,14 +137,4 @@ export class SetFeaturePayloadRequest implements Request<
             transaction,
         });
     }
-}
-
-function findPartStudioOrThrow(document: CadDocument, partStudioId: PartStudioId) {
-    const partStudio = document.partStudioStore.find(partStudioId);
-
-    if (!partStudio) {
-        throw new Error(`Document request failed: PartStudio ${partStudioId} was not found.`);
-    }
-
-    return partStudio;
 }

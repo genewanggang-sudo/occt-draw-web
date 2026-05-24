@@ -1,5 +1,4 @@
-import type { Operation } from './operation';
-import { MapOperation } from './operation';
+import type { ModelChangeSet } from './changeSet';
 import { getNextModelRevision } from '../model/base';
 
 export type TransactionId = string;
@@ -9,17 +8,17 @@ export class Transaction<TDocument = unknown> {
     public readonly id: TransactionId;
     public readonly label: string;
     public readonly mergeKey: TransactionMergeKey | null;
-    public readonly operations: readonly Operation<TDocument>[];
+    public readonly changeSet: ModelChangeSet<TDocument>;
     private readonly revisionPolicy: TransactionRevisionPolicy;
     private lastAppliedDocumentRevision: number | null = null;
     private readonly revisionStack: number[] = [];
 
     constructor(input: {
         readonly appliedDocumentRevision?: number | null;
+        readonly changeSet: ModelChangeSet<TDocument>;
         readonly id: TransactionId;
         readonly label: string;
         readonly mergeKey?: TransactionMergeKey | null;
-        readonly operations: readonly Operation<TDocument>[];
         readonly previousDocumentRevision?: number | null;
     }) {
         this.revisionPolicy = new TransactionRevisionPolicy({
@@ -29,7 +28,7 @@ export class Transaction<TDocument = unknown> {
         this.id = input.id;
         this.label = input.label;
         this.mergeKey = input.mergeKey ?? null;
-        this.operations = [...input.operations];
+        this.changeSet = input.changeSet;
     }
 
     public apply(document: TDocument): TDocument {
@@ -59,7 +58,7 @@ export class Transaction<TDocument = unknown> {
     }
 
     public isEmpty(): boolean {
-        return this.operations.length === 0;
+        return this.changeSet.isEmpty();
     }
 
     public map<TOuter>(input: {
@@ -69,17 +68,13 @@ export class Transaction<TDocument = unknown> {
         readonly replace: (outer: TOuter, inner: TDocument) => TOuter;
     }): Transaction<TOuter> {
         return new Transaction({
+            changeSet: this.changeSet.map({
+                get: input.get,
+                replace: input.replace,
+            }),
             id: input.id ?? this.id,
             label: input.label ?? this.label,
             mergeKey: this.mergeKey,
-            operations: this.operations.map(
-                (operation) =>
-                    new MapOperation({
-                        get: input.get,
-                        operation,
-                        replace: input.replace,
-                    }),
-            ),
             appliedDocumentRevision: this.revisionPolicy.appliedDocumentRevision,
             previousDocumentRevision: this.revisionPolicy.previousDocumentRevision,
         });
@@ -100,10 +95,10 @@ export class Transaction<TDocument = unknown> {
         }
 
         return new Transaction({
+            changeSet: this.changeSet.mergeWith(transaction.changeSet),
             id: input?.id ?? `${this.id}+${transaction.id}`,
             label: input?.label ?? transaction.label,
             mergeKey: this.mergeKey,
-            operations: [...this.operations, ...transaction.operations],
             appliedDocumentRevision: this.resolveMergedAppliedRevision(transaction),
             previousDocumentRevision:
                 this.revisionPolicy.previousDocumentRevision ??
@@ -112,16 +107,11 @@ export class Transaction<TDocument = unknown> {
     }
 
     private applyOperations(document: TDocument): TDocument {
-        return this.operations.reduce(
-            (currentDocument, operation) => operation.apply(currentDocument),
-            document,
-        );
+        return this.changeSet.apply(document);
     }
 
     private revertOperations(document: TDocument): TDocument {
-        return [...this.operations]
-            .reverse()
-            .reduce((currentDocument, operation) => operation.revert(currentDocument), document);
+        return this.changeSet.revert(document);
     }
 
     private resolveMergedAppliedRevision(transaction: Transaction<TDocument>): number | null {

@@ -1,6 +1,12 @@
-import type { Operation } from './operation';
-import { MapOperation } from './operation';
+import {
+    ModelChangeSetBuilder,
+    type ModelAddedChange,
+    type ModelChangeSet,
+    type ModelDeletedChange,
+    type ModelUpdatedChange,
+} from './changeSet';
 import { Transaction, type TransactionId, type TransactionMergeKey } from './transaction';
+import type { ModelRef } from '../model/refs';
 
 export class ChangeRecordingScope<TRecorder = unknown> {
     private activeRecorder: TRecorder | null = null;
@@ -44,23 +50,57 @@ export class ChangeRecordingScope<TRecorder = unknown> {
 }
 
 export class ChangeRecorder<TDocument = unknown> {
-    private readonly operations: Operation<TDocument>[] = [];
+    private readonly builder = new ModelChangeSetBuilder<TDocument>();
     private readonly recordingContext = new ChangeRecordingScope<ChangeRecorder<TDocument>>();
 
     public get count(): number {
-        return this.operations.length;
+        return this.builder.count;
     }
 
     public isEmpty(): boolean {
-        return this.operations.length === 0;
+        return this.builder.isEmpty();
     }
 
-    public record(operation: Operation<TDocument>): void {
+    public recordAdd<TRef extends ModelRef, TValue>(
+        change: ModelAddedChange<TDocument, TRef, TValue>,
+    ): void {
         if (this.recordingContext.isSuppressed) {
             return;
         }
 
-        this.operations.push(operation);
+        this.builder.recordAdd(change);
+    }
+
+    public recordDelete<TRef extends ModelRef, TValue>(
+        change: ModelDeletedChange<TDocument, TRef, TValue>,
+    ): void {
+        if (this.recordingContext.isSuppressed) {
+            return;
+        }
+
+        this.builder.recordDelete(change);
+    }
+
+    public recordUpdate<TRef extends ModelRef, TValue>(
+        change: Omit<ModelUpdatedChange<TDocument, TRef, TValue>, 'properties'> & {
+            readonly after: TValue;
+            readonly before: TValue;
+            readonly propertyPath: readonly string[];
+        },
+    ): void {
+        if (this.recordingContext.isSuppressed) {
+            return;
+        }
+
+        this.builder.recordUpdate(change);
+    }
+
+    public recordChangeSet(changeSet: ModelChangeSet<TDocument>): void {
+        if (this.recordingContext.isSuppressed) {
+            return;
+        }
+
+        this.builder.recordChangeSet(changeSet);
     }
 
     public capture<TResult>(action: () => TResult): TResult {
@@ -71,18 +111,8 @@ export class ChangeRecorder<TDocument = unknown> {
         return this.recordingContext.suppress(action);
     }
 
-    public recordMapped<TInner>(input: {
-        readonly get: (document: TDocument) => TInner;
-        readonly operation: Operation<TInner>;
-        readonly replace: (document: TDocument, inner: TInner) => TDocument;
-    }): void {
-        this.record(
-            new MapOperation({
-                get: input.get,
-                operation: input.operation,
-                replace: input.replace,
-            }),
-        );
+    public toChangeSet(): ModelChangeSet<TDocument> {
+        return this.builder.toChangeSet();
     }
 
     public toTransaction(input: {
@@ -91,10 +121,10 @@ export class ChangeRecorder<TDocument = unknown> {
         readonly mergeKey?: TransactionMergeKey | null;
     }): Transaction<TDocument> {
         return new Transaction({
+            changeSet: this.toChangeSet(),
             id: input.id,
             label: input.label,
             mergeKey: input.mergeKey ?? null,
-            operations: this.operations,
         });
     }
 }

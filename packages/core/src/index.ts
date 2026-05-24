@@ -1,16 +1,22 @@
 export { DocumentSession, type DocumentSessionSnapshot } from './document/session';
 
-export { ChangeRecorder, ChangeRecordingScope } from './editing/changeRecorder';
 export {
-    FunctionalOperation,
-    MapOperation,
-    ReplaceStateOperation,
-    ReplaceValueOperation,
-    createOperationId,
-    type Operation,
-    type OperationId,
-    type OperationResult,
-} from './editing/operation';
+    ModelChangeSet,
+    ModelChangeSetBuilder,
+    createModelChangeId,
+    createModelChangeKey,
+    createModelPropertyChangeKey,
+    type ModelAddedChange,
+    type ModelChangeId,
+    type ModelChangeKey,
+    type ModelDeletedChange,
+    type ModelElementChangeTarget,
+    type ModelPropertyChangeKey,
+    type ModelPropertyChangeTarget,
+    type ModelPropertyValueChange,
+    type ModelUpdatedChange,
+} from './editing/changeSet';
+export { ChangeRecorder, ChangeRecordingScope } from './editing/changeRecorder';
 export {
     createRequestExecution,
     type Request,
@@ -58,13 +64,6 @@ export {
     type NamedModelElement,
 } from './model/base';
 export {
-    ModelElementChangeOperation,
-    ModelPropertyChangeOperation,
-    SetModelPropertyOperation,
-    createSetModelPropertyOperation,
-    type ModelElementChangeAction,
-} from './model/operations';
-export {
     ModelPropertyBag,
     defineModelProperty,
     type ModelProperty,
@@ -75,14 +74,7 @@ export {
 } from './model/properties';
 export { ModelRefIndex, type ModelRefResolver } from './model/refIndex';
 export { createModelRef, type ModelRef, type ObjectRef } from './model/refs';
-export {
-    AddModelElementOperation,
-    MappedModelElementStoreEditor,
-    ModelElementStore,
-    ModelElementStoreEditor,
-    RemoveModelElementOperation,
-    ReplaceModelElementOperation,
-} from './model/store';
+export { ModelElementStore } from './model/store';
 
 export { PayloadStore, type Payload } from './payload/payloadStore';
 
