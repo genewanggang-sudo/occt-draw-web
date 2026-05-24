@@ -1,10 +1,12 @@
 import {
     CreateFeaturePayloadRequest,
     Feature,
+    createFeaturePayloadRef,
     referencePlaneToPlane,
     type ReferencePlaneObject,
 } from '@occt-draw/cad-model';
 import type { CameraState } from '@occt-draw/canvas';
+import { createModelRef } from '@occt-draw/core';
 import { Vec3 } from '@occt-draw/math';
 import { clearSelection } from '@occt-draw/platform';
 import { createSketchOnReferencePlane } from '@occt-draw/sketch';
@@ -47,12 +49,15 @@ export class EnterSketchCommand extends CadCommand {
             id: sketchId,
             name: sketchName,
             planeKind: selectedPlane.planeKind,
-            planeRef: selectedPlane.id,
+            planeObjectRef: createModelRef({
+                id: selectedPlane.id,
+                kind: 'cad.object.reference-plane',
+            }),
         });
         const feature = new Feature({
             id: featureId,
             name: sketchName,
-            payloadRef: sketch.id,
+            payloadRef: createFeaturePayloadRef(sketch.id),
             type: 'sketch',
         });
 

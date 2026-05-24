@@ -18,14 +18,7 @@ export {
     sketchPointToWorldOnPlane,
     worldPointToSketchPointOnPlane,
 } from './model/sketch';
-export {
-    AddEntityChange,
-    RemoveEntityChange,
-    SetPropertyChange,
-    SketchChange,
-    SketchChangeRecorder,
-    SketchChangeSet,
-} from './changes/changeTracking';
+export { SketchChangeRecorder } from './changes/changeTracking';
 export {
     AddCornerRectangleRequest,
     AddLineSegmentRequest,
@@ -59,6 +52,7 @@ export type {
     SketchEntityStoreName,
     SketchId,
     SketchPlaneInput,
+    SketchPlaneObjectRef,
     SketchPlaneKind,
     SketchPointId,
     SketchProfileId,

@@ -318,5 +318,5 @@ function getSketchEntityKindLabel(ref: SketchEntityRef): string {
 }
 
 function getSketchEntityId(ref: SketchEntityRef): string {
-    return ref.entityId;
+    return ref.id;
 }

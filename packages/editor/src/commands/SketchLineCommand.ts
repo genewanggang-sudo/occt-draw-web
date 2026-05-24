@@ -180,7 +180,7 @@ export class SketchLineCommand extends CadCommand {
         return createHandledCommandResult({
             draft: createEditDraft<CadDocument>({
                 id: 'draft:sketch-line',
-                kind: 'sketch',
+                kind: 'temporary',
             }).withTemporaryObjects([
                 {
                     id: 'draft:sketch-line:segment',
@@ -219,7 +219,7 @@ export class SketchLineCommand extends CadCommand {
         const rawPoint = projectScreenPointToSketch2({
             camera: state.navigation.camera,
             partStudio: state.document.getActivePartStudio(),
-            planeRef: sketch.planeRef,
+            planeObjectRef: sketch.plane.planeObjectRef,
             point: event.point,
             viewportSize: state.navigation.viewportSize,
         });
@@ -419,7 +419,9 @@ function findActiveSketch(
 }
 
 function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
-    const object = state.document.getActivePartStudio().findObjectById(sketch.planeRef);
+    const object = state.document
+        .getActivePartStudio()
+        .findObjectById(sketch.plane.planeObjectRef.id);
 
     return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
 }
@@ -463,5 +465,5 @@ function collectSketchVertexSnapSources(
 }
 
 function getSnappedVertexId(snap: SnapResult<SketchEntityRef> | null): SketchVertexId | null {
-    return snap?.sourceRef?.kind === SketchEntityKind.Vertex ? snap.sourceRef.entityId : null;
+    return snap?.sourceRef?.kind === SketchEntityKind.Vertex ? snap.sourceRef.id : null;
 }

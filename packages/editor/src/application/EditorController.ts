@@ -74,10 +74,14 @@ export class EditorController {
         }
 
         if ('activeSketchSession' in result) {
+            const previousSketchSession = nextState.activeSketchSession;
+            const nextSketchSession = result.activeSketchSession ?? null;
+
             nextState = {
                 ...nextState,
-                activeSketchSession: result.activeSketchSession ?? null,
+                activeSketchSession: nextSketchSession,
             };
+            nextState = reconcileSketchEditScope(nextState, previousSketchSession);
         }
 
         if (result.navigation) {
@@ -104,14 +108,17 @@ export class EditorController {
     }
 
     public cancelActiveCommand(): EditorState {
-        return {
+        const nextActiveSketchSession = shouldExitSketchSession(this.state)
+            ? null
+            : this.state.activeSketchSession;
+        const nextState = {
             ...this.state,
             commandSession: cancelCommandSession(this.state.commandSession),
             draft: null,
-            activeSketchSession: shouldExitSketchSession(this.state)
-                ? null
-                : this.state.activeSketchSession,
+            activeSketchSession: nextActiveSketchSession,
         };
+
+        return reconcileSketchEditScope(nextState, this.state.activeSketchSession);
     }
 
     public clearSelection(): EditorState {
@@ -237,6 +244,47 @@ function createCommandAvailabilityContext(state: EditorState) {
 
 function shouldExitSketchSession(state: EditorState): boolean {
     return state.activeSketchSession?.pendingLineStart === null;
+}
+
+function reconcileSketchEditScope(
+    state: EditorState,
+    previousSketchSession: SketchEditSession | null,
+): EditorState {
+    if (!previousSketchSession && state.activeSketchSession) {
+        const documentSession = state.documentSession.clone();
+        const snapshot = documentSession.getSnapshot();
+
+        if (!snapshot.hasActiveScope) {
+            documentSession.beginScope({
+                id: `sketch-edit:${state.activeSketchSession.sketchFeatureId}`,
+                label: `Edit ${state.activeSketchSession.sketchFeatureId}`,
+            });
+        }
+
+        return {
+            ...state,
+            documentSession,
+        };
+    }
+
+    if (previousSketchSession && !state.activeSketchSession) {
+        const documentSession = state.documentSession.clone();
+        const snapshot = documentSession.getSnapshot();
+
+        if (snapshot.hasActiveScope) {
+            documentSession.confirmScope({
+                id: `sketch-edit:${previousSketchSession.sketchFeatureId}`,
+                record: `Edit ${previousSketchSession.sketchFeatureId}`,
+            });
+        }
+
+        return {
+            ...state,
+            documentSession,
+        };
+    }
+
+    return state;
 }
 
 function reconcileSketchSession(

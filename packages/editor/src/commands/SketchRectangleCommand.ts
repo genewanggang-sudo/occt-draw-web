@@ -240,7 +240,7 @@ function createRectangleDraft(plane: Plane3, firstCorner: Vector2, oppositeCorne
 
     return createEditDraft<CadDocument>({
         id: 'draft:sketch-rectangle',
-        kind: 'sketch',
+        kind: 'temporary',
     }).withTemporaryObjects(
         segments.map((segment, index) => ({
             color: Vec3.of(0.1, 0.55, 1),
@@ -304,7 +304,7 @@ function projectPointerToSketch(
     return projectScreenPointToSketch2({
         camera: state.navigation.camera,
         partStudio: state.document.getActivePartStudio(),
-        planeRef: sketch.planeRef,
+        planeObjectRef: sketch.plane.planeObjectRef,
         point: event.point,
         viewportSize: state.navigation.viewportSize,
     });
@@ -336,7 +336,9 @@ function findActiveSketch(
 }
 
 function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
-    const object = state.document.getActivePartStudio().findObjectById(sketch.planeRef);
+    const object = state.document
+        .getActivePartStudio()
+        .findObjectById(sketch.plane.planeObjectRef.id);
 
     return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
 }

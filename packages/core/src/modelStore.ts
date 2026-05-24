@@ -14,6 +14,13 @@ export class ModelEntityStore<
         this.entities = new Map(entities ?? emptyEntities);
     }
 
+    public static fromEntities<
+        TEntity extends IdentifiedModelEntity<TId>,
+        TId extends string = string,
+    >(entities: readonly TEntity[]): ModelEntityStore<TEntity, TId> {
+        return new ModelEntityStore(entities.map((entity) => [entity.id, entity]));
+    }
+
     public find(id: TId): TEntity | null {
         return this.entities.get(id) ?? null;
     }

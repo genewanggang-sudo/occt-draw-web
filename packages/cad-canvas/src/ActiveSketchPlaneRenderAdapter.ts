@@ -35,7 +35,7 @@ export class ActiveSketchPlaneRenderAdapter {
 
         const referencePlane = this.referencePlaneResolver.findReferencePlaneById(
             input.partStudio,
-            sketch.planeRef,
+            sketch.plane.planeObjectRef.id,
         );
 
         if (!referencePlane) {

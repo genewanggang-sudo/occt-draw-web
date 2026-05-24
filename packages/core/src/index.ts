@@ -12,6 +12,7 @@ export {
     ReplaceValueOperation,
     Transaction,
     ChangeRecorder,
+    ChangeRecordingScope,
     createOperationId,
     createRequestExecution,
     createTransactionId,
@@ -37,18 +38,42 @@ export {
     type DraftObjectKind,
     type DraftPointObject,
 } from './editDraft';
-export type { DocumentId, FeatureId, ObjectId, PayloadId } from './ids';
+export type { DocumentId, ObjectId, PayloadId } from './ids';
 export { PayloadStore, type Payload } from './payload';
 export {
     BaseDocumentModel,
     BaseModelEntity,
+    BaseModelObject,
     BaseRevisionedModelEntity,
+    ModelRefIndex,
+    ModelPropertyBag,
+    createModelRef,
+    defineModelProperty,
     type IdentifiedModelEntity,
     type ModelEntityInput,
+    type ModelObject,
+    type ModelObjectId,
+    type ModelObjectInput,
+    type ModelObjectType,
+    type ModelProperty,
+    type ModelPropertyDefinition,
+    type ModelPropertyKey,
+    type ModelPropertyPath,
+    type ModelPropertyValue,
+    type ModelRef,
+    type ModelRefResolver,
+    type ObjectRef,
     type NamedModelEntity,
     type RevisionedModelEntity,
     type RevisionedModelEntityInput,
 } from './model';
+export {
+    ModelEntityChangeOperation,
+    ModelPropertyChangeOperation,
+    SetModelPropertyOperation,
+    createSetModelPropertyOperation,
+    type ModelEntityChangeAction,
+} from './modelOperations';
 export {
     AddModelEntityOperation,
     MappedModelEntityStoreEditor,

@@ -1,3 +1,4 @@
+import { BaseModelEntity } from '@occt-draw/core';
 import {
     SketchEntityKind,
     type EdgeSnapshot,
@@ -11,9 +12,7 @@ import {
     type VertexSnapshot,
 } from '../types';
 
-export class Vertex {
-    public readonly id: SketchVertexId;
-    public readonly pointId: SketchPointId;
+export class Vertex extends BaseModelEntity {
     private readonly sketchId: SketchId;
 
     constructor(input: {
@@ -21,15 +20,24 @@ export class Vertex {
         readonly pointId: SketchPointId;
         readonly sketchId: SketchId;
     }) {
-        this.id = input.id;
-        this.pointId = input.pointId;
+        super({
+            id: input.id,
+            modelType: 'sketch.vertex',
+            name: input.id,
+            properties: new Map([['pointId', input.pointId]]),
+        });
         this.sketchId = input.sketchId;
+    }
+
+    public get pointId(): SketchPointId {
+        return this.getStringProperty('pointId');
     }
 
     public get ref(): SketchEntityRef {
         return {
-            entityId: this.id,
+            id: this.id,
             kind: SketchEntityKind.Vertex,
+            ownerId: this.sketchId,
             sketchId: this.sketchId,
         };
     }
@@ -51,13 +59,8 @@ export class Vertex {
     }
 }
 
-export class Edge {
-    public readonly curveId: SketchCurveId;
-    public readonly endVertexId: SketchVertexId;
-    public readonly id: SketchEdgeId;
-    public readonly role: SketchEdgeRole;
+export class Edge extends BaseModelEntity {
     private readonly sketchId: SketchId;
-    public readonly startVertexId: SketchVertexId;
 
     constructor(input: {
         readonly curveId: SketchCurveId;
@@ -67,18 +70,43 @@ export class Edge {
         readonly sketchId: SketchId;
         readonly startVertexId: SketchVertexId;
     }) {
-        this.curveId = input.curveId;
-        this.endVertexId = input.endVertexId;
-        this.id = input.id;
-        this.role = input.role ?? 'normal';
+        super({
+            id: input.id,
+            modelType: 'sketch.edge',
+            name: input.id,
+            properties: new Map([
+                ['curveId', input.curveId],
+                ['endVertexId', input.endVertexId],
+                ['role', input.role ?? 'normal'],
+                ['startVertexId', input.startVertexId],
+            ]),
+        });
         this.sketchId = input.sketchId;
-        this.startVertexId = input.startVertexId;
+    }
+
+    public get curveId(): SketchCurveId {
+        return this.getStringProperty('curveId');
+    }
+
+    public get endVertexId(): SketchVertexId {
+        return this.getStringProperty('endVertexId');
+    }
+
+    public get role(): SketchEdgeRole {
+        const value = this.getStringProperty('role');
+
+        return value === 'construction' ? 'construction' : 'normal';
+    }
+
+    public get startVertexId(): SketchVertexId {
+        return this.getStringProperty('startVertexId');
     }
 
     public get ref(): SketchEntityRef {
         return {
-            entityId: this.id,
+            id: this.id,
             kind: SketchEntityKind.Edge,
+            ownerId: this.sketchId,
             sketchId: this.sketchId,
         };
     }

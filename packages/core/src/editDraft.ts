@@ -1,7 +1,7 @@
 import type { LineSegment3, Vector3 } from '@occt-draw/math';
 
 export type DraftId = string;
-export type DraftKind = 'generic' | 'selection' | 'sketch' | 'transform';
+export type DraftKind = 'generic' | 'selection' | 'temporary' | 'transform';
 export type DraftObjectId = string;
 export type DraftObjectKind = 'line-segment' | 'point';
 

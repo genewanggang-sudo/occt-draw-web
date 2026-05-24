@@ -147,7 +147,7 @@ export class SetFeaturePayloadRequest implements Request<
 }
 
 function findPartStudioOrThrow(document: CadDocument, partStudioId: PartStudioId) {
-    const partStudio = document.partStudios.find((current) => current.id === partStudioId);
+    const partStudio = document.partStudioStore.find(partStudioId);
 
     if (!partStudio) {
         throw new Error(`Document request failed: PartStudio ${partStudioId} was not found.`);

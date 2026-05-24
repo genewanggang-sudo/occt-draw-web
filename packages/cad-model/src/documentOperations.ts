@@ -1,5 +1,5 @@
 import { type Operation, type OperationId, createOperationId } from '@occt-draw/core';
-import { CadDocument, type FeaturePayload, type PartStudio } from './document';
+import type { CadDocument, FeaturePayload, PartStudio } from './document';
 import type { Feature } from './features';
 import type { FeaturePayloadId, PartStudioId } from './ids';
 
@@ -22,14 +22,14 @@ export class AppendFeatureOperation implements Operation<CadDocument> {
     }
 
     public apply(document: CadDocument): CadDocument {
-        return replacePartStudio(
+        return withPartStudio(
             document,
             findPartStudioOrThrow(document, this.partStudioId).appendFeature(this.feature),
         );
     }
 
     public revert(document: CadDocument): CadDocument {
-        return replacePartStudio(
+        return withPartStudio(
             document,
             findPartStudioOrThrow(document, this.partStudioId).removeFeature(this.feature.id),
         );
@@ -56,25 +56,11 @@ export class ReplaceActivePartStudioOperation implements Operation<CadDocument> 
     }
 
     public apply(document: CadDocument): CadDocument {
-        return new CadDocument({
-            activePartStudioId: this.activePartStudioId,
-            id: document.id,
-            metadata: document.metadata,
-            name: document.name,
-            partStudios: document.partStudios,
-            revision: document.revision,
-        });
+        return document.withActivePartStudioId(this.activePartStudioId);
     }
 
     public revert(document: CadDocument): CadDocument {
-        return new CadDocument({
-            activePartStudioId: this.previousActivePartStudioId,
-            id: document.id,
-            metadata: document.metadata,
-            name: document.name,
-            partStudios: document.partStudios,
-            revision: document.revision,
-        });
+        return document.withActivePartStudioId(this.previousActivePartStudioId);
     }
 }
 
@@ -97,11 +83,11 @@ export class ReplacePartStudioOperation implements Operation<CadDocument> {
     }
 
     public apply(document: CadDocument): CadDocument {
-        return replacePartStudio(document, this.partStudio);
+        return withPartStudio(document, this.partStudio);
     }
 
     public revert(document: CadDocument): CadDocument {
-        return replacePartStudio(document, this.previousPartStudio);
+        return withPartStudio(document, this.previousPartStudio);
     }
 }
 
@@ -130,7 +116,7 @@ export class SetFeaturePayloadOperation implements Operation<CadDocument> {
     }
 
     public apply(document: CadDocument): CadDocument {
-        return replacePartStudio(
+        return withPartStudio(
             document,
             findPartStudioOrThrow(document, this.partStudioId).setFeaturePayload(
                 this.payloadId,
@@ -142,7 +128,7 @@ export class SetFeaturePayloadOperation implements Operation<CadDocument> {
     public revert(document: CadDocument): CadDocument {
         const partStudio = findPartStudioOrThrow(document, this.partStudioId);
 
-        return replacePartStudio(
+        return withPartStudio(
             document,
             this.previousPayload
                 ? partStudio.setFeaturePayload(this.payloadId, this.previousPayload)
@@ -151,21 +137,12 @@ export class SetFeaturePayloadOperation implements Operation<CadDocument> {
     }
 }
 
-function replacePartStudio(document: CadDocument, partStudio: PartStudio): CadDocument {
-    return new CadDocument({
-        activePartStudioId: document.activePartStudioId,
-        id: document.id,
-        metadata: document.metadata,
-        name: document.name,
-        partStudios: document.partStudios.map((current) =>
-            current.id === partStudio.id ? partStudio : current,
-        ),
-        revision: document.revision,
-    });
+function withPartStudio(document: CadDocument, partStudio: PartStudio): CadDocument {
+    return document.withPartStudioStore(document.partStudioStore.set(partStudio));
 }
 
 function findPartStudioOrThrow(document: CadDocument, partStudioId: PartStudioId): PartStudio {
-    const partStudio = document.partStudios.find((current) => current.id === partStudioId);
+    const partStudio = document.partStudioStore.find(partStudioId);
 
     if (!partStudio) {
         throw new Error(`Document edit failed: PartStudio ${partStudioId} was not found.`);

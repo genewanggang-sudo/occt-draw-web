@@ -1,5 +1,6 @@
 import { Vec3 } from '@occt-draw/math';
 import { CadDocument, PartStudio } from './document';
+import { ReferenceOriginObject, ReferencePlaneObject } from './objects';
 
 export function createDefaultCadDocument(): CadDocument {
     const activePartStudio = new PartStudio({
@@ -7,16 +8,14 @@ export function createDefaultCadDocument(): CadDocument {
         name: '零件工作区 1',
         features: [],
         objects: [
-            {
+            new ReferenceOriginObject({
                 id: 'origin-main',
-                kind: 'reference-origin',
                 name: '原点',
                 visible: true,
                 position: Vec3.of(0, 0, 0),
-            },
-            {
+            }),
+            new ReferencePlaneObject({
                 id: 'plane-xy',
-                kind: 'reference-plane',
                 name: '基准面 XY',
                 visible: true,
                 origin: Vec3.of(0, 0, 0),
@@ -24,10 +23,9 @@ export function createDefaultCadDocument(): CadDocument {
                 xAxis: Vec3.of(1, 0, 0),
                 planeKind: 'xy',
                 size: 6,
-            },
-            {
+            }),
+            new ReferencePlaneObject({
                 id: 'plane-yz',
-                kind: 'reference-plane',
                 name: '基准面 YZ',
                 visible: true,
                 origin: Vec3.of(0, 0, 0),
@@ -35,10 +33,9 @@ export function createDefaultCadDocument(): CadDocument {
                 xAxis: Vec3.of(0, 1, 0),
                 planeKind: 'yz',
                 size: 6,
-            },
-            {
+            }),
+            new ReferencePlaneObject({
                 id: 'plane-zx',
-                kind: 'reference-plane',
                 name: '基准面 ZX',
                 visible: true,
                 origin: Vec3.of(0, 0, 0),
@@ -46,7 +43,7 @@ export function createDefaultCadDocument(): CadDocument {
                 xAxis: Vec3.of(1, 0, 0),
                 planeKind: 'zx',
                 size: 6,
-            },
+            }),
         ],
     });
 

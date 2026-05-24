@@ -1,3 +1,9 @@
+import {
+    BaseModelEntity,
+    defineModelProperty,
+    type ModelPropertyDefinition,
+    type ModelPropertyValue,
+} from '@occt-draw/core';
 import { Vec2, type Vector2 } from '@occt-draw/math';
 import { recordSketchPropertySet } from '../changes/changeTracking';
 import {
@@ -13,23 +19,77 @@ import {
     type SketchPointId,
 } from '../types';
 
-export class Point2D {
-    public readonly id: SketchPointId;
+const POINT_POSITION_PROPERTY = defineModelProperty<Vector2>({
+    key: 'position',
+    defaultValue: Vec2.of(0, 0),
+    validate: assertVector2Property,
+});
+
+const LINE_DIRECTION_PROPERTY = defineModelProperty<Vector2>({
+    key: 'direction',
+    defaultValue: Vec2.of(1, 0),
+    validate: assertVector2Property,
+});
+
+const LINE_ORIGIN_PROPERTY = defineModelProperty<Vector2>({
+    key: 'origin',
+    defaultValue: Vec2.of(0, 0),
+    validate: assertVector2Property,
+});
+
+const CIRCLE_CENTER_PROPERTY = defineModelProperty<Vector2>({
+    key: 'center',
+    defaultValue: Vec2.of(0, 0),
+    validate: assertVector2Property,
+});
+
+const CIRCLE_RADIUS_PROPERTY = defineModelProperty<number>({
+    key: 'radius',
+    defaultValue: 0,
+});
+
+const ARC_CENTER_PROPERTY = defineModelProperty<Vector2>({
+    key: 'center',
+    defaultValue: Vec2.of(0, 0),
+    validate: assertVector2Property,
+});
+
+const ARC_END_ANGLE_PROPERTY = defineModelProperty<number>({
+    key: 'endAngleRadians',
+    defaultValue: 0,
+});
+
+const ARC_RADIUS_PROPERTY = defineModelProperty<number>({
+    key: 'radius',
+    defaultValue: 0,
+});
+
+const ARC_START_ANGLE_PROPERTY = defineModelProperty<number>({
+    key: 'startAngleRadians',
+    defaultValue: 0,
+});
+
+export class Point2D extends BaseModelEntity {
     private readonly sketchId: SketchId;
-    private positionValue: Vector2;
 
     constructor(input: {
         readonly id: SketchPointId;
         readonly position: Vector2;
         readonly sketchId: SketchId;
     }) {
-        this.id = input.id;
-        this.positionValue = copyVector2(input.position);
+        super({
+            id: input.id,
+            modelType: 'sketch.point',
+            name: input.id,
+            properties: new Map<string, ModelPropertyValue>([
+                [POINT_POSITION_PROPERTY.key, copyVector2(input.position)],
+            ]),
+        });
         this.sketchId = input.sketchId;
     }
 
     public get position(): Vector2 {
-        return this.positionValue;
+        return readVector2Property(this, POINT_POSITION_PROPERTY);
     }
 
     public set position(position: Vector2) {
@@ -37,17 +97,18 @@ export class Point2D {
 
         recordSketchPropertySet({
             after: nextPosition,
-            before: this.positionValue,
+            before: this.position,
             entityRef: this.ref,
             propertyPath: ['position'],
         });
-        this.positionValue = nextPosition;
+        this.setDefinedPropertyValue(POINT_POSITION_PROPERTY, nextPosition);
     }
 
     public get ref(): SketchEntityRef {
         return {
-            entityId: this.id,
+            id: this.id,
             kind: SketchEntityKind.Point,
+            ownerId: this.sketchId,
             sketchId: this.sketchId,
         };
     }
@@ -56,7 +117,7 @@ export class Point2D {
         return {
             id: this.id,
             kind: 'point',
-            position: copyVector2(this.positionValue),
+            position: this.position,
         };
     }
 
@@ -69,31 +130,43 @@ export class Point2D {
     }
 }
 
-export abstract class Curve2D {
-    public abstract readonly id: SketchCurveId;
+export abstract class Curve2D extends BaseModelEntity {
     public abstract readonly kind: Curve2DSnapshot['kind'];
     protected readonly sketchId: SketchId;
 
-    protected constructor(sketchId: SketchId) {
-        this.sketchId = sketchId;
+    protected constructor(input: {
+        readonly id: SketchCurveId;
+        readonly modelType: string;
+        readonly properties?: ReadonlyMap<string, ModelPropertyValue>;
+        readonly sketchId: SketchId;
+    }) {
+        super({
+            id: input.id,
+            modelType: input.modelType,
+            name: input.id,
+            properties: input.properties ?? null,
+        });
+        this.sketchId = input.sketchId;
     }
 
     public get ref(): SketchEntityRef {
         return {
-            entityId: this.id,
+            id: this.id,
             kind: SketchEntityKind.Curve,
+            ownerId: this.sketchId,
             sketchId: this.sketchId,
         };
     }
 
     public abstract snapshot(): Curve2DSnapshot;
+
+    protected getVector2Property(definition: ModelPropertyDefinition<Vector2>): Vector2 {
+        return readVector2Property(this, definition);
+    }
 }
 
 export class Line2D extends Curve2D {
-    public readonly id: SketchCurveId;
     public readonly kind = 'line' as const;
-    private directionValue: Vector2;
-    private originValue: Vector2;
 
     constructor(input: {
         readonly direction: Vector2;
@@ -101,14 +174,19 @@ export class Line2D extends Curve2D {
         readonly origin: Vector2;
         readonly sketchId: SketchId;
     }) {
-        super(input.sketchId);
-        this.directionValue = normalizeLineDirection(input.direction);
-        this.id = input.id;
-        this.originValue = copyVector2(input.origin);
+        super({
+            id: input.id,
+            modelType: 'sketch.curve.line',
+            properties: new Map<string, ModelPropertyValue>([
+                [LINE_DIRECTION_PROPERTY.key, normalizeLineDirection(input.direction)],
+                [LINE_ORIGIN_PROPERTY.key, copyVector2(input.origin)],
+            ]),
+            sketchId: input.sketchId,
+        });
     }
 
     public get direction(): Vector2 {
-        return this.directionValue;
+        return this.getVector2Property(LINE_DIRECTION_PROPERTY);
     }
 
     public set direction(direction: Vector2) {
@@ -116,15 +194,15 @@ export class Line2D extends Curve2D {
 
         recordSketchPropertySet({
             after: nextDirection,
-            before: this.directionValue,
+            before: this.direction,
             entityRef: this.ref,
             propertyPath: ['direction'],
         });
-        this.directionValue = nextDirection;
+        this.setDefinedPropertyValue(LINE_DIRECTION_PROPERTY, nextDirection);
     }
 
     public get origin(): Vector2 {
-        return this.originValue;
+        return this.getVector2Property(LINE_ORIGIN_PROPERTY);
     }
 
     public set origin(origin: Vector2) {
@@ -132,19 +210,19 @@ export class Line2D extends Curve2D {
 
         recordSketchPropertySet({
             after: nextOrigin,
-            before: this.originValue,
+            before: this.origin,
             entityRef: this.ref,
             propertyPath: ['origin'],
         });
-        this.originValue = nextOrigin;
+        this.setDefinedPropertyValue(LINE_ORIGIN_PROPERTY, nextOrigin);
     }
 
     public snapshot(): Line2DSnapshot {
         return {
-            direction: copyVector2(this.directionValue),
+            direction: this.direction,
             id: this.id,
             kind: this.kind,
-            origin: copyVector2(this.originValue),
+            origin: this.origin,
         };
     }
 
@@ -173,10 +251,7 @@ export class Line2D extends Curve2D {
 }
 
 export class Circle2D extends Curve2D {
-    public readonly id: SketchCurveId;
     public readonly kind = 'circle' as const;
-    private centerValue: Vector2;
-    private radiusValue: number;
 
     constructor(input: {
         readonly center: Vector2;
@@ -184,18 +259,23 @@ export class Circle2D extends Curve2D {
         readonly radius: number;
         readonly sketchId: SketchId;
     }) {
-        super(input.sketchId);
-        this.centerValue = copyVector2(input.center);
-        this.id = input.id;
-        this.radiusValue = input.radius;
+        super({
+            id: input.id,
+            modelType: 'sketch.curve.circle',
+            properties: new Map<string, ModelPropertyValue>([
+                [CIRCLE_CENTER_PROPERTY.key, copyVector2(input.center)],
+                [CIRCLE_RADIUS_PROPERTY.key, input.radius],
+            ]),
+            sketchId: input.sketchId,
+        });
     }
 
     public snapshot(): Circle2DSnapshot {
         return {
-            center: copyVector2(this.centerValue),
+            center: this.getVector2Property(CIRCLE_CENTER_PROPERTY),
             id: this.id,
             kind: this.kind,
-            radius: this.radiusValue,
+            radius: this.getNumberProperty(CIRCLE_RADIUS_PROPERTY.key),
         };
     }
 
@@ -210,12 +290,7 @@ export class Circle2D extends Curve2D {
 }
 
 export class Arc2D extends Curve2D {
-    public readonly id: SketchCurveId;
     public readonly kind = 'arc' as const;
-    private centerValue: Vector2;
-    private endAngleRadiansValue: number;
-    private radiusValue: number;
-    private startAngleRadiansValue: number;
 
     constructor(input: {
         readonly center: Vector2;
@@ -225,22 +300,27 @@ export class Arc2D extends Curve2D {
         readonly sketchId: SketchId;
         readonly startAngleRadians: number;
     }) {
-        super(input.sketchId);
-        this.centerValue = copyVector2(input.center);
-        this.endAngleRadiansValue = input.endAngleRadians;
-        this.id = input.id;
-        this.radiusValue = input.radius;
-        this.startAngleRadiansValue = input.startAngleRadians;
+        super({
+            id: input.id,
+            modelType: 'sketch.curve.arc',
+            properties: new Map<string, ModelPropertyValue>([
+                [ARC_CENTER_PROPERTY.key, copyVector2(input.center)],
+                [ARC_END_ANGLE_PROPERTY.key, input.endAngleRadians],
+                [ARC_RADIUS_PROPERTY.key, input.radius],
+                [ARC_START_ANGLE_PROPERTY.key, input.startAngleRadians],
+            ]),
+            sketchId: input.sketchId,
+        });
     }
 
     public snapshot(): Arc2DSnapshot {
         return {
-            center: copyVector2(this.centerValue),
-            endAngleRadians: this.endAngleRadiansValue,
+            center: this.getVector2Property(ARC_CENTER_PROPERTY),
+            endAngleRadians: this.getNumberProperty(ARC_END_ANGLE_PROPERTY.key),
             id: this.id,
             kind: this.kind,
-            radius: this.radiusValue,
-            startAngleRadians: this.startAngleRadiansValue,
+            radius: this.getNumberProperty(ARC_RADIUS_PROPERTY.key),
+            startAngleRadians: this.getNumberProperty(ARC_START_ANGLE_PROPERTY.key),
         };
     }
 
@@ -272,8 +352,27 @@ function copyVector2(vector: Vector2): Vector2 {
     return Vec2.of(vector.x, vector.y);
 }
 
+function readVector2Property(
+    model: BaseModelEntity,
+    definition: ModelPropertyDefinition<Vector2>,
+): Vector2 {
+    const value = model.getDefinedProperty(definition);
+
+    return isVector2(value) ? copyVector2(value) : Vec2.of(0, 0);
+}
+
+function isVector2(value: ModelPropertyValue | null): value is Vector2 {
+    return typeof value === 'object' && value !== null && 'x' in value && 'y' in value;
+}
+
 function normalizeLineDirection(direction: Vector2): Vector2 {
     const length = Vec2.length(direction);
 
     return length > 0 ? Vec2.scale(direction, 1 / length) : Vec2.of(1, 0);
+}
+
+function assertVector2Property(value: Vector2): void {
+    if (!isVector2(value)) {
+        throw new Error('Expected Vector2 model property value.');
+    }
 }

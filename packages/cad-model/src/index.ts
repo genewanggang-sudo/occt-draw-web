@@ -14,7 +14,13 @@ export {
 } from './documentRequests';
 export { createDefaultCadDocument } from './defaultDocument';
 export { findCadObjectById, getActivePartStudio, listVisibleCadObjects } from './documentQueries';
-export { Feature, type FeatureStatus, type FeatureTypeId } from './features';
+export {
+    Feature,
+    createFeaturePayloadRef,
+    type FeaturePayloadRef,
+    type FeatureStatus,
+    type FeatureTypeId,
+} from './features';
 export type {
     CadDocumentId,
     CadFeatureId,
@@ -25,13 +31,13 @@ export type {
     PartStudioId,
     SketchId,
 } from './ids';
-export type {
+export {
     BaseCadObject,
-    CadObject,
-    CadObjectKind,
     ReferenceOriginObject,
-    ReferencePlaneKind,
     ReferencePlaneObject,
+    referencePlaneToPlane,
+    type CadObject,
+    type CadObjectKind,
+    type ReferencePlaneKind,
 } from './objects';
-export { referencePlaneToPlane } from './objects';
 export { findSketchByFeatureId, getSketchForFeature, getSketchPayload } from './sketchPayload';

@@ -1,3 +1,9 @@
+import {
+    BaseModelEntity,
+    ModelEntityStore,
+    ModelPropertyBag,
+    type ModelPropertyValue,
+} from '@occt-draw/core';
 import { Vec2, type Plane3, type Vector2, type Vector3 } from '@occt-draw/math';
 import {
     recordSketchEntityAdded,
@@ -15,28 +21,36 @@ import {
     type SketchId,
     type SketchPlaneKind,
     type SketchPlaneInput,
+    type SketchPlaneObjectRef,
     type SketchPointId,
     type SketchPropertyValue,
     type SketchStateSnapshot,
     type SketchVertexId,
 } from '../types';
 
-export class SketchPlane {
+export class SketchPlane extends BaseModelEntity {
     public readonly planeKind: SketchPlaneKind;
-    public readonly planeRef: string;
+    public readonly planeObjectRef: SketchPlaneObjectRef;
 
     constructor(input: SketchPlaneInput) {
+        super({
+            id: input.planeObjectRef.id,
+            modelType: 'sketch.plane',
+            name: input.planeKind,
+            properties: new Map<string, ModelPropertyValue>([
+                ['planeKind', input.planeKind],
+                ['planeObjectRef', input.planeObjectRef],
+            ]),
+        });
         this.planeKind = input.planeKind;
-        this.planeRef = input.planeRef;
+        this.planeObjectRef = input.planeObjectRef;
     }
 }
 
-export class Sketch {
+export class Sketch extends BaseModelEntity {
     public readonly constraints: SketchConstraints;
     public readonly dimensions: SketchDimensions;
     public readonly entities: SketchEntities;
-    public readonly id: SketchId;
-    public readonly name: string;
     public readonly plane: SketchPlane;
     public readonly profiles: SketchProfiles;
     public readonly state: SketchState;
@@ -51,11 +65,18 @@ export class Sketch {
         readonly profiles?: SketchProfiles;
         readonly state?: SketchState;
     }) {
+        super({
+            id: input.id,
+            modelType: 'sketch.document',
+            name: input.name,
+            properties: new Map<string, ModelPropertyValue>([
+                ['planeKind', input.plane.planeKind],
+                ['planeObjectRef', input.plane.planeObjectRef],
+            ]),
+        });
         this.constraints = input.constraints ?? new SketchConstraints(input.id);
         this.dimensions = input.dimensions ?? new SketchDimensions(input.id);
         this.entities = input.entities ?? SketchEntities.empty(input.id);
-        this.id = input.id;
-        this.name = input.name;
         this.plane = input.plane;
         this.profiles = input.profiles ?? new SketchProfiles(input.id);
         this.state = input.state ?? SketchState.createInitial(input.id);
@@ -63,10 +84,6 @@ export class Sketch {
 
     public get planeKind(): SketchPlaneKind {
         return this.plane.planeKind;
-    }
-
-    public get planeRef(): string {
-        return this.plane.planeRef;
     }
 
     public get revision(): number {
@@ -94,22 +111,22 @@ export class Sketch {
 
     public removeEntity(entityRef: SketchEntityRef): void {
         if (entityRef.kind === SketchEntityKind.Point) {
-            this.entities.geometry.points.remove(entityRef.entityId);
+            this.entities.geometry.points.remove(entityRef.id);
             return;
         }
 
         if (entityRef.kind === SketchEntityKind.Curve) {
-            this.entities.geometry.curves.remove(entityRef.entityId);
+            this.entities.geometry.curves.remove(entityRef.id);
             return;
         }
 
         if (entityRef.kind === SketchEntityKind.Vertex) {
-            this.entities.topology.vertices.remove(entityRef.entityId);
+            this.entities.topology.vertices.remove(entityRef.id);
             return;
         }
 
         if (entityRef.kind === SketchEntityKind.Edge) {
-            this.entities.topology.edges.remove(entityRef.entityId);
+            this.entities.topology.edges.remove(entityRef.id);
         }
     }
 
@@ -147,7 +164,7 @@ export class Sketch {
             propertyPath[0] === 'position' &&
             isVector2(value)
         ) {
-            const point = this.entities.geometry.points.get(entityRef.entityId);
+            const point = this.entities.geometry.points.get(entityRef.id);
 
             if (point) {
                 point.position = value;
@@ -161,18 +178,31 @@ export class Sketch {
     }
 }
 
-export class SketchEntities {
+export class SketchEntities extends BaseModelEntity {
     public readonly geometry: GeometrySet;
     public readonly topology: TopologySet;
+    private readonly sketchId: SketchId;
 
-    constructor(input: { readonly geometry: GeometrySet; readonly topology: TopologySet }) {
+    constructor(input: {
+        readonly geometry: GeometrySet;
+        readonly sketchId: SketchId;
+        readonly topology: TopologySet;
+    }) {
+        super({
+            id: `${input.sketchId}:entities`,
+            modelType: 'sketch.entities',
+            name: `${input.sketchId}:entities`,
+            properties: new Map<string, ModelPropertyValue>([['sketchId', input.sketchId]]),
+        });
         this.geometry = input.geometry;
+        this.sketchId = input.sketchId;
         this.topology = input.topology;
     }
 
     public clone(): SketchEntities {
         return new SketchEntities({
             geometry: this.geometry.clone(),
+            sketchId: this.sketchId,
             topology: this.topology.clone(),
         });
     }
@@ -180,24 +210,38 @@ export class SketchEntities {
     public static empty(sketchId: SketchId): SketchEntities {
         return new SketchEntities({
             geometry: GeometrySet.empty(sketchId),
+            sketchId,
             topology: TopologySet.empty(sketchId),
         });
     }
 }
 
-export class GeometrySet {
+export class GeometrySet extends BaseModelEntity {
     public readonly curves: CurveStore;
     public readonly points: PointStore;
+    private readonly sketchId: SketchId;
 
-    constructor(input: { readonly curves: CurveStore; readonly points: PointStore }) {
+    constructor(input: {
+        readonly curves: CurveStore;
+        readonly points: PointStore;
+        readonly sketchId: SketchId;
+    }) {
+        super({
+            id: `${input.sketchId}:geometry`,
+            modelType: 'sketch.geometry',
+            name: `${input.sketchId}:geometry`,
+            properties: new Map<string, ModelPropertyValue>([['sketchId', input.sketchId]]),
+        });
         this.curves = input.curves;
         this.points = input.points;
+        this.sketchId = input.sketchId;
     }
 
     public clone(): GeometrySet {
         return new GeometrySet({
             curves: this.curves.clone(),
             points: this.points.clone(),
+            sketchId: this.sketchId,
         });
     }
 
@@ -205,22 +249,36 @@ export class GeometrySet {
         return new GeometrySet({
             curves: new CurveStore(sketchId),
             points: new PointStore(sketchId),
+            sketchId,
         });
     }
 }
 
-export class TopologySet {
+export class TopologySet extends BaseModelEntity {
     public readonly edges: EdgeStore;
+    private readonly sketchId: SketchId;
     public readonly vertices: VertexStore;
 
-    constructor(input: { readonly edges: EdgeStore; readonly vertices: VertexStore }) {
+    constructor(input: {
+        readonly edges: EdgeStore;
+        readonly sketchId: SketchId;
+        readonly vertices: VertexStore;
+    }) {
+        super({
+            id: `${input.sketchId}:topology`,
+            modelType: 'sketch.topology',
+            name: `${input.sketchId}:topology`,
+            properties: new Map<string, ModelPropertyValue>([['sketchId', input.sketchId]]),
+        });
         this.edges = input.edges;
+        this.sketchId = input.sketchId;
         this.vertices = input.vertices;
     }
 
     public clone(): TopologySet {
         return new TopologySet({
             edges: this.edges.clone(),
+            sketchId: this.sketchId,
             vertices: this.vertices.clone(),
         });
     }
@@ -228,48 +286,66 @@ export class TopologySet {
     public static empty(sketchId: SketchId): TopologySet {
         return new TopologySet({
             edges: new EdgeStore(sketchId),
+            sketchId,
             vertices: new VertexStore(sketchId),
         });
     }
 }
 
-export class PointStore {
-    private readonly points = new Map<SketchPointId, Point2D>();
-    private readonly sketchId: SketchId;
+abstract class SketchEntityStore<
+    TEntityId extends string,
+    TEntity extends BaseModelEntity<TEntityId> & { readonly ref: SketchEntityRef },
+    TSnapshot extends SketchEntitySnapshot,
+> {
+    protected readonly sketchId: SketchId;
+    private store: ModelEntityStore<TEntity, TEntityId>;
 
-    constructor(sketchId: SketchId, points: readonly Point2D[] = []) {
-        this.sketchId = sketchId;
-        for (const point of points) {
-            this.points.set(point.id, point);
-        }
+    protected constructor(input: {
+        readonly entities: readonly TEntity[];
+        readonly sketchId: SketchId;
+    }) {
+        this.sketchId = input.sketchId;
+        this.store = ModelEntityStore.fromEntities(input.entities);
     }
 
-    public add(point: Point2D): Point2D {
-        this.points.set(point.id, point);
-        recordSketchEntityAdded(point.ref, { store: 'points', value: point.snapshot() });
+    public add(entity: TEntity): TEntity {
+        this.store = this.store.set(entity);
+        recordSketchEntityAdded(entity.ref, this.snapshot(entity));
 
-        return point;
+        return entity;
     }
 
-    public get(pointId: SketchPointId): Point2D | null {
-        return this.points.get(pointId) ?? null;
+    public get(id: TEntityId): TEntity | null {
+        return this.store.find(id);
     }
 
-    public list(): readonly Point2D[] {
-        return [...this.points.values()];
+    public list(): readonly TEntity[] {
+        return this.store.list();
     }
 
-    public remove(pointId: SketchPointId): Point2D | null {
-        const point = this.points.get(pointId);
+    public remove(id: TEntityId): TEntity | null {
+        const entity = this.store.find(id);
 
-        if (!point) {
+        if (!entity) {
             return null;
         }
 
-        this.points.delete(pointId);
-        recordSketchEntityRemoved(point.ref, { store: 'points', value: point.snapshot() });
+        this.store = this.store.remove(id);
+        recordSketchEntityRemoved(entity.ref, this.snapshot(entity));
 
-        return point;
+        return entity;
+    }
+
+    protected abstract snapshot(entity: TEntity): TSnapshot;
+}
+
+export class PointStore extends SketchEntityStore<
+    SketchPointId,
+    Point2D,
+    Extract<SketchEntitySnapshot, { readonly store: 'points' }>
+> {
+    constructor(sketchId: SketchId, points: readonly Point2D[] = []) {
+        super({ entities: points, sketchId });
     }
 
     public clone(): PointStore {
@@ -278,45 +354,21 @@ export class PointStore {
             this.list().map((point) => Point2D.fromSnapshot(this.sketchId, point.snapshot())),
         );
     }
+
+    protected snapshot(
+        point: Point2D,
+    ): Extract<SketchEntitySnapshot, { readonly store: 'points' }> {
+        return { store: 'points', value: point.snapshot() };
+    }
 }
 
-export class CurveStore {
-    private readonly curves = new Map<SketchCurveId, Curve2D>();
-    private readonly sketchId: SketchId;
-
+export class CurveStore extends SketchEntityStore<
+    SketchCurveId,
+    Curve2D,
+    Extract<SketchEntitySnapshot, { readonly store: 'curves' }>
+> {
     constructor(sketchId: SketchId, curves: readonly Curve2D[] = []) {
-        this.sketchId = sketchId;
-        for (const curve of curves) {
-            this.curves.set(curve.id, curve);
-        }
-    }
-
-    public add(curve: Curve2D): Curve2D {
-        this.curves.set(curve.id, curve);
-        recordSketchEntityAdded(curve.ref, { store: 'curves', value: curve.snapshot() });
-
-        return curve;
-    }
-
-    public get(curveId: SketchCurveId): Curve2D | null {
-        return this.curves.get(curveId) ?? null;
-    }
-
-    public list(): readonly Curve2D[] {
-        return [...this.curves.values()];
-    }
-
-    public remove(curveId: SketchCurveId): Curve2D | null {
-        const curve = this.curves.get(curveId);
-
-        if (!curve) {
-            return null;
-        }
-
-        this.curves.delete(curveId);
-        recordSketchEntityRemoved(curve.ref, { store: 'curves', value: curve.snapshot() });
-
-        return curve;
+        super({ entities: curves, sketchId });
     }
 
     public clone(): CurveStore {
@@ -325,45 +377,21 @@ export class CurveStore {
             this.list().map((curve) => curveFromSnapshot(this.sketchId, curve.snapshot())),
         );
     }
+
+    protected snapshot(
+        curve: Curve2D,
+    ): Extract<SketchEntitySnapshot, { readonly store: 'curves' }> {
+        return { store: 'curves', value: curve.snapshot() };
+    }
 }
 
-export class VertexStore {
-    private readonly sketchId: SketchId;
-    private readonly vertices = new Map<SketchVertexId, Vertex>();
-
+export class VertexStore extends SketchEntityStore<
+    SketchVertexId,
+    Vertex,
+    Extract<SketchEntitySnapshot, { readonly store: 'vertices' }>
+> {
     constructor(sketchId: SketchId, vertices: readonly Vertex[] = []) {
-        this.sketchId = sketchId;
-        for (const vertex of vertices) {
-            this.vertices.set(vertex.id, vertex);
-        }
-    }
-
-    public add(vertex: Vertex): Vertex {
-        this.vertices.set(vertex.id, vertex);
-        recordSketchEntityAdded(vertex.ref, { store: 'vertices', value: vertex.snapshot() });
-
-        return vertex;
-    }
-
-    public get(vertexId: SketchVertexId): Vertex | null {
-        return this.vertices.get(vertexId) ?? null;
-    }
-
-    public list(): readonly Vertex[] {
-        return [...this.vertices.values()];
-    }
-
-    public remove(vertexId: SketchVertexId): Vertex | null {
-        const vertex = this.vertices.get(vertexId);
-
-        if (!vertex) {
-            return null;
-        }
-
-        this.vertices.delete(vertexId);
-        recordSketchEntityRemoved(vertex.ref, { store: 'vertices', value: vertex.snapshot() });
-
-        return vertex;
+        super({ entities: vertices, sketchId });
     }
 
     public clone(): VertexStore {
@@ -372,45 +400,21 @@ export class VertexStore {
             this.list().map((vertex) => Vertex.fromSnapshot(this.sketchId, vertex.snapshot())),
         );
     }
+
+    protected snapshot(
+        vertex: Vertex,
+    ): Extract<SketchEntitySnapshot, { readonly store: 'vertices' }> {
+        return { store: 'vertices', value: vertex.snapshot() };
+    }
 }
 
-export class EdgeStore {
-    private readonly edges = new Map<SketchEdgeId, Edge>();
-    private readonly sketchId: SketchId;
-
+export class EdgeStore extends SketchEntityStore<
+    SketchEdgeId,
+    Edge,
+    Extract<SketchEntitySnapshot, { readonly store: 'edges' }>
+> {
     constructor(sketchId: SketchId, edges: readonly Edge[] = []) {
-        this.sketchId = sketchId;
-        for (const edge of edges) {
-            this.edges.set(edge.id, edge);
-        }
-    }
-
-    public add(edge: Edge): Edge {
-        this.edges.set(edge.id, edge);
-        recordSketchEntityAdded(edge.ref, { store: 'edges', value: edge.snapshot() });
-
-        return edge;
-    }
-
-    public get(edgeId: SketchEdgeId): Edge | null {
-        return this.edges.get(edgeId) ?? null;
-    }
-
-    public list(): readonly Edge[] {
-        return [...this.edges.values()];
-    }
-
-    public remove(edgeId: SketchEdgeId): Edge | null {
-        const edge = this.edges.get(edgeId);
-
-        if (!edge) {
-            return null;
-        }
-
-        this.edges.delete(edgeId);
-        recordSketchEntityRemoved(edge.ref, { store: 'edges', value: edge.snapshot() });
-
-        return edge;
+        super({ entities: edges, sketchId });
     }
 
     public clone(): EdgeStore {
@@ -419,12 +423,22 @@ export class EdgeStore {
             this.list().map((edge) => Edge.fromSnapshot(this.sketchId, edge.snapshot())),
         );
     }
+
+    protected snapshot(edge: Edge): Extract<SketchEntitySnapshot, { readonly store: 'edges' }> {
+        return { store: 'edges', value: edge.snapshot() };
+    }
 }
 
-export class SketchConstraints {
+export class SketchConstraints extends BaseModelEntity {
     private readonly sketchId: SketchId;
 
     constructor(sketchId: SketchId) {
+        super({
+            id: `${sketchId}:constraints`,
+            modelType: 'sketch.constraints',
+            name: `${sketchId}:constraints`,
+            properties: new Map<string, ModelPropertyValue>([['sketchId', sketchId]]),
+        });
         this.sketchId = sketchId;
     }
 
@@ -433,10 +447,16 @@ export class SketchConstraints {
     }
 }
 
-export class SketchDimensions {
+export class SketchDimensions extends BaseModelEntity {
     private readonly sketchId: SketchId;
 
     constructor(sketchId: SketchId) {
+        super({
+            id: `${sketchId}:dimensions`,
+            modelType: 'sketch.dimensions',
+            name: `${sketchId}:dimensions`,
+            properties: new Map<string, ModelPropertyValue>([['sketchId', sketchId]]),
+        });
         this.sketchId = sketchId;
     }
 
@@ -445,10 +465,16 @@ export class SketchDimensions {
     }
 }
 
-export class SketchProfiles {
+export class SketchProfiles extends BaseModelEntity {
     private readonly sketchId: SketchId;
 
     constructor(sketchId: SketchId) {
+        super({
+            id: `${sketchId}:profiles`,
+            modelType: 'sketch.profiles',
+            name: `${sketchId}:profiles`,
+            properties: new Map<string, ModelPropertyValue>([['sketchId', sketchId]]),
+        });
         this.sketchId = sketchId;
     }
 
@@ -457,61 +483,70 @@ export class SketchProfiles {
     }
 }
 
-export class SketchState {
+type SketchStateNumberProperty = Exclude<keyof SketchStateSnapshot, 'kind'>;
+
+const SKETCH_STATE_NUMBER_PROPERTIES: readonly SketchStateNumberProperty[] = [
+    'nextConstraintIndex',
+    'nextCurveIndex',
+    'nextDimensionIndex',
+    'nextEdgeIndex',
+    'nextPointIndex',
+    'nextProfileIndex',
+    'nextVertexIndex',
+    'revision',
+];
+
+export class SketchState extends BaseModelEntity {
     private readonly sketchId: SketchId;
-    private nextConstraintIndexValue: number;
-    private nextCurveIndexValue: number;
-    private nextDimensionIndexValue: number;
-    private nextEdgeIndexValue: number;
-    private nextPointIndexValue: number;
-    private nextProfileIndexValue: number;
-    private nextVertexIndexValue: number;
-    private revisionValue: number;
 
     constructor(input: SketchStateSnapshot & { readonly sketchId: SketchId }) {
-        this.nextConstraintIndexValue = input.nextConstraintIndex;
-        this.nextCurveIndexValue = input.nextCurveIndex;
-        this.nextDimensionIndexValue = input.nextDimensionIndex;
-        this.nextEdgeIndexValue = input.nextEdgeIndex;
-        this.nextPointIndexValue = input.nextPointIndex;
-        this.nextProfileIndexValue = input.nextProfileIndex;
-        this.nextVertexIndexValue = input.nextVertexIndex;
-        this.revisionValue = input.revision;
+        const properties = createSketchStateProperties(input);
+
+        super({
+            id: input.sketchId,
+            modelType: 'sketch.state',
+            name: `${input.sketchId}:state`,
+            properties,
+        });
         this.sketchId = input.sketchId;
     }
 
     public get revision(): number {
-        return this.revisionValue;
+        return this.readNumberProperty('revision');
     }
 
     public allocateCurveId(): SketchCurveId {
-        const id = `${this.sketchId}:curve:${String(this.nextCurveIndexValue)}`;
+        const nextCurveIndex = this.readNumberProperty('nextCurveIndex');
+        const id = `${this.sketchId}:curve:${String(nextCurveIndex)}`;
 
-        this.setNumberProperty('nextCurveIndex', this.nextCurveIndexValue + 1);
+        this.setNumberProperty('nextCurveIndex', nextCurveIndex + 1);
 
         return id;
     }
 
     public allocateEdgeId(): SketchEdgeId {
-        const id = `${this.sketchId}:edge:${String(this.nextEdgeIndexValue)}`;
+        const nextEdgeIndex = this.readNumberProperty('nextEdgeIndex');
+        const id = `${this.sketchId}:edge:${String(nextEdgeIndex)}`;
 
-        this.setNumberProperty('nextEdgeIndex', this.nextEdgeIndexValue + 1);
+        this.setNumberProperty('nextEdgeIndex', nextEdgeIndex + 1);
 
         return id;
     }
 
     public allocatePointId(): SketchPointId {
-        const id = `${this.sketchId}:point:${String(this.nextPointIndexValue)}`;
+        const nextPointIndex = this.readNumberProperty('nextPointIndex');
+        const id = `${this.sketchId}:point:${String(nextPointIndex)}`;
 
-        this.setNumberProperty('nextPointIndex', this.nextPointIndexValue + 1);
+        this.setNumberProperty('nextPointIndex', nextPointIndex + 1);
 
         return id;
     }
 
     public allocateVertexId(): SketchVertexId {
-        const id = `${this.sketchId}:vertex:${String(this.nextVertexIndexValue)}`;
+        const nextVertexIndex = this.readNumberProperty('nextVertexIndex');
+        const id = `${this.sketchId}:vertex:${String(nextVertexIndex)}`;
 
-        this.setNumberProperty('nextVertexIndex', this.nextVertexIndexValue + 1);
+        this.setNumberProperty('nextVertexIndex', nextVertexIndex + 1);
 
         return id;
     }
@@ -524,18 +559,18 @@ export class SketchState {
     }
 
     public incrementRevision(): void {
-        this.setNumberProperty('revision', this.revisionValue + 1);
+        this.setNumberProperty('revision', this.revision + 1);
     }
 
     public restore(snapshot: SketchStateSnapshot): void {
-        this.nextConstraintIndexValue = snapshot.nextConstraintIndex;
-        this.nextCurveIndexValue = snapshot.nextCurveIndex;
-        this.nextDimensionIndexValue = snapshot.nextDimensionIndex;
-        this.nextEdgeIndexValue = snapshot.nextEdgeIndex;
-        this.nextPointIndexValue = snapshot.nextPointIndex;
-        this.nextProfileIndexValue = snapshot.nextProfileIndex;
-        this.nextVertexIndexValue = snapshot.nextVertexIndex;
-        this.revisionValue = snapshot.revision;
+        const properties = createSketchStateProperties({
+            ...snapshot,
+            sketchId: this.sketchId,
+        });
+
+        for (const [key, value] of properties.entries()) {
+            this.setPropertyValue(key, value);
+        }
     }
 
     public setTrackedProperty(propertyPath: readonly string[], value: SketchPropertyValue): void {
@@ -549,14 +584,14 @@ export class SketchState {
     public snapshot(): SketchStateSnapshot {
         return {
             kind: 'sketch-state',
-            nextConstraintIndex: this.nextConstraintIndexValue,
-            nextCurveIndex: this.nextCurveIndexValue,
-            nextDimensionIndex: this.nextDimensionIndexValue,
-            nextEdgeIndex: this.nextEdgeIndexValue,
-            nextPointIndex: this.nextPointIndexValue,
-            nextProfileIndex: this.nextProfileIndexValue,
-            nextVertexIndex: this.nextVertexIndexValue,
-            revision: this.revisionValue,
+            nextConstraintIndex: this.readNumberProperty('nextConstraintIndex'),
+            nextCurveIndex: this.readNumberProperty('nextCurveIndex'),
+            nextDimensionIndex: this.readNumberProperty('nextDimensionIndex'),
+            nextEdgeIndex: this.readNumberProperty('nextEdgeIndex'),
+            nextPointIndex: this.readNumberProperty('nextPointIndex'),
+            nextProfileIndex: this.readNumberProperty('nextProfileIndex'),
+            nextVertexIndex: this.readNumberProperty('nextVertexIndex'),
+            revision: this.revision,
         };
     }
 
@@ -576,14 +611,15 @@ export class SketchState {
     }
 
     private setNumberProperty(propertyName: string, next: number): void {
-        const before = this.getNumberProperty(propertyName);
+        const before = this.readNumberProperty(propertyName);
 
         recordSketchPropertySet({
             after: next,
             before,
             entityRef: {
-                entityId: this.sketchId,
+                id: this.sketchId,
                 kind: SketchEntityKind.SketchState,
+                ownerId: this.sketchId,
                 sketchId: this.sketchId,
             },
             propertyPath: [propertyName],
@@ -593,70 +629,38 @@ export class SketchState {
     }
 
     private assignNumberProperty(propertyName: string, value: number): void {
-        if (propertyName === 'nextConstraintIndex') {
-            this.nextConstraintIndexValue = value;
-        } else if (propertyName === 'nextCurveIndex') {
-            this.nextCurveIndexValue = value;
-        } else if (propertyName === 'nextDimensionIndex') {
-            this.nextDimensionIndexValue = value;
-        } else if (propertyName === 'nextEdgeIndex') {
-            this.nextEdgeIndexValue = value;
-        } else if (propertyName === 'nextPointIndex') {
-            this.nextPointIndexValue = value;
-        } else if (propertyName === 'nextProfileIndex') {
-            this.nextProfileIndexValue = value;
-        } else if (propertyName === 'nextVertexIndex') {
-            this.nextVertexIndexValue = value;
-        } else if (propertyName === 'revision') {
-            this.revisionValue = value;
-        }
+        this.setPropertyValue(propertyName, value);
     }
 
-    private getNumberProperty(propertyName: string): number {
-        if (propertyName === 'nextConstraintIndex') {
-            return this.nextConstraintIndexValue;
-        }
-
-        if (propertyName === 'nextCurveIndex') {
-            return this.nextCurveIndexValue;
-        }
-
-        if (propertyName === 'nextDimensionIndex') {
-            return this.nextDimensionIndexValue;
-        }
-
-        if (propertyName === 'nextEdgeIndex') {
-            return this.nextEdgeIndexValue;
-        }
-
-        if (propertyName === 'nextPointIndex') {
-            return this.nextPointIndexValue;
-        }
-
-        if (propertyName === 'nextProfileIndex') {
-            return this.nextProfileIndexValue;
-        }
-
-        if (propertyName === 'nextVertexIndex') {
-            return this.nextVertexIndexValue;
-        }
-
-        return this.revisionValue;
+    private readNumberProperty(propertyName: string): number {
+        return this.getNumberProperty(propertyName);
     }
+}
+
+function createSketchStateProperties(
+    input: SketchStateSnapshot & { readonly sketchId: SketchId },
+): ModelPropertyBag {
+    let properties = new ModelPropertyBag();
+
+    for (const propertyName of SKETCH_STATE_NUMBER_PROPERTIES) {
+        properties = properties.set(propertyName, input[propertyName]);
+    }
+
+    return properties;
 }
 
 export function createSketchOnReferencePlane(input: {
     readonly id: SketchId;
     readonly name: string;
     readonly planeKind: SketchPlaneKind;
-    readonly planeRef: string;
+    readonly planeObjectRef: SketchPlaneObjectRef;
 }): Sketch {
     return new Sketch({
         id: input.id,
         name: input.name,
         plane: new SketchPlane({
             planeKind: input.planeKind,
-            planeRef: input.planeRef,
+            planeObjectRef: input.planeObjectRef,
         }),
     });
 }

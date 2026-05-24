@@ -2,7 +2,7 @@ import type { Operation } from './operation';
 import { MapOperation } from './operation';
 import { Transaction, type TransactionId, type TransactionMergeKey } from './transaction';
 
-class RecordingContext<TRecorder = unknown> {
+export class ChangeRecordingScope<TRecorder = unknown> {
     private activeRecorder: TRecorder | null = null;
     private suppressionDepth = 0;
 
@@ -45,7 +45,7 @@ class RecordingContext<TRecorder = unknown> {
 
 export class ChangeRecorder<TDocument = unknown> {
     private readonly operations: Operation<TDocument>[] = [];
-    private readonly recordingContext = new RecordingContext<ChangeRecorder<TDocument>>();
+    private readonly recordingContext = new ChangeRecordingScope<ChangeRecorder<TDocument>>();
 
     public get count(): number {
         return this.operations.length;

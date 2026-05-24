@@ -42,7 +42,7 @@ export class SketchRenderAdapter {
 
         const referencePlane = this.referencePlaneResolver.findReferencePlaneById(
             partStudio,
-            sketch.planeRef,
+            sketch.plane.planeObjectRef.id,
         );
 
         if (!referencePlane) {

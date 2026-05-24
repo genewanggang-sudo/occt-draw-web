@@ -239,12 +239,12 @@ export class DeleteSketchEntityRequest extends SketchRequest {
 
     public apply(sketch: Sketch): void {
         if (this.entityRef.kind === SketchEntityKind.Edge) {
-            deleteEdge(sketch, this.entityRef.entityId);
+            deleteEdge(sketch, this.entityRef.id);
             return;
         }
 
         if (this.entityRef.kind === SketchEntityKind.Vertex) {
-            deleteVertex(sketch, this.entityRef.entityId);
+            deleteVertex(sketch, this.entityRef.id);
         }
     }
 }

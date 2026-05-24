@@ -14,7 +14,7 @@ export {
     type TransactionId,
     type TransactionMergeKey,
 } from './transaction';
-export { ChangeRecorder } from './changeRecorder';
+export { ChangeRecorder, ChangeRecordingScope } from './changeRecorder';
 export {
     createRequestExecution,
     type Request,

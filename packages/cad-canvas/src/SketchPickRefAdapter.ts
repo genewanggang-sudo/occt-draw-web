@@ -21,14 +21,14 @@ export class SketchPickRefAdapter {
         }
 
         return {
-            id: `${ref.sketchId}:${ref.entityId}`,
+            id: `${ref.sketchId}:${ref.id}`,
             ...(entityKind ? { kind: entityKind } : {}),
             metadata,
         };
     }
 
     public getSketchEntityId(ref: SketchEntityRef): string {
-        return ref.entityId;
+        return ref.id;
     }
 
     private getPickableEntityKind(ref: SketchEntityRef): string | null {

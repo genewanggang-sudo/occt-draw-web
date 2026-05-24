@@ -19,7 +19,7 @@ function isSketchEntityRef(value: unknown): value is SketchEntityRef {
     if (
         typeof value.sketchId !== 'string' ||
         typeof value.kind !== 'string' ||
-        typeof value.entityId !== 'string'
+        typeof value.id !== 'string'
     ) {
         return false;
     }

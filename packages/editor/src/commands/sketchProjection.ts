@@ -1,16 +1,16 @@
 import { referencePlaneToPlane, type PartStudio } from '@occt-draw/cad-model';
 import { screenPointToWorldRay, type CameraState, type ViewportSize } from '@occt-draw/canvas';
-import { worldPointToSketchPointOnPlane } from '@occt-draw/sketch';
+import { worldPointToSketchPointOnPlane, type SketchPlaneObjectRef } from '@occt-draw/sketch';
 import type { ScreenPoint } from '@occt-draw/platform';
 
 export function projectScreenPointToSketch2(input: {
     readonly camera: CameraState;
     readonly partStudio: PartStudio;
-    readonly planeRef: string;
+    readonly planeObjectRef: SketchPlaneObjectRef;
     readonly point: ScreenPoint;
     readonly viewportSize: ViewportSize;
 }): { readonly x: number; readonly y: number } | null {
-    const planeObject = input.partStudio.findObjectById(input.planeRef);
+    const planeObject = input.partStudio.findObjectById(input.planeObjectRef.id);
 
     if (planeObject?.kind !== 'reference-plane') {
         return null;

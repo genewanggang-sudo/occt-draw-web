@@ -1,18 +1,23 @@
 ﻿import {
     BaseDocumentModel,
     BaseModelEntity,
+    ModelEntityStore,
+    ModelRefIndex,
     PayloadStore,
     type DocumentId,
+    type ModelObject,
+    type ModelPropertyValue,
+    type ModelRef,
     type Payload,
 } from '@occt-draw/core';
 import type { Feature } from './features';
-import type { CadObjectId, FeaturePayloadId, PartStudioId } from './ids';
+import type { CadObjectId, FeatureId, FeaturePayloadId, PartStudioId } from './ids';
 import type { CadObject } from './objects';
 
 export type FeaturePayload = Payload;
 
 export class FeaturePayloadStore extends PayloadStore {
-    public remove(payloadId: FeaturePayloadId): FeaturePayloadStore {
+    public override remove(payloadId: FeaturePayloadId): FeaturePayloadStore {
         return new FeaturePayloadStore(
             this.entries().filter(([currentPayloadId]) => currentPayloadId !== payloadId),
         );
@@ -24,8 +29,10 @@ export class FeaturePayloadStore extends PayloadStore {
 }
 
 export class PartStudio extends BaseModelEntity {
+    public readonly featureStore: ModelEntityStore<Feature>;
     public readonly featurePayloads: FeaturePayloadStore;
     public readonly features: readonly Feature[];
+    public readonly objectStore: ModelEntityStore<CadObject>;
     public readonly objects: readonly CadObject[];
 
     constructor({
@@ -43,26 +50,40 @@ export class PartStudio extends BaseModelEntity {
         readonly name: string;
         readonly objects: readonly CadObject[];
     }) {
+        const featureStore = ModelEntityStore.fromEntities(features);
+        const objectStore = ModelEntityStore.fromEntities(objects);
+
         super({
             id,
             metadata: metadata ?? null,
+            modelType: 'cad.part-studio',
             name,
+            properties: new Map<string, ModelPropertyValue>([
+                ['featureCount', features.length],
+                ['objectCount', objects.length],
+            ]),
         });
+        this.featureStore = featureStore;
         this.featurePayloads = featurePayloads ?? new FeaturePayloadStore();
-        this.features = [...features];
-        this.objects = [...objects];
+        this.features = featureStore.list();
+        this.objectStore = objectStore;
+        this.objects = objectStore.list();
     }
 
     public findObjectById(objectId: CadObjectId): CadObject | null {
-        return this.objects.find((object) => object.id === objectId) ?? null;
+        return this.objectStore.find(objectId);
     }
 
-    public findFeatureById(featureId: string): Feature | null {
-        return this.features.find((feature) => feature.id === featureId) ?? null;
+    public findFeatureById(featureId: FeatureId): Feature | null {
+        return this.featureStore.find(featureId);
     }
 
     public findFeaturePayload(payloadId: FeaturePayloadId): FeaturePayload | null {
         return this.featurePayloads.find(payloadId);
+    }
+
+    public createModelRefIndex(): ModelRefIndex {
+        return ModelRefIndex.fromObjects([...this.features, ...this.objects]);
     }
 
     public listFeatures(): readonly Feature[] {
@@ -73,66 +94,67 @@ export class PartStudio extends BaseModelEntity {
         return this.objects.filter((object) => object.visible);
     }
 
+    public resolveModelRef(ref: ModelRef): ModelObject | null {
+        return this.createModelRefIndex().find(ref);
+    }
+
     public appendFeature(feature: Feature): PartStudio {
-        return new PartStudio({
-            featurePayloads: this.featurePayloads,
-            id: this.id,
-            metadata: this.metadata,
-            name: this.name,
-            features: [...this.features, feature],
-            objects: this.objects,
-        });
+        return this.withFeatureStore(this.featureStore.set(feature));
     }
 
     public replaceFeature(feature: Feature): PartStudio {
+        return this.withFeatureStore(this.featureStore.set(feature));
+    }
+
+    public removeFeature(featureId: FeatureId): PartStudio {
+        return this.withFeatureStore(this.featureStore.remove(featureId));
+    }
+
+    public withFeatureStore(featureStore: ModelEntityStore<Feature>): PartStudio {
         return new PartStudio({
             featurePayloads: this.featurePayloads,
             id: this.id,
             metadata: this.metadata,
             name: this.name,
-            features: this.features.map((current) =>
-                current.id === feature.id ? feature : current,
-            ),
+            features: featureStore.list(),
             objects: this.objects,
         });
     }
 
-    public removeFeature(featureId: string): PartStudio {
+    public withObjectStore(objectStore: ModelEntityStore<CadObject>): PartStudio {
         return new PartStudio({
             featurePayloads: this.featurePayloads,
             id: this.id,
             metadata: this.metadata,
             name: this.name,
-            features: this.features.filter((feature) => feature.id !== featureId),
+            features: this.features,
+            objects: objectStore.list(),
+        });
+    }
+
+    public withFeaturePayloads(featurePayloads: FeaturePayloadStore): PartStudio {
+        return new PartStudio({
+            featurePayloads,
+            id: this.id,
+            metadata: this.metadata,
+            name: this.name,
+            features: this.features,
             objects: this.objects,
         });
     }
 
     public setFeaturePayload(payloadId: FeaturePayloadId, payload: FeaturePayload): PartStudio {
-        return new PartStudio({
-            featurePayloads: this.featurePayloads.set(payloadId, payload),
-            features: this.features,
-            id: this.id,
-            metadata: this.metadata,
-            name: this.name,
-            objects: this.objects,
-        });
+        return this.withFeaturePayloads(this.featurePayloads.set(payloadId, payload));
     }
 
     public removeFeaturePayload(payloadId: FeaturePayloadId): PartStudio {
-        return new PartStudio({
-            featurePayloads: this.featurePayloads.remove(payloadId),
-            features: this.features,
-            id: this.id,
-            metadata: this.metadata,
-            name: this.name,
-            objects: this.objects,
-        });
+        return this.withFeaturePayloads(this.featurePayloads.remove(payloadId));
     }
 }
 
 export class CadDocument extends BaseDocumentModel {
     public readonly activePartStudioId: PartStudioId;
+    public readonly partStudioStore: ModelEntityStore<PartStudio>;
     public readonly partStudios: readonly PartStudio[];
 
     constructor({
@@ -150,22 +172,52 @@ export class CadDocument extends BaseDocumentModel {
         readonly partStudios: readonly PartStudio[];
         readonly revision?: number;
     }) {
+        const partStudioStore = ModelEntityStore.fromEntities(partStudios);
+
         super({
             id,
             metadata: metadata ?? null,
+            modelType: 'cad.document',
             name,
+            properties: new Map<string, ModelPropertyValue>([
+                ['activePartStudioId', activePartStudioId],
+                ['partStudioCount', partStudios.length],
+            ]),
             revision: revision ?? 0,
         });
         this.activePartStudioId = activePartStudioId;
-        this.partStudios = [...partStudios];
+        this.partStudioStore = partStudioStore;
+        this.partStudios = partStudioStore.list();
     }
 
     public getActivePartStudio(): PartStudio {
         return (
-            this.partStudios.find((partStudio) => partStudio.id === this.activePartStudioId) ??
+            this.partStudioStore.find(this.activePartStudioId) ??
             this.partStudios[0] ??
             createEmptyPartStudio()
         );
+    }
+
+    public withActivePartStudioId(activePartStudioId: PartStudioId): CadDocument {
+        return new CadDocument({
+            activePartStudioId,
+            id: this.id,
+            metadata: this.metadata,
+            name: this.name,
+            partStudios: this.partStudios,
+            revision: this.revision,
+        });
+    }
+
+    public withPartStudioStore(partStudioStore: ModelEntityStore<PartStudio>): CadDocument {
+        return new CadDocument({
+            activePartStudioId: this.activePartStudioId,
+            id: this.id,
+            metadata: this.metadata,
+            name: this.name,
+            partStudios: partStudioStore.list(),
+            revision: this.revision,
+        });
     }
 }
 

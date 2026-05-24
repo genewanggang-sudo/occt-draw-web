@@ -352,7 +352,7 @@ function createMoveVertexRequestFromPointer(
     const target = projectScreenPointToSketch2({
         camera: state.navigation.camera,
         partStudio: state.document.getActivePartStudio(),
-        planeRef: activeSketch.sketch.planeRef,
+        planeObjectRef: activeSketch.sketch.plane.planeObjectRef,
         point: event.point,
         viewportSize: state.navigation.viewportSize,
     });
@@ -364,7 +364,7 @@ function createMoveVertexRequestFromPointer(
     const sketch = activeSketch.sketch.clone();
     const request = new MoveVertexRequest({
         target,
-        vertexId: entityRef.entityId,
+        vertexId: entityRef.id,
     });
     const operation = request.createOperation();
 

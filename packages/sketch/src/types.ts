@@ -1,3 +1,4 @@
+import type { ModelRef, ObjectRef } from '@occt-draw/core';
 import type { Vector2 } from '@occt-draw/math';
 
 export type SketchId = string;
@@ -32,50 +33,36 @@ export type SketchEntityStoreName =
 
 export interface SketchPlaneInput {
     readonly planeKind: SketchPlaneKind;
-    readonly planeRef: string;
+    readonly planeObjectRef: SketchPlaneObjectRef;
 }
 
+export type SketchPlaneObjectRef = ObjectRef<string, 'cad.object.reference-plane'>;
+
 export type SketchEntityRef =
-    | {
-          readonly entityId: SketchConstraintId;
-          readonly kind: SketchEntityKind.Constraint;
+    | (ModelRef<SketchConstraintId, SketchEntityKind.Constraint> & {
           readonly sketchId: SketchId;
-      }
-    | {
-          readonly entityId: SketchCurveId;
-          readonly kind: SketchEntityKind.Curve;
+      })
+    | (ModelRef<SketchCurveId, SketchEntityKind.Curve> & {
           readonly sketchId: SketchId;
-      }
-    | {
-          readonly entityId: SketchDimensionId;
-          readonly kind: SketchEntityKind.Dimension;
+      })
+    | (ModelRef<SketchDimensionId, SketchEntityKind.Dimension> & {
           readonly sketchId: SketchId;
-      }
-    | {
-          readonly entityId: SketchEdgeId;
-          readonly kind: SketchEntityKind.Edge;
+      })
+    | (ModelRef<SketchEdgeId, SketchEntityKind.Edge> & {
           readonly sketchId: SketchId;
-      }
-    | {
-          readonly entityId: SketchPointId;
-          readonly kind: SketchEntityKind.Point;
+      })
+    | (ModelRef<SketchPointId, SketchEntityKind.Point> & {
           readonly sketchId: SketchId;
-      }
-    | {
-          readonly entityId: SketchProfileId;
-          readonly kind: SketchEntityKind.Profile;
+      })
+    | (ModelRef<SketchProfileId, SketchEntityKind.Profile> & {
           readonly sketchId: SketchId;
-      }
-    | {
-          readonly entityId: SketchId;
-          readonly kind: SketchEntityKind.SketchState;
+      })
+    | (ModelRef<SketchId, SketchEntityKind.SketchState> & {
           readonly sketchId: SketchId;
-      }
-    | {
-          readonly entityId: SketchVertexId;
-          readonly kind: SketchEntityKind.Vertex;
+      })
+    | (ModelRef<SketchVertexId, SketchEntityKind.Vertex> & {
           readonly sketchId: SketchId;
-      };
+      });
 
 export interface Point2DSnapshot {
     readonly id: SketchPointId;

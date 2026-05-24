@@ -17,6 +17,12 @@ export class PayloadStore<
         return this.payloads.get(payloadId) ?? null;
     }
 
+    public remove(payloadId: TPayloadId): PayloadStore<TPayloadId, TPayload> {
+        return new PayloadStore(
+            this.entries().filter(([currentPayloadId]) => currentPayloadId !== payloadId),
+        );
+    }
+
     public set(payloadId: TPayloadId, payload: TPayload): PayloadStore<TPayloadId, TPayload> {
         return new PayloadStore([...this.payloads, [payloadId, payload]]);
     }
