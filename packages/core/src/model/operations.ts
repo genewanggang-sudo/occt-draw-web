@@ -1,4 +1,5 @@
 import type { Operation, OperationId } from '../editing/operation';
+import type { ModelElement } from './base';
 import type {
     ModelPropertyBag,
     ModelPropertyKey,
@@ -7,23 +8,24 @@ import type {
 } from './properties';
 import type { ModelRef } from './refs';
 
-export type ModelEntityChangeAction = 'add' | 'remove';
+export type ModelElementChangeAction = 'add' | 'remove';
 
-export class ModelEntityChangeOperation<
-    TDocument = unknown,
+export class ModelElementChangeOperation<
+    TDocument extends object = object,
     TEntity extends object = object,
     TRef extends ModelRef = ModelRef,
 > implements Operation<TDocument> {
-    public readonly action: ModelEntityChangeAction;
+    public readonly action: ModelElementChangeAction;
     public readonly entity: TEntity;
     public readonly id: OperationId;
     public readonly label: string;
     public readonly modelRef: TRef;
     private readonly addEntity: (document: TDocument, entity: TEntity) => TDocument;
     private readonly removeEntity: (document: TDocument, modelRef: TRef) => TDocument;
+    private previousRevision: number | null = null;
 
     constructor(input: {
-        readonly action: ModelEntityChangeAction;
+        readonly action: ModelElementChangeAction;
         readonly addEntity: (document: TDocument, entity: TEntity) => TDocument;
         readonly entity: TEntity;
         readonly id: OperationId;
@@ -41,20 +43,27 @@ export class ModelEntityChangeOperation<
     }
 
     public apply(document: TDocument): TDocument {
-        return this.action === 'add'
-            ? this.addEntity(document, this.entity)
-            : this.removeEntity(document, this.modelRef);
+        this.previousRevision = readModelRevision(document);
+        const nextDocument =
+            this.action === 'add'
+                ? this.addEntity(document, this.entity)
+                : this.removeEntity(document, this.modelRef);
+
+        return nextModelRevision(nextDocument);
     }
 
     public revert(document: TDocument): TDocument {
-        return this.action === 'add'
-            ? this.removeEntity(document, this.modelRef)
-            : this.addEntity(document, this.entity);
+        const nextDocument =
+            this.action === 'add'
+                ? this.removeEntity(document, this.modelRef)
+                : this.addEntity(document, this.entity);
+
+        return restoreModelRevision(nextDocument, this.previousRevision);
     }
 }
 
 export class ModelPropertyChangeOperation<
-    TDocument = unknown,
+    TDocument extends object = object,
     TRef extends ModelRef = ModelRef,
     TValue extends ModelPropertyValue = ModelPropertyValue,
 > implements Operation<TDocument> {
@@ -70,6 +79,7 @@ export class ModelPropertyChangeOperation<
         propertyPath: ModelPropertyPath,
         value: TValue,
     ) => TDocument;
+    private previousRevision: number | null = null;
 
     constructor(input: {
         readonly applyPropertyChange: (
@@ -95,20 +105,29 @@ export class ModelPropertyChangeOperation<
     }
 
     public apply(document: TDocument): TDocument {
-        return this.applyPropertyChange(document, this.modelRef, this.propertyPath, this.nextValue);
+        this.previousRevision = readModelRevision(document);
+
+        return nextModelRevision(
+            this.applyPropertyChange(document, this.modelRef, this.propertyPath, this.nextValue),
+        );
     }
 
     public revert(document: TDocument): TDocument {
-        return this.applyPropertyChange(
-            document,
-            this.modelRef,
-            this.propertyPath,
-            this.previousValue,
+        return restoreModelRevision(
+            this.applyPropertyChange(
+                document,
+                this.modelRef,
+                this.propertyPath,
+                this.previousValue,
+            ),
+            this.previousRevision,
         );
     }
 }
 
-export class SetModelPropertyOperation<TModel = unknown> implements Operation<TModel> {
+export class SetModelPropertyOperation<
+    TModel extends object = object,
+> implements Operation<TModel> {
     public readonly id: OperationId;
     public readonly label: string;
     public readonly modelRef: ModelRef;
@@ -117,6 +136,7 @@ export class SetModelPropertyOperation<TModel = unknown> implements Operation<TM
     public readonly propertyKey: ModelPropertyKey;
     private readonly getProperties: (model: TModel) => ModelPropertyBag;
     private readonly replaceProperties: (model: TModel, properties: ModelPropertyBag) => TModel;
+    private previousRevision: number | null = null;
 
     constructor(input: {
         readonly getProperties: (model: TModel) => ModelPropertyBag;
@@ -139,16 +159,23 @@ export class SetModelPropertyOperation<TModel = unknown> implements Operation<TM
     }
 
     public apply(model: TModel): TModel {
-        return this.replaceProperties(
-            model,
-            this.getProperties(model).set(this.propertyKey, this.nextValue),
+        this.previousRevision = readModelRevision(model);
+
+        return nextModelRevision(
+            this.replaceProperties(
+                model,
+                this.getProperties(model).set(this.propertyKey, this.nextValue),
+            ),
         );
     }
 
     public revert(model: TModel): TModel {
-        return this.replaceProperties(
-            model,
-            this.getProperties(model).set(this.propertyKey, this.previousValue),
+        return restoreModelRevision(
+            this.replaceProperties(
+                model,
+                this.getProperties(model).set(this.propertyKey, this.previousValue),
+            ),
+            this.previousRevision,
         );
     }
 }
@@ -174,4 +201,36 @@ export function createSetModelPropertyOperation<
         propertyKey: input.propertyKey,
         replaceProperties: input.replaceProperties,
     });
+}
+
+function readModelRevision(model: object): number | null {
+    return isModelElement(model) ? model.revision : null;
+}
+
+function nextModelRevision<TModel extends object>(model: TModel): TModel {
+    if (isModelElement(model)) {
+        model.nextRevision();
+    }
+
+    return model;
+}
+
+function restoreModelRevision<TModel extends object>(
+    model: TModel,
+    revision: number | null,
+): TModel {
+    if (revision !== null && isModelElement(model)) {
+        model.withRevision(revision);
+    }
+
+    return model;
+}
+
+function isModelElement(model: object): model is ModelElement {
+    return (
+        'nextRevision' in model &&
+        typeof model.nextRevision === 'function' &&
+        'withRevision' in model &&
+        typeof model.withRevision === 'function'
+    );
 }

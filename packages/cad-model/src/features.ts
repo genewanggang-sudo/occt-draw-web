@@ -1,5 +1,5 @@
 import {
-    BaseModelEntity,
+    BaseModelElement,
     createModelRef,
     type ModelPropertyValue,
     type ObjectRef,
@@ -17,7 +17,7 @@ export function createFeaturePayloadRef(payloadId: FeaturePayloadId): FeaturePay
     });
 }
 
-export class Feature extends BaseModelEntity {
+export class Feature extends BaseModelElement {
     public readonly payloadRef: FeaturePayloadRef | null;
     public readonly status: FeatureStatus;
     public readonly suppressed: boolean;

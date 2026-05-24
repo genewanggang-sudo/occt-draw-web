@@ -14,18 +14,21 @@ export class EditScope<TDocument = unknown> {
     public readonly id: EditScopeId;
     public readonly label: string;
     private closed: boolean;
+    private initialDocumentRevision: number | null;
     private readonly redoStack: HistoryRecord<TDocument>[];
     private readonly records: HistoryRecord<TDocument>[];
 
     constructor(input: {
         readonly closed?: boolean;
         readonly id: EditScopeId;
+        readonly initialDocumentRevision?: number | null;
         readonly label: string;
         readonly records?: readonly HistoryRecord<TDocument>[];
         readonly redoStack?: readonly HistoryRecord<TDocument>[];
     }) {
         this.closed = input.closed ?? false;
         this.id = input.id;
+        this.initialDocumentRevision = input.initialDocumentRevision ?? null;
         this.label = input.label;
         this.records = [...(input.records ?? [])];
         this.redoStack = [...(input.redoStack ?? [])];
@@ -103,6 +106,7 @@ export class EditScope<TDocument = unknown> {
         return new EditScope({
             closed: this.closed,
             id: this.id,
+            initialDocumentRevision: this.initialDocumentRevision,
             label: this.label,
             records: this.records,
             redoStack: this.redoStack,
@@ -128,6 +132,7 @@ export class EditScope<TDocument = unknown> {
             return { document, record: null, transaction: null };
         }
 
+        this.initialDocumentRevision ??= readDocumentRevision(document);
         const record = new HistoryRecord({
             record: history?.record,
             redoLabel: history?.redoLabel,
@@ -187,6 +192,7 @@ export class EditScope<TDocument = unknown> {
             id: input.id,
             label: input.label,
             operations: this.records.flatMap((record) => record.transaction.operations),
+            previousDocumentRevision: this.initialDocumentRevision,
         });
     }
 
@@ -195,4 +201,13 @@ export class EditScope<TDocument = unknown> {
             throw new Error(`Edit scope ${this.id} is already closed.`);
         }
     }
+}
+
+function readDocumentRevision(document: unknown): number | null {
+    return typeof document === 'object' &&
+        document !== null &&
+        'revision' in document &&
+        typeof document.revision === 'number'
+        ? document.revision
+        : null;
 }

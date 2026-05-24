@@ -1,11 +1,12 @@
-﻿import {
-    BaseDocumentModel,
-    BaseModelEntity,
-    ModelEntityStore,
+import {
+    DocumentModel,
+    BaseModelElement,
+    ModelElementStore,
     ModelRefIndex,
     PayloadStore,
+    getNextModelRevision,
     type DocumentId,
-    type ModelObject,
+    type ModelElement,
     type ModelPropertyValue,
     type ModelRef,
     type Payload,
@@ -28,11 +29,11 @@ export class FeaturePayloadStore extends PayloadStore {
     }
 }
 
-export class PartStudio extends BaseModelEntity {
-    public readonly featureStore: ModelEntityStore<Feature>;
+export class PartStudio extends BaseModelElement {
+    public readonly featureStore: ModelElementStore<Feature>;
     public readonly featurePayloads: FeaturePayloadStore;
     public readonly features: readonly Feature[];
-    public readonly objectStore: ModelEntityStore<CadObject>;
+    public readonly objectStore: ModelElementStore<CadObject>;
     public readonly objects: readonly CadObject[];
 
     constructor({
@@ -42,6 +43,7 @@ export class PartStudio extends BaseModelEntity {
         metadata,
         name,
         objects,
+        revision,
     }: {
         readonly featurePayloads?: FeaturePayloadStore;
         readonly features: readonly Feature[];
@@ -49,9 +51,10 @@ export class PartStudio extends BaseModelEntity {
         readonly metadata?: ReadonlyMap<string, unknown> | null;
         readonly name: string;
         readonly objects: readonly CadObject[];
+        readonly revision?: number;
     }) {
-        const featureStore = ModelEntityStore.fromEntities(features);
-        const objectStore = ModelEntityStore.fromEntities(objects);
+        const featureStore = ModelElementStore.fromEntities(features);
+        const objectStore = ModelElementStore.fromEntities(objects);
 
         super({
             id,
@@ -62,6 +65,7 @@ export class PartStudio extends BaseModelEntity {
                 ['featureCount', features.length],
                 ['objectCount', objects.length],
             ]),
+            ...(revision === undefined ? {} : { revision }),
         });
         this.featureStore = featureStore;
         this.featurePayloads = featurePayloads ?? new FeaturePayloadStore();
@@ -94,7 +98,7 @@ export class PartStudio extends BaseModelEntity {
         return this.objects.filter((object) => object.visible);
     }
 
-    public resolveModelRef(ref: ModelRef): ModelObject | null {
+    public resolveModelRef(ref: ModelRef): ModelElement | null {
         return this.createModelRefIndex().find(ref);
     }
 
@@ -110,7 +114,7 @@ export class PartStudio extends BaseModelEntity {
         return this.withFeatureStore(this.featureStore.remove(featureId));
     }
 
-    public withFeatureStore(featureStore: ModelEntityStore<Feature>): PartStudio {
+    public withFeatureStore(featureStore: ModelElementStore<Feature>): PartStudio {
         return new PartStudio({
             featurePayloads: this.featurePayloads,
             id: this.id,
@@ -118,10 +122,11 @@ export class PartStudio extends BaseModelEntity {
             name: this.name,
             features: featureStore.list(),
             objects: this.objects,
+            revision: getNextModelRevision(this.revision),
         });
     }
 
-    public withObjectStore(objectStore: ModelEntityStore<CadObject>): PartStudio {
+    public withObjectStore(objectStore: ModelElementStore<CadObject>): PartStudio {
         return new PartStudio({
             featurePayloads: this.featurePayloads,
             id: this.id,
@@ -129,6 +134,7 @@ export class PartStudio extends BaseModelEntity {
             name: this.name,
             features: this.features,
             objects: objectStore.list(),
+            revision: getNextModelRevision(this.revision),
         });
     }
 
@@ -140,6 +146,7 @@ export class PartStudio extends BaseModelEntity {
             name: this.name,
             features: this.features,
             objects: this.objects,
+            revision: getNextModelRevision(this.revision),
         });
     }
 
@@ -152,9 +159,9 @@ export class PartStudio extends BaseModelEntity {
     }
 }
 
-export class CadDocument extends BaseDocumentModel {
+export class CadDocument extends DocumentModel {
     public readonly activePartStudioId: PartStudioId;
-    public readonly partStudioStore: ModelEntityStore<PartStudio>;
+    public readonly partStudioStore: ModelElementStore<PartStudio>;
     public readonly partStudios: readonly PartStudio[];
 
     constructor({
@@ -172,7 +179,7 @@ export class CadDocument extends BaseDocumentModel {
         readonly partStudios: readonly PartStudio[];
         readonly revision?: number;
     }) {
-        const partStudioStore = ModelEntityStore.fromEntities(partStudios);
+        const partStudioStore = ModelElementStore.fromEntities(partStudios);
 
         super({
             id,
@@ -198,25 +205,31 @@ export class CadDocument extends BaseDocumentModel {
         );
     }
 
-    public withActivePartStudioId(activePartStudioId: PartStudioId): CadDocument {
+    public withActivePartStudioId(
+        activePartStudioId: PartStudioId,
+        revision = this.revision,
+    ): CadDocument {
         return new CadDocument({
             activePartStudioId,
             id: this.id,
             metadata: this.metadata,
             name: this.name,
             partStudios: this.partStudios,
-            revision: this.revision,
+            revision,
         });
     }
 
-    public withPartStudioStore(partStudioStore: ModelEntityStore<PartStudio>): CadDocument {
+    public withPartStudioStore(
+        partStudioStore: ModelElementStore<PartStudio>,
+        revision = this.revision,
+    ): CadDocument {
         return new CadDocument({
             activePartStudioId: this.activePartStudioId,
             id: this.id,
             metadata: this.metadata,
             name: this.name,
             partStudios: partStudioStore.list(),
-            revision: this.revision,
+            revision,
         });
     }
 }

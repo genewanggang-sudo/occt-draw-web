@@ -1,27 +1,27 @@
-import type { ModelObject } from './base';
+import type { ModelElement } from './base';
 import type { ModelRef } from './refs';
 import { createModelRefKey } from './refs';
 
 export interface ModelRefResolver {
-    find(ref: ModelRef): ModelObject | null;
+    find(ref: ModelRef): ModelElement | null;
     has(ref: ModelRef): boolean;
-    require(ref: ModelRef): ModelObject;
+    require(ref: ModelRef): ModelElement;
 }
 
 export class ModelRefIndex implements ModelRefResolver {
-    private readonly objects: ReadonlyMap<string, ModelObject>;
+    private readonly objects: ReadonlyMap<string, ModelElement>;
 
-    constructor(objects: readonly ModelObject[] = []) {
+    constructor(objects: readonly ModelElement[] = []) {
         this.objects = new Map(
             objects.map((object) => [createModelRefKey(object.toRef()), object]),
         );
     }
 
-    public add(object: ModelObject): ModelRefIndex {
+    public add(object: ModelElement): ModelRefIndex {
         return new ModelRefIndex([...this.objects.values(), object]);
     }
 
-    public find(ref: ModelRef): ModelObject | null {
+    public find(ref: ModelRef): ModelElement | null {
         const object = this.objects.get(createModelRefKey(ref)) ?? null;
 
         return object?.modelType === ref.kind ? object : null;
@@ -31,7 +31,7 @@ export class ModelRefIndex implements ModelRefResolver {
         return this.find(ref) !== null;
     }
 
-    public require(ref: ModelRef): ModelObject {
+    public require(ref: ModelRef): ModelElement {
         const object = this.find(ref);
 
         if (!object) {
@@ -41,7 +41,7 @@ export class ModelRefIndex implements ModelRefResolver {
         return object;
     }
 
-    public static fromObjects(objects: readonly ModelObject[]): ModelRefIndex {
+    public static fromObjects(objects: readonly ModelElement[]): ModelRefIndex {
         return new ModelRefIndex(objects);
     }
 }

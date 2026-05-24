@@ -1,5 +1,5 @@
 import {
-    BaseModelEntity,
+    BaseModelElement,
     defineModelProperty,
     type ModelPropertyDefinition,
     type ModelPropertyValue,
@@ -69,7 +69,7 @@ const ARC_START_ANGLE_PROPERTY = defineModelProperty<number>({
     defaultValue: 0,
 });
 
-export class Point2D extends BaseModelEntity {
+export class Point2D extends BaseModelElement {
     private readonly sketchId: SketchId;
 
     constructor(input: {
@@ -130,7 +130,7 @@ export class Point2D extends BaseModelEntity {
     }
 }
 
-export abstract class Curve2D extends BaseModelEntity {
+export abstract class Curve2D extends BaseModelElement {
     public abstract readonly kind: Curve2DSnapshot['kind'];
     protected readonly sketchId: SketchId;
 
@@ -353,7 +353,7 @@ function copyVector2(vector: Vector2): Vector2 {
 }
 
 function readVector2Property(
-    model: BaseModelEntity,
+    model: BaseModelElement,
     definition: ModelPropertyDefinition<Vector2>,
 ): Vector2 {
     const value = model.getDefinedProperty(definition);

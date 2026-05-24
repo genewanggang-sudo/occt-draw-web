@@ -1,7 +1,7 @@
 import {
     ChangeRecorder,
     ChangeRecordingScope,
-    ModelEntityChangeOperation,
+    ModelElementChangeOperation,
     ModelPropertyChangeOperation,
     createOperationId,
     type ModelPropertyPath,
@@ -27,7 +27,7 @@ export class SketchChangeRecorder {
         }
 
         this.recorder.record(
-            new ModelEntityChangeOperation<Sketch, SketchEntitySnapshot, SketchEntityRef>({
+            new ModelElementChangeOperation<Sketch, SketchEntitySnapshot, SketchEntityRef>({
                 action: 'add',
                 addEntity: restoreSketchEntity,
                 entity: snapshot,
@@ -45,7 +45,7 @@ export class SketchChangeRecorder {
         }
 
         this.recorder.record(
-            new ModelEntityChangeOperation<Sketch, SketchEntitySnapshot, SketchEntityRef>({
+            new ModelElementChangeOperation<Sketch, SketchEntitySnapshot, SketchEntityRef>({
                 action: 'remove',
                 addEntity: restoreSketchEntity,
                 entity: snapshot,

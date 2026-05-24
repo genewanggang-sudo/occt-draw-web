@@ -1,9 +1,9 @@
 import type { ChangeRecorder } from '../editing/changeRecorder';
 import type { OperationId } from '../editing/operation';
-import type { IdentifiedModelEntity } from './base';
+import { setNextModelRevision, type IdentifiedModelElement, type ModelElement } from './base';
 
-export class ModelEntityStore<
-    TEntity extends IdentifiedModelEntity<TId>,
+export class ModelElementStore<
+    TEntity extends IdentifiedModelElement<TId>,
     TId extends string = string,
 > {
     private readonly entities: ReadonlyMap<TId, TEntity>;
@@ -15,10 +15,10 @@ export class ModelEntityStore<
     }
 
     public static fromEntities<
-        TEntity extends IdentifiedModelEntity<TId>,
+        TEntity extends IdentifiedModelElement<TId>,
         TId extends string = string,
-    >(entities: readonly TEntity[]): ModelEntityStore<TEntity, TId> {
-        return new ModelEntityStore(entities.map((entity) => [entity.id, entity]));
+    >(entities: readonly TEntity[]): ModelElementStore<TEntity, TId> {
+        return new ModelElementStore(entities.map((entity) => [entity.id, entity]));
     }
 
     public find(id: TId): TEntity | null {
@@ -32,9 +32,9 @@ export class ModelEntityStore<
     public edit(input: {
         readonly createOperationId: (action: string, entity: TEntity) => OperationId;
         readonly createOperationLabel: (action: string, entity: TEntity) => string;
-        readonly recorder: ChangeRecorder<ModelEntityStore<TEntity, TId>>;
-    }): ModelEntityStoreEditor<TEntity, TId> {
-        return new ModelEntityStoreEditor({
+        readonly recorder: ChangeRecorder<ModelElementStore<TEntity, TId>>;
+    }): ModelElementStoreEditor<TEntity, TId> {
+        return new ModelElementStoreEditor({
             createOperationId: input.createOperationId,
             createOperationLabel: input.createOperationLabel,
             recorder: input.recorder,
@@ -45,14 +45,14 @@ export class ModelEntityStore<
     public editMapped<TDocument>(input: {
         readonly createOperationId: (action: string, entity: TEntity) => OperationId;
         readonly createOperationLabel: (action: string, entity: TEntity) => string;
-        readonly getStore: (document: TDocument) => ModelEntityStore<TEntity, TId>;
+        readonly getStore: (document: TDocument) => ModelElementStore<TEntity, TId>;
         readonly recorder: ChangeRecorder<TDocument>;
         readonly replaceStore: (
             document: TDocument,
-            store: ModelEntityStore<TEntity, TId>,
+            store: ModelElementStore<TEntity, TId>,
         ) => TDocument;
-    }): MappedModelEntityStoreEditor<TDocument, TEntity, TId> {
-        return new MappedModelEntityStoreEditor({
+    }): MappedModelElementStoreEditor<TDocument, TEntity, TId> {
+        return new MappedModelElementStoreEditor({
             createOperationId: input.createOperationId,
             createOperationLabel: input.createOperationLabel,
             getStore: input.getStore,
@@ -66,33 +66,33 @@ export class ModelEntityStore<
         return [...this.entities.values()];
     }
 
-    public remove(id: TId): ModelEntityStore<TEntity, TId> {
+    public remove(id: TId): ModelElementStore<TEntity, TId> {
         const next = new Map(this.entities);
 
         next.delete(id);
 
-        return new ModelEntityStore(next);
+        return new ModelElementStore(next);
     }
 
-    public set(entity: TEntity): ModelEntityStore<TEntity, TId> {
-        return new ModelEntityStore([...this.entities, [entity.id, entity]]);
+    public set(entity: TEntity): ModelElementStore<TEntity, TId> {
+        return new ModelElementStore([...this.entities, [entity.id, entity]]);
     }
 }
 
-export class ModelEntityStoreEditor<
-    TEntity extends IdentifiedModelEntity<TId>,
+export class ModelElementStoreEditor<
+    TEntity extends IdentifiedModelElement<TId>,
     TId extends string = string,
 > {
     private readonly createOperationId: (action: string, entity: TEntity) => OperationId;
     private readonly createOperationLabel: (action: string, entity: TEntity) => string;
-    private readonly recorder: ChangeRecorder<ModelEntityStore<TEntity, TId>>;
-    private storeValue: ModelEntityStore<TEntity, TId>;
+    private readonly recorder: ChangeRecorder<ModelElementStore<TEntity, TId>>;
+    private storeValue: ModelElementStore<TEntity, TId>;
 
     constructor(input: {
         readonly createOperationId: (action: string, entity: TEntity) => OperationId;
         readonly createOperationLabel: (action: string, entity: TEntity) => string;
-        readonly recorder: ChangeRecorder<ModelEntityStore<TEntity, TId>>;
-        readonly store: ModelEntityStore<TEntity, TId>;
+        readonly recorder: ChangeRecorder<ModelElementStore<TEntity, TId>>;
+        readonly store: ModelElementStore<TEntity, TId>;
     }) {
         this.createOperationId = input.createOperationId;
         this.createOperationLabel = input.createOperationLabel;
@@ -100,16 +100,16 @@ export class ModelEntityStoreEditor<
         this.storeValue = input.store;
     }
 
-    public get store(): ModelEntityStore<TEntity, TId> {
+    public get store(): ModelElementStore<TEntity, TId> {
         return this.storeValue;
     }
 
-    public add(entity: TEntity): ModelEntityStore<TEntity, TId> {
+    public add(entity: TEntity): ModelElementStore<TEntity, TId> {
         if (this.storeValue.has(entity.id)) {
             throw new Error(`Cannot add model entity ${entity.id}: entity already exists.`);
         }
 
-        const operation = new AddModelEntityOperation<TEntity, TId>({
+        const operation = new AddModelElementOperation<TEntity, TId>({
             entity,
             id: this.createOperationId('add', entity),
             label: this.createOperationLabel('add', entity),
@@ -121,14 +121,14 @@ export class ModelEntityStoreEditor<
         return this.storeValue;
     }
 
-    public remove(entityId: TId): ModelEntityStore<TEntity, TId> {
+    public remove(entityId: TId): ModelElementStore<TEntity, TId> {
         const entity = this.storeValue.find(entityId);
 
         if (!entity) {
             return this.storeValue;
         }
 
-        const operation = new RemoveModelEntityOperation<TEntity, TId>({
+        const operation = new RemoveModelElementOperation<TEntity, TId>({
             entity,
             id: this.createOperationId('remove', entity),
             label: this.createOperationLabel('remove', entity),
@@ -140,14 +140,14 @@ export class ModelEntityStoreEditor<
         return this.storeValue;
     }
 
-    public replace(entity: TEntity): ModelEntityStore<TEntity, TId> {
+    public replace(entity: TEntity): ModelElementStore<TEntity, TId> {
         const previousEntity = this.storeValue.find(entity.id);
 
         if (!previousEntity) {
             throw new Error(`Cannot replace model entity ${entity.id}: entity does not exist.`);
         }
 
-        const operation = new ReplaceModelEntityOperation<TEntity, TId>({
+        const operation = new ReplaceModelElementOperation<TEntity, TId>({
             id: this.createOperationId('replace', entity),
             label: this.createOperationLabel('replace', entity),
             nextEntity: entity,
@@ -161,31 +161,31 @@ export class ModelEntityStoreEditor<
     }
 }
 
-export class MappedModelEntityStoreEditor<
+export class MappedModelElementStoreEditor<
     TDocument,
-    TEntity extends IdentifiedModelEntity<TId>,
+    TEntity extends IdentifiedModelElement<TId>,
     TId extends string = string,
 > {
     private readonly createOperationId: (action: string, entity: TEntity) => OperationId;
     private readonly createOperationLabel: (action: string, entity: TEntity) => string;
-    private readonly getStore: (document: TDocument) => ModelEntityStore<TEntity, TId>;
+    private readonly getStore: (document: TDocument) => ModelElementStore<TEntity, TId>;
     private readonly recorder: ChangeRecorder<TDocument>;
     private readonly replaceStore: (
         document: TDocument,
-        store: ModelEntityStore<TEntity, TId>,
+        store: ModelElementStore<TEntity, TId>,
     ) => TDocument;
-    private storeValue: ModelEntityStore<TEntity, TId>;
+    private storeValue: ModelElementStore<TEntity, TId>;
 
     constructor(input: {
         readonly createOperationId: (action: string, entity: TEntity) => OperationId;
         readonly createOperationLabel: (action: string, entity: TEntity) => string;
-        readonly getStore: (document: TDocument) => ModelEntityStore<TEntity, TId>;
+        readonly getStore: (document: TDocument) => ModelElementStore<TEntity, TId>;
         readonly recorder: ChangeRecorder<TDocument>;
         readonly replaceStore: (
             document: TDocument,
-            store: ModelEntityStore<TEntity, TId>,
+            store: ModelElementStore<TEntity, TId>,
         ) => TDocument;
-        readonly store: ModelEntityStore<TEntity, TId>;
+        readonly store: ModelElementStore<TEntity, TId>;
     }) {
         this.createOperationId = input.createOperationId;
         this.createOperationLabel = input.createOperationLabel;
@@ -195,16 +195,16 @@ export class MappedModelEntityStoreEditor<
         this.storeValue = input.store;
     }
 
-    public get store(): ModelEntityStore<TEntity, TId> {
+    public get store(): ModelElementStore<TEntity, TId> {
         return this.storeValue;
     }
 
-    public add(entity: TEntity): ModelEntityStore<TEntity, TId> {
+    public add(entity: TEntity): ModelElementStore<TEntity, TId> {
         if (this.storeValue.has(entity.id)) {
             throw new Error(`Cannot add model entity ${entity.id}: entity already exists.`);
         }
 
-        const operation = new AddModelEntityOperation<TEntity, TId>({
+        const operation = new AddModelElementOperation<TEntity, TId>({
             entity,
             id: this.createOperationId('add', entity),
             label: this.createOperationLabel('add', entity),
@@ -220,14 +220,14 @@ export class MappedModelEntityStoreEditor<
         return this.storeValue;
     }
 
-    public remove(entityId: TId): ModelEntityStore<TEntity, TId> {
+    public remove(entityId: TId): ModelElementStore<TEntity, TId> {
         const entity = this.storeValue.find(entityId);
 
         if (!entity) {
             return this.storeValue;
         }
 
-        const operation = new RemoveModelEntityOperation<TEntity, TId>({
+        const operation = new RemoveModelElementOperation<TEntity, TId>({
             entity,
             id: this.createOperationId('remove', entity),
             label: this.createOperationLabel('remove', entity),
@@ -243,14 +243,14 @@ export class MappedModelEntityStoreEditor<
         return this.storeValue;
     }
 
-    public replace(entity: TEntity): ModelEntityStore<TEntity, TId> {
+    public replace(entity: TEntity): ModelElementStore<TEntity, TId> {
         const previousEntity = this.storeValue.find(entity.id);
 
         if (!previousEntity) {
             throw new Error(`Cannot replace model entity ${entity.id}: entity does not exist.`);
         }
 
-        const operation = new ReplaceModelEntityOperation<TEntity, TId>({
+        const operation = new ReplaceModelElementOperation<TEntity, TId>({
             id: this.createOperationId('replace', entity),
             label: this.createOperationLabel('replace', entity),
             nextEntity: entity,
@@ -268,8 +268,8 @@ export class MappedModelEntityStoreEditor<
     }
 }
 
-export class AddModelEntityOperation<
-    TEntity extends IdentifiedModelEntity<TId>,
+export class AddModelElementOperation<
+    TEntity extends IdentifiedModelElement<TId>,
     TId extends string = string,
 > {
     public readonly entity: TEntity;
@@ -286,7 +286,7 @@ export class AddModelEntityOperation<
         this.label = input.label;
     }
 
-    public apply(store: ModelEntityStore<TEntity, TId>): ModelEntityStore<TEntity, TId> {
+    public apply(store: ModelElementStore<TEntity, TId>): ModelElementStore<TEntity, TId> {
         if (store.has(this.entity.id)) {
             throw new Error(
                 `Cannot apply add model entity ${this.entity.id}: entity already exists.`,
@@ -296,13 +296,13 @@ export class AddModelEntityOperation<
         return store.set(this.entity);
     }
 
-    public revert(store: ModelEntityStore<TEntity, TId>): ModelEntityStore<TEntity, TId> {
+    public revert(store: ModelElementStore<TEntity, TId>): ModelElementStore<TEntity, TId> {
         return store.remove(this.entity.id);
     }
 }
 
-export class RemoveModelEntityOperation<
-    TEntity extends IdentifiedModelEntity<TId>,
+export class RemoveModelElementOperation<
+    TEntity extends IdentifiedModelElement<TId>,
     TId extends string = string,
 > {
     public readonly entity: TEntity;
@@ -319,17 +319,17 @@ export class RemoveModelEntityOperation<
         this.label = input.label;
     }
 
-    public apply(store: ModelEntityStore<TEntity, TId>): ModelEntityStore<TEntity, TId> {
+    public apply(store: ModelElementStore<TEntity, TId>): ModelElementStore<TEntity, TId> {
         return store.remove(this.entity.id);
     }
 
-    public revert(store: ModelEntityStore<TEntity, TId>): ModelEntityStore<TEntity, TId> {
+    public revert(store: ModelElementStore<TEntity, TId>): ModelElementStore<TEntity, TId> {
         return store.set(this.entity);
     }
 }
 
-export class ReplaceModelEntityOperation<
-    TEntity extends IdentifiedModelEntity<TId>,
+export class ReplaceModelElementOperation<
+    TEntity extends IdentifiedModelElement<TId>,
     TId extends string = string,
 > {
     public readonly id: OperationId;
@@ -349,11 +349,33 @@ export class ReplaceModelEntityOperation<
         this.previousEntity = input.previousEntity;
     }
 
-    public apply(store: ModelEntityStore<TEntity, TId>): ModelEntityStore<TEntity, TId> {
-        return store.set(this.nextEntity);
+    public apply(store: ModelElementStore<TEntity, TId>): ModelElementStore<TEntity, TId> {
+        return store.set(nextRevisionFrom(this.nextEntity, this.previousEntity));
     }
 
-    public revert(store: ModelEntityStore<TEntity, TId>): ModelEntityStore<TEntity, TId> {
+    public revert(store: ModelElementStore<TEntity, TId>): ModelElementStore<TEntity, TId> {
         return store.set(this.previousEntity);
     }
+}
+
+function nextRevisionFrom<TEntity extends IdentifiedModelElement>(
+    entity: TEntity,
+    previousEntity: TEntity,
+): TEntity {
+    if (isModelElement(entity) && isModelElement(previousEntity)) {
+        setNextModelRevision(entity, previousEntity.revision);
+    }
+
+    return entity;
+}
+
+function isModelElement<TEntity extends IdentifiedModelElement>(
+    entity: TEntity,
+): entity is TEntity & ModelElement {
+    return (
+        'nextRevision' in entity &&
+        typeof entity.nextRevision === 'function' &&
+        'withRevision' in entity &&
+        typeof entity.withRevision === 'function'
+    );
 }

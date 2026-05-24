@@ -1,4 +1,4 @@
-import { BaseModelEntity } from '@occt-draw/core';
+import { BaseModelElement } from '@occt-draw/core';
 import {
     SketchEntityKind,
     type EdgeSnapshot,
@@ -12,7 +12,7 @@ import {
     type VertexSnapshot,
 } from '../types';
 
-export class Vertex extends BaseModelEntity {
+export class Vertex extends BaseModelElement {
     private readonly sketchId: SketchId;
 
     constructor(input: {
@@ -59,7 +59,7 @@ export class Vertex extends BaseModelEntity {
     }
 }
 
-export class Edge extends BaseModelEntity {
+export class Edge extends BaseModelElement {
     private readonly sketchId: SketchId;
 
     constructor(input: {

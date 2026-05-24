@@ -36,7 +36,6 @@ export class SketchChangeOperation implements Operation<Sketch> {
 
         withActiveSketchChangeRecorder(recorder, () => {
             this.edit.apply(sketch);
-            sketch.state.incrementRevision();
         });
         this.transactionValue = recorder.toTransaction({ id: this.id });
 

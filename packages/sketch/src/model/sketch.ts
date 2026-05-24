@@ -1,6 +1,6 @@
 import {
-    BaseModelEntity,
-    ModelEntityStore,
+    BaseModelElement,
+    ModelElementStore,
     ModelPropertyBag,
     type ModelPropertyValue,
 } from '@occt-draw/core';
@@ -28,7 +28,7 @@ import {
     type SketchVertexId,
 } from '../types';
 
-export class SketchPlane extends BaseModelEntity {
+export class SketchPlane extends BaseModelElement {
     public readonly planeKind: SketchPlaneKind;
     public readonly planeObjectRef: SketchPlaneObjectRef;
 
@@ -47,7 +47,7 @@ export class SketchPlane extends BaseModelEntity {
     }
 }
 
-export class Sketch extends BaseModelEntity {
+export class Sketch extends BaseModelElement {
     public readonly constraints: SketchConstraints;
     public readonly dimensions: SketchDimensions;
     public readonly entities: SketchEntities;
@@ -63,6 +63,7 @@ export class Sketch extends BaseModelEntity {
         readonly name: string;
         readonly plane: SketchPlane;
         readonly profiles?: SketchProfiles;
+        readonly revision?: number;
         readonly state?: SketchState;
     }) {
         super({
@@ -73,6 +74,7 @@ export class Sketch extends BaseModelEntity {
                 ['planeKind', input.plane.planeKind],
                 ['planeObjectRef', input.plane.planeObjectRef],
             ]),
+            ...(input.revision === undefined ? {} : { revision: input.revision }),
         });
         this.constraints = input.constraints ?? new SketchConstraints(input.id);
         this.dimensions = input.dimensions ?? new SketchDimensions(input.id);
@@ -86,10 +88,6 @@ export class Sketch extends BaseModelEntity {
         return this.plane.planeKind;
     }
 
-    public get revision(): number {
-        return this.state.revision;
-    }
-
     public clone(): Sketch {
         return new Sketch({
             constraints: this.constraints.clone(),
@@ -99,6 +97,7 @@ export class Sketch extends BaseModelEntity {
             name: this.name,
             plane: new SketchPlane(this.plane),
             profiles: this.profiles.clone(),
+            revision: this.revision,
             state: this.state.clone(),
         });
     }
@@ -178,7 +177,7 @@ export class Sketch extends BaseModelEntity {
     }
 }
 
-export class SketchEntities extends BaseModelEntity {
+export class SketchEntities extends BaseModelElement {
     public readonly geometry: GeometrySet;
     public readonly topology: TopologySet;
     private readonly sketchId: SketchId;
@@ -216,7 +215,7 @@ export class SketchEntities extends BaseModelEntity {
     }
 }
 
-export class GeometrySet extends BaseModelEntity {
+export class GeometrySet extends BaseModelElement {
     public readonly curves: CurveStore;
     public readonly points: PointStore;
     private readonly sketchId: SketchId;
@@ -254,7 +253,7 @@ export class GeometrySet extends BaseModelEntity {
     }
 }
 
-export class TopologySet extends BaseModelEntity {
+export class TopologySet extends BaseModelElement {
     public readonly edges: EdgeStore;
     private readonly sketchId: SketchId;
     public readonly vertices: VertexStore;
@@ -294,18 +293,18 @@ export class TopologySet extends BaseModelEntity {
 
 abstract class SketchEntityStore<
     TEntityId extends string,
-    TEntity extends BaseModelEntity<TEntityId> & { readonly ref: SketchEntityRef },
+    TEntity extends BaseModelElement<TEntityId> & { readonly ref: SketchEntityRef },
     TSnapshot extends SketchEntitySnapshot,
 > {
     protected readonly sketchId: SketchId;
-    private store: ModelEntityStore<TEntity, TEntityId>;
+    private store: ModelElementStore<TEntity, TEntityId>;
 
     protected constructor(input: {
         readonly entities: readonly TEntity[];
         readonly sketchId: SketchId;
     }) {
         this.sketchId = input.sketchId;
-        this.store = ModelEntityStore.fromEntities(input.entities);
+        this.store = ModelElementStore.fromEntities(input.entities);
     }
 
     public add(entity: TEntity): TEntity {
@@ -429,7 +428,7 @@ export class EdgeStore extends SketchEntityStore<
     }
 }
 
-export class SketchConstraints extends BaseModelEntity {
+export class SketchConstraints extends BaseModelElement {
     private readonly sketchId: SketchId;
 
     constructor(sketchId: SketchId) {
@@ -447,7 +446,7 @@ export class SketchConstraints extends BaseModelEntity {
     }
 }
 
-export class SketchDimensions extends BaseModelEntity {
+export class SketchDimensions extends BaseModelElement {
     private readonly sketchId: SketchId;
 
     constructor(sketchId: SketchId) {
@@ -465,7 +464,7 @@ export class SketchDimensions extends BaseModelEntity {
     }
 }
 
-export class SketchProfiles extends BaseModelEntity {
+export class SketchProfiles extends BaseModelElement {
     private readonly sketchId: SketchId;
 
     constructor(sketchId: SketchId) {
@@ -483,7 +482,7 @@ export class SketchProfiles extends BaseModelEntity {
     }
 }
 
-type SketchStateNumberProperty = Exclude<keyof SketchStateSnapshot, 'kind'>;
+type SketchStateNumberProperty = Exclude<keyof SketchStateSnapshot, 'kind' | 'revision'>;
 
 const SKETCH_STATE_NUMBER_PROPERTIES: readonly SketchStateNumberProperty[] = [
     'nextConstraintIndex',
@@ -493,10 +492,9 @@ const SKETCH_STATE_NUMBER_PROPERTIES: readonly SketchStateNumberProperty[] = [
     'nextPointIndex',
     'nextProfileIndex',
     'nextVertexIndex',
-    'revision',
 ];
 
-export class SketchState extends BaseModelEntity {
+export class SketchState extends BaseModelElement {
     private readonly sketchId: SketchId;
 
     constructor(input: SketchStateSnapshot & { readonly sketchId: SketchId }) {
@@ -507,12 +505,9 @@ export class SketchState extends BaseModelEntity {
             modelType: 'sketch.state',
             name: `${input.sketchId}:state`,
             properties,
+            revision: input.revision,
         });
         this.sketchId = input.sketchId;
-    }
-
-    public get revision(): number {
-        return this.readNumberProperty('revision');
     }
 
     public allocateCurveId(): SketchCurveId {
@@ -558,10 +553,6 @@ export class SketchState extends BaseModelEntity {
         });
     }
 
-    public incrementRevision(): void {
-        this.setNumberProperty('revision', this.revision + 1);
-    }
-
     public restore(snapshot: SketchStateSnapshot): void {
         const properties = createSketchStateProperties({
             ...snapshot,
@@ -571,6 +562,7 @@ export class SketchState extends BaseModelEntity {
         for (const [key, value] of properties.entries()) {
             this.setPropertyValue(key, value);
         }
+        this.withRevision(snapshot.revision);
     }
 
     public setTrackedProperty(propertyPath: readonly string[], value: SketchPropertyValue): void {

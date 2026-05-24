@@ -1,67 +1,62 @@
 import type { DocumentId } from '../ids';
-import { createModelRef, type ModelRef } from './refs';
 import {
     ModelPropertyBag,
     type ModelPropertyDefinition,
     type ModelPropertyKey,
     type ModelPropertyValue,
 } from './properties';
+import { createModelRef, type ModelRef } from './refs';
 
-export type ModelObjectId = string;
-export type ModelObjectType = string;
+export type ModelElementId = string;
+export type ModelElementType = string;
 
-export interface ModelObjectInput<TId extends string = string> {
+export interface ModelElementInput<TId extends string = string> {
     readonly id: TId;
     readonly metadata?: ReadonlyMap<string, unknown> | null;
-    readonly modelType: ModelObjectType;
+    readonly modelType: ModelElementType;
     readonly name: string;
     readonly properties?:
         | ModelPropertyBag
         | ReadonlyMap<ModelPropertyKey, ModelPropertyValue>
         | null;
-}
-
-export type ModelEntityInput<TId extends string = string> = ModelObjectInput<TId>;
-
-export interface RevisionedModelEntityInput<
-    TId extends string = string,
-> extends ModelObjectInput<TId> {
     readonly revision?: number;
 }
 
-export interface IdentifiedModelEntity<TId extends string = string> {
+export interface IdentifiedModelElement<TId extends string = string> {
     readonly id: TId;
 }
 
-export interface NamedModelEntity<TId extends string = string> extends IdentifiedModelEntity<TId> {
+export interface NamedModelElement<
+    TId extends string = string,
+> extends IdentifiedModelElement<TId> {
     readonly name: string;
 }
 
-export interface RevisionedModelEntity<TId extends string = string> extends NamedModelEntity<TId> {
-    readonly revision: number;
-}
-
-export interface ModelObject<TId extends string = string> extends NamedModelEntity<TId> {
+export interface ModelElement<TId extends string = string> extends NamedModelElement<TId> {
     readonly metadata: ReadonlyMap<string, unknown>;
-    readonly modelType: ModelObjectType;
+    readonly modelType: ModelElementType;
     readonly properties: ModelPropertyBag;
+    readonly revision: number;
     getDefinedProperty<TValue extends ModelPropertyValue>(
         definition: ModelPropertyDefinition<TValue>,
     ): ModelPropertyValue | null;
     getNumberProperty(key: ModelPropertyKey, fallback?: number): number;
     getProperty(key: ModelPropertyKey): ModelPropertyValue | null;
     getStringProperty(key: ModelPropertyKey, fallback?: string): string;
-    toRef(kind?: ModelObjectType): ModelRef<TId>;
+    nextRevision(): this;
+    toRef(kind?: ModelElementType): ModelRef<TId>;
+    withRevision(revision: number): this;
 }
 
-export abstract class BaseModelObject<TId extends string = string> implements ModelObject<TId> {
+export abstract class BaseModelElement<TId extends string = string> implements ModelElement<TId> {
     public readonly id: TId;
     public readonly metadata: ReadonlyMap<string, unknown>;
-    public readonly modelType: ModelObjectType;
+    public readonly modelType: ModelElementType;
     public readonly name: string;
     private propertiesValue: ModelPropertyBag;
+    private revisionValue: number;
 
-    protected constructor(input: ModelObjectInput<TId>) {
+    protected constructor(input: ModelElementInput<TId>) {
         this.id = input.id;
         this.metadata = new Map(input.metadata ?? []);
         this.modelType = input.modelType;
@@ -70,10 +65,19 @@ export abstract class BaseModelObject<TId extends string = string> implements Mo
             input.properties instanceof ModelPropertyBag
                 ? input.properties
                 : new ModelPropertyBag(input.properties ?? []);
+        this.revisionValue = input.revision ?? 0;
     }
 
     public get properties(): ModelPropertyBag {
         return this.propertiesValue;
+    }
+
+    public get revision(): number {
+        return this.revisionValue;
+    }
+
+    public nextRevision(): this {
+        return this.withRevision(this.revision + 1);
     }
 
     public getProperty(key: ModelPropertyKey): ModelPropertyValue | null {
@@ -109,32 +113,35 @@ export abstract class BaseModelObject<TId extends string = string> implements Mo
         this.propertiesValue = this.propertiesValue.setDefined(definition, value);
     }
 
-    public toRef(kind?: ModelObjectType): ModelRef<TId> {
+    public toRef(kind?: ModelElementType): ModelRef<TId> {
         return createModelRef({
             id: this.id,
             kind: kind ?? this.modelType,
         });
     }
-}
 
-export abstract class BaseModelEntity<TId extends string = string> extends BaseModelObject<TId> {}
+    public withRevision(revision: number): this {
+        this.revisionValue = revision;
 
-export abstract class BaseRevisionedModelEntity<TId extends string = string>
-    extends BaseModelObject<TId>
-    implements RevisionedModelEntity<TId>
-{
-    public readonly revision: number;
-
-    protected constructor(input: RevisionedModelEntityInput<TId>) {
-        super(input);
-        this.revision = input.revision ?? 0;
+        return this;
     }
 }
 
-export abstract class BaseDocumentModel<
+export abstract class DocumentModel<
     TDocumentId extends string = DocumentId,
-> extends BaseRevisionedModelEntity<TDocumentId> {
-    protected constructor(input: RevisionedModelEntityInput<TDocumentId>) {
+> extends BaseModelElement<TDocumentId> {
+    protected constructor(input: ModelElementInput<TDocumentId>) {
         super(input);
     }
+}
+
+export function setNextModelRevision<TElement extends ModelElement>(
+    element: TElement,
+    previousRevision: number,
+): TElement {
+    return element.withRevision(getNextModelRevision(previousRevision));
+}
+
+export function getNextModelRevision(previousRevision: number): number {
+    return previousRevision + 1;
 }

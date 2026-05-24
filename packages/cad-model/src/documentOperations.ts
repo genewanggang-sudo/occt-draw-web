@@ -1,4 +1,10 @@
-import { type Operation, type OperationId, createOperationId } from '@occt-draw/core';
+import {
+    type ModelElement,
+    type Operation,
+    type OperationId,
+    createOperationId,
+    setNextModelRevision,
+} from '@occt-draw/core';
 import type { CadDocument, FeaturePayload, PartStudio } from './document';
 import type { Feature } from './features';
 import type { FeaturePayloadId, PartStudioId } from './ids';
@@ -8,6 +14,7 @@ export class AppendFeatureOperation implements Operation<CadDocument> {
     public readonly id: OperationId;
     public readonly label: string;
     public readonly partStudioId: PartStudioId;
+    private previousPartStudio: PartStudio | null = null;
 
     constructor(input: {
         readonly feature: Feature;
@@ -22,17 +29,15 @@ export class AppendFeatureOperation implements Operation<CadDocument> {
     }
 
     public apply(document: CadDocument): CadDocument {
-        return withPartStudio(
-            document,
-            findPartStudioOrThrow(document, this.partStudioId).appendFeature(this.feature),
-        );
+        this.previousPartStudio = findPartStudioOrThrow(document, this.partStudioId);
+
+        return withPartStudio(document, this.previousPartStudio.appendFeature(this.feature));
     }
 
     public revert(document: CadDocument): CadDocument {
-        return withPartStudio(
-            document,
-            findPartStudioOrThrow(document, this.partStudioId).removeFeature(this.feature.id),
-        );
+        return this.previousPartStudio
+            ? withPartStudio(document, this.previousPartStudio)
+            : document;
     }
 }
 
@@ -83,7 +88,10 @@ export class ReplacePartStudioOperation implements Operation<CadDocument> {
     }
 
     public apply(document: CadDocument): CadDocument {
-        return withPartStudio(document, this.partStudio);
+        return withPartStudio(
+            document,
+            setNextModelRevision(this.partStudio, this.previousPartStudio.revision),
+        );
     }
 
     public revert(document: CadDocument): CadDocument {
@@ -98,6 +106,7 @@ export class SetFeaturePayloadOperation implements Operation<CadDocument> {
     public readonly payload: FeaturePayload;
     public readonly payloadId: FeaturePayloadId;
     public readonly previousPayload: FeaturePayload | null;
+    private previousPartStudio: PartStudio | null = null;
 
     constructor(input: {
         readonly id?: OperationId;
@@ -116,24 +125,21 @@ export class SetFeaturePayloadOperation implements Operation<CadDocument> {
     }
 
     public apply(document: CadDocument): CadDocument {
+        this.previousPartStudio = findPartStudioOrThrow(document, this.partStudioId);
+
         return withPartStudio(
             document,
-            findPartStudioOrThrow(document, this.partStudioId).setFeaturePayload(
+            this.previousPartStudio.setFeaturePayload(
                 this.payloadId,
-                this.payload,
+                nextPayloadRevision(this.payload, this.previousPayload),
             ),
         );
     }
 
     public revert(document: CadDocument): CadDocument {
-        const partStudio = findPartStudioOrThrow(document, this.partStudioId);
-
-        return withPartStudio(
-            document,
-            this.previousPayload
-                ? partStudio.setFeaturePayload(this.payloadId, this.previousPayload)
-                : partStudio.removeFeaturePayload(this.payloadId),
-        );
+        return this.previousPartStudio
+            ? withPartStudio(document, this.previousPartStudio)
+            : document;
     }
 }
 
@@ -149,4 +155,26 @@ function findPartStudioOrThrow(document: CadDocument, partStudioId: PartStudioId
     }
 
     return partStudio;
+}
+
+function nextPayloadRevision(
+    payload: FeaturePayload,
+    previousPayload: FeaturePayload | null,
+): FeaturePayload {
+    if (isModelElement(payload) && isModelElement(previousPayload)) {
+        return setNextModelRevision(payload, previousPayload.revision);
+    }
+
+    return payload;
+}
+
+function isModelElement(payload: FeaturePayload | null): payload is FeaturePayload & ModelElement {
+    return (
+        typeof payload === 'object' &&
+        payload !== null &&
+        'nextRevision' in payload &&
+        typeof payload.nextRevision === 'function' &&
+        'withRevision' in payload &&
+        typeof payload.withRevision === 'function'
+    );
 }

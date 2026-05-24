@@ -64,26 +64,23 @@ export {
 export type { DocumentId, ObjectId, PayloadId } from './ids';
 
 export {
-    BaseDocumentModel,
-    BaseModelEntity,
-    BaseModelObject,
-    BaseRevisionedModelEntity,
-    type IdentifiedModelEntity,
-    type ModelEntityInput,
-    type ModelObject,
-    type ModelObjectId,
-    type ModelObjectInput,
-    type ModelObjectType,
-    type NamedModelEntity,
-    type RevisionedModelEntity,
-    type RevisionedModelEntityInput,
+    BaseModelElement,
+    DocumentModel,
+    getNextModelRevision,
+    setNextModelRevision,
+    type IdentifiedModelElement,
+    type ModelElement,
+    type ModelElementId,
+    type ModelElementInput,
+    type ModelElementType,
+    type NamedModelElement,
 } from './model/base';
 export {
-    ModelEntityChangeOperation,
+    ModelElementChangeOperation,
     ModelPropertyChangeOperation,
     SetModelPropertyOperation,
     createSetModelPropertyOperation,
-    type ModelEntityChangeAction,
+    type ModelElementChangeAction,
 } from './model/operations';
 export {
     ModelPropertyBag,
@@ -97,12 +94,12 @@ export {
 export { ModelRefIndex, type ModelRefResolver } from './model/refIndex';
 export { createModelRef, type ModelRef, type ObjectRef } from './model/refs';
 export {
-    AddModelEntityOperation,
-    MappedModelEntityStoreEditor,
-    ModelEntityStore,
-    ModelEntityStoreEditor,
-    RemoveModelEntityOperation,
-    ReplaceModelEntityOperation,
+    AddModelElementOperation,
+    MappedModelElementStoreEditor,
+    ModelElementStore,
+    ModelElementStoreEditor,
+    RemoveModelElementOperation,
+    ReplaceModelElementOperation,
 } from './model/store';
 
 export { PayloadStore, type Payload } from './payload/payloadStore';

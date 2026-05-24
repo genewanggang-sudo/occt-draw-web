@@ -1,5 +1,6 @@
 import type { Operation } from './operation';
 import { MapOperation } from './operation';
+import { getNextModelRevision } from '../model/base';
 
 export type TransactionId = string;
 export type TransactionMergeKey = string;
@@ -9,30 +10,48 @@ export class Transaction<TDocument = unknown> {
     public readonly label: string;
     public readonly mergeKey: TransactionMergeKey | null;
     public readonly operations: readonly Operation<TDocument>[];
+    private readonly previousDocumentRevision: number | null;
+    private readonly revisionStack: number[] = [];
 
     constructor(input: {
         readonly id: TransactionId;
         readonly label: string;
         readonly mergeKey?: TransactionMergeKey | null;
         readonly operations: readonly Operation<TDocument>[];
+        readonly previousDocumentRevision?: number | null;
     }) {
         this.id = input.id;
         this.label = input.label;
         this.mergeKey = input.mergeKey ?? null;
         this.operations = [...input.operations];
+        this.previousDocumentRevision = input.previousDocumentRevision ?? null;
     }
 
     public apply(document: TDocument): TDocument {
-        return this.operations.reduce(
+        const previousRevision = readDocumentRevision(document);
+        const nextDocument = this.operations.reduce(
             (currentDocument, operation) => operation.apply(currentDocument),
             document,
         );
+
+        if (previousRevision !== null) {
+            this.revisionStack.push(previousRevision);
+        }
+
+        return this.isEmpty()
+            ? nextDocument
+            : setNextDocumentRevision(nextDocument, previousRevision);
     }
 
     public revert(document: TDocument): TDocument {
-        return [...this.operations]
+        const nextDocument = [...this.operations]
             .reverse()
             .reduce((currentDocument, operation) => operation.revert(currentDocument), document);
+
+        return restoreDocumentRevision(
+            nextDocument,
+            this.previousDocumentRevision ?? this.revisionStack.pop() ?? null,
+        );
     }
 
     public isEmpty(): boolean {
@@ -57,6 +76,7 @@ export class Transaction<TDocument = unknown> {
                         replace: input.replace,
                     }),
             ),
+            previousDocumentRevision: this.previousDocumentRevision,
         });
     }
 
@@ -79,10 +99,51 @@ export class Transaction<TDocument = unknown> {
             label: input?.label ?? transaction.label,
             mergeKey: this.mergeKey,
             operations: [...this.operations, ...transaction.operations],
+            previousDocumentRevision:
+                this.previousDocumentRevision ?? transaction.previousDocumentRevision,
         });
     }
 }
 
 export function createTransactionId(prefix: string, entityId: string): TransactionId {
     return `${prefix}:${entityId}`;
+}
+
+function readDocumentRevision(document: unknown): number | null {
+    return isRevisionedDocument(document) ? document.revision : null;
+}
+
+function setNextDocumentRevision<TDocument>(
+    document: TDocument,
+    previousRevision: number | null,
+): TDocument {
+    if (previousRevision !== null && isRevisionedDocument(document)) {
+        document.withRevision(getNextModelRevision(previousRevision));
+    }
+
+    return document;
+}
+
+function restoreDocumentRevision<TDocument>(
+    document: TDocument,
+    revision: number | null,
+): TDocument {
+    if (revision !== null && isRevisionedDocument(document)) {
+        document.withRevision(revision);
+    }
+
+    return document;
+}
+
+function isRevisionedDocument(document: unknown): document is {
+    readonly revision: number;
+    withRevision(revision: number): unknown;
+} {
+    return (
+        typeof document === 'object' &&
+        document !== null &&
+        'revision' in document &&
+        'withRevision' in document &&
+        typeof document.withRevision === 'function'
+    );
 }

@@ -1,11 +1,11 @@
-import { BaseModelEntity, type ModelPropertyValue } from '@occt-draw/core';
+import { BaseModelElement, type ModelPropertyValue } from '@occt-draw/core';
 import { Plane3, type Vector3 } from '@occt-draw/math';
 import type { CadObjectId } from './ids';
 
 export type CadObjectKind = 'reference-origin' | 'reference-plane';
 export type ReferencePlaneKind = 'xy' | 'yz' | 'zx';
 
-export abstract class BaseCadObject extends BaseModelEntity {
+export abstract class BaseCadObject extends BaseModelElement {
     public readonly kind: CadObjectKind;
     public readonly visible: boolean;
 
