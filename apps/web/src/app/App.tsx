@@ -76,6 +76,32 @@ export function App() {
                     <span className="cad-workbench__title">{appTitle}</span>
                 </div>
                 <nav className="cad-workbench__actions" aria-label="基础功能入口">
+                    <button
+                        className="cad-workbench__action"
+                        disabled={!editorState.documentSession.canUndo}
+                        onClick={() => {
+                            setEditorState((current) =>
+                                new EditorController(current).undoDocument(),
+                            );
+                        }}
+                        title={editorState.documentSession.undoLabel ?? 'Undo'}
+                        type="button"
+                    >
+                        Undo
+                    </button>
+                    <button
+                        className="cad-workbench__action"
+                        disabled={!editorState.documentSession.canRedo}
+                        onClick={() => {
+                            setEditorState((current) =>
+                                new EditorController(current).redoDocument(),
+                            );
+                        }}
+                        title={editorState.documentSession.redoLabel ?? 'Redo'}
+                        type="button"
+                    >
+                        Redo
+                    </button>
                     <button className="cad-workbench__action" type="button">
                         打开
                     </button>

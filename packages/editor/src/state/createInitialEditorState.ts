@@ -1,4 +1,5 @@
 import type { CadDocument } from '@occt-draw/cad-model';
+import { DocumentSession } from '@occt-draw/core';
 import { createInitialSelectionState, type ViewNavigationState } from '@occt-draw/platform';
 import { createInitialCommandSession } from '../commands/commandReducer';
 import type { EditorState } from './editorState';
@@ -15,6 +16,7 @@ export function createInitialEditorState({
     return {
         activeSketchSession: null,
         document,
+        documentSession: new DocumentSession(document),
         commandSession: createInitialCommandSession(),
         draft: null,
         navigation,

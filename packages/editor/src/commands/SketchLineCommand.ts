@@ -1,15 +1,13 @@
-import { createEditDraft, DocumentTransaction } from '@occt-draw/core';
+import { createEditDraft } from '@occt-draw/core';
 import {
     findSketchByFeatureId,
     referencePlaneToPlane,
-    SetFeaturePayloadOperation,
+    SetFeaturePayloadRequest,
     type CadDocument,
 } from '@occt-draw/cad-model';
 import { LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
 import {
     AddLineSegmentRequest,
-    AddPointRequest,
-    DeleteSketchEntityRequest,
     SketchEntityKind,
     sketchPointToWorldOnPlane,
     type Sketch,
@@ -18,7 +16,7 @@ import {
 } from '@occt-draw/sketch';
 import { SnapService, type SnapResult, type SnapSource } from '@occt-draw/snapping';
 import { projectWorldToScreen } from '@occt-draw/canvas';
-import type { EditorState, SketchEditSession } from '../state/editorState';
+import type { EditorState, SketchEditSession, SketchLineStart } from '../state/editorState';
 import {
     CadCommand,
     createHandledCommandResult,
@@ -43,7 +41,7 @@ export class SketchLineCommand extends CadCommand {
             return createHandledCommandResult({
                 commandSession: {
                     id: 'sketch-line',
-                    message: '进入草图后才能使用直线。',
+                    message: 'Sketch command updated.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'blocked',
                 },
@@ -54,12 +52,12 @@ export class SketchLineCommand extends CadCommand {
             activeSketchSession: {
                 ...state.activeSketchSession,
                 activeTool: 'line',
-                pendingLineStartVertexId: null,
+                pendingLineStart: null,
                 pendingRectangleStart: null,
             },
             commandSession: {
                 id: 'sketch-line',
-                message: '指定直线起点。',
+                message: 'Sketch command updated.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
@@ -71,55 +69,18 @@ export class SketchLineCommand extends CadCommand {
         const state = context.getState();
         const session = state.activeSketchSession;
 
-        if (session?.pendingLineStartVertexId) {
-            const activeSketch = findActiveSketch(state, session);
-
-            if (!activeSketch) {
-                return createHandledCommandResult({
-                    draft: null,
-                });
-            }
-
-            if (isVertexUsedByEdge(activeSketch.sketch, session.pendingLineStartVertexId)) {
-                return createHandledCommandResult({
-                    activeSketchSession: {
-                        ...session,
-                        pendingLineStartVertexId: null,
-                    },
-                    commandSession: {
-                        id: 'sketch-line',
-                        message: '已结束连续直线，继续指定直线起点。',
-                        selectionContext: state.commandSession.selectionContext,
-                        status: 'running',
-                    },
-                    draft: null,
-                });
-            }
-
-            const sketch = activeSketch.sketch.clone();
-            const request = new DeleteSketchEntityRequest({
-                entityRef: {
-                    entityId: session.pendingLineStartVertexId,
-                    kind: SketchEntityKind.Vertex,
-                    sketchId: sketch.id,
-                },
-            });
-            const transaction = request.createTransaction();
-
-            transaction.commit(sketch);
-
+        if (session?.pendingLineStart) {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingLineStartVertexId: null,
+                    pendingLineStart: null,
                 },
                 commandSession: {
                     id: 'sketch-line',
-                    message: '已取消当前直线，继续指定直线起点。',
+                    message: 'Sketch command updated.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
                 },
-                documentEdit: createSetSketchPayloadTransaction(state, sketch),
                 draft: null,
             });
         }
@@ -128,7 +89,7 @@ export class SketchLineCommand extends CadCommand {
             activeSketchSession: null,
             commandSession: {
                 id: 'select',
-                message: '已退出草图。',
+                message: 'Sketch command updated.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'idle',
             },
@@ -164,22 +125,22 @@ export class SketchLineCommand extends CadCommand {
 
         if (!point2) {
             return createHandledCommandResult({
-                message: '当前视线与草图平面平行，无法取点。',
+                message: 'Sketch command updated.',
             });
         }
 
-        if (!session.pendingLineStartVertexId) {
+        if (!session.pendingLineStart) {
             if (snappedVertexId) {
                 return this.createLineStartFromVertexResult(context, snappedVertexId);
             }
 
-            return this.createLineStartResult(context, activeSketch.sketch, point2);
+            return this.createLineStartResult(context, point2);
         }
 
         return this.createLineEndResult(
             context,
             activeSketch.sketch,
-            session.pendingLineStartVertexId,
+            session.pendingLineStart,
             point2,
             snappedVertexId,
         );
@@ -193,17 +154,17 @@ export class SketchLineCommand extends CadCommand {
         const session = state.activeSketchSession;
         const activeSketch = session ? findActiveSketch(state, session) : null;
 
-        if (!session?.pendingLineStartVertexId || !activeSketch) {
+        if (!session?.pendingLineStart || !activeSketch) {
             return createUnhandledCommandResult();
         }
 
         const sketch = activeSketch.sketch;
-        const startPoint = sketch.findPointForVertex(session.pendingLineStartVertexId);
+        const startPoint = resolveLineStartPoint(sketch, session.pendingLineStart);
         const resolvedPoint = this.resolveLinePoint(
             context,
             sketch,
             event,
-            session.pendingLineStartVertexId,
+            getPendingLineStartVertexId(session.pendingLineStart),
         );
         const endPoint2 = resolvedPoint.snap?.point ?? resolvedPoint.rawPoint;
 
@@ -294,11 +255,14 @@ export class SketchLineCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingLineStartVertexId: vertexId,
+                pendingLineStart: {
+                    kind: 'vertex',
+                    vertexId,
+                },
             },
             commandSession: {
                 id: 'sketch-line',
-                message: '已吸附端点，指定直线终点。',
+                message: 'Sketch command updated.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
@@ -306,11 +270,7 @@ export class SketchLineCommand extends CadCommand {
         });
     }
 
-    private createLineStartResult(
-        context: CommandContext,
-        sourceSketch: Sketch,
-        point: Vector2,
-    ): CommandResult {
+    private createLineStartResult(context: CommandContext, point: Vector2): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
 
@@ -318,35 +278,27 @@ export class SketchLineCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const sketch = sourceSketch.clone();
-        const request = new AddPointRequest({ position: point });
-        const transaction = request.createTransaction();
-
-        transaction.commit(sketch);
-
-        if (!request.createdVertexId) {
-            return createUnhandledCommandResult();
-        }
-
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingLineStartVertexId: request.createdVertexId,
+                pendingLineStart: {
+                    kind: 'point',
+                    point,
+                },
             },
             commandSession: {
                 id: 'sketch-line',
-                message: '指定直线终点。',
+                message: 'Sketch command updated.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
-            documentEdit: createSetSketchPayloadTransaction(state, sketch),
         });
     }
 
     private createLineEndResult(
         context: CommandContext,
         sourceSketch: Sketch,
-        startVertexId: SketchVertexId,
+        start: SketchLineStart,
         point: Vector2,
         snappedEndVertexId: SketchVertexId | null,
     ): CommandResult {
@@ -358,31 +310,23 @@ export class SketchLineCommand extends CadCommand {
         }
 
         const sketch = sourceSketch.clone();
-        const startPoint = sketch.findPointForVertex(startVertexId);
+        const startPoint = resolveLineStartPoint(sketch, start);
 
         if (!startPoint || Vec2.distance(startPoint.position, point) <= MIN_LINE_LENGTH) {
             return createHandledCommandResult({
                 commandSession: {
                     id: 'sketch-line',
-                    message: '直线长度过短，继续指定直线终点。',
+                    message: 'Sketch command updated.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
                 },
             });
         }
 
-        const request = snappedEndVertexId
-            ? new AddLineSegmentRequest({
-                  endVertexId: snappedEndVertexId,
-                  startVertexId,
-              })
-            : new AddLineSegmentRequest({
-                  endPosition: point,
-                  startVertexId,
-              });
-        const transaction = request.createTransaction();
+        const request = createAddLineSegmentRequest(start, point, snappedEndVertexId);
+        const operation = request.createOperation();
 
-        transaction.commit(sketch);
+        operation.apply(sketch);
 
         if (!request.createdEndVertexId) {
             return createUnhandledCommandResult();
@@ -391,35 +335,77 @@ export class SketchLineCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingLineStartVertexId: request.createdEndVertexId,
+                pendingLineStart: {
+                    kind: 'vertex',
+                    vertexId: request.createdEndVertexId,
+                },
             },
             commandSession: {
                 id: 'sketch-line',
-                message: '直线已创建，继续指定下一段终点。',
+                message: 'Sketch command updated.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
-            documentEdit: createSetSketchPayloadTransaction(state, sketch),
+            documentRequest: createSetSketchPayloadRequest(state, sketch),
             draft: null,
         });
     }
 }
 
-function createSetSketchPayloadTransaction(
+function createSetSketchPayloadRequest(
     state: EditorState,
     sketch: Sketch,
-): DocumentTransaction<CadDocument> {
-    return new DocumentTransaction<CadDocument>({
-        label: `更新${sketch.name}`,
-        operations: [
-            new SetFeaturePayloadOperation({
-                label: `更新${sketch.name}数据`,
-                partStudioId: state.document.getActivePartStudio().id,
-                payload: sketch,
-                payloadId: sketch.id,
-            }),
-        ],
+): SetFeaturePayloadRequest {
+    const partStudio = state.document.getActivePartStudio();
+
+    return new SetFeaturePayloadRequest({
+        label: `Update ${sketch.name}`,
+        partStudioId: partStudio.id,
+        payload: sketch,
+        payloadId: sketch.id,
+        transactionId: `set-sketch-payload:${sketch.id}`,
     });
+}
+
+function resolveLineStartPoint(
+    sketch: Sketch,
+    start: SketchLineStart,
+): { readonly position: Vector2 } | null {
+    return start.kind === 'vertex'
+        ? sketch.findPointForVertex(start.vertexId)
+        : { position: start.point };
+}
+
+function getPendingLineStartVertexId(start: SketchLineStart): SketchVertexId | null {
+    return start.kind === 'vertex' ? start.vertexId : null;
+}
+
+function createAddLineSegmentRequest(
+    start: SketchLineStart,
+    endPosition: Vector2,
+    endVertexId: SketchVertexId | null,
+): AddLineSegmentRequest {
+    if (start.kind === 'vertex') {
+        return endVertexId
+            ? new AddLineSegmentRequest({
+                  endVertexId,
+                  startVertexId: start.vertexId,
+              })
+            : new AddLineSegmentRequest({
+                  endPosition,
+                  startVertexId: start.vertexId,
+              });
+    }
+
+    return endVertexId
+        ? new AddLineSegmentRequest({
+              endVertexId,
+              startPosition: start.point,
+          })
+        : new AddLineSegmentRequest({
+              endPosition,
+              startPosition: start.point,
+          });
 }
 
 function findActiveSketch(
@@ -474,12 +460,6 @@ function collectSketchVertexSnapSources(
     }
 
     return sources;
-}
-
-function isVertexUsedByEdge(sketch: Sketch, vertexId: SketchVertexId): boolean {
-    return sketch.entities.topology.edges
-        .list()
-        .some((edge) => edge.startVertexId === vertexId || edge.endVertexId === vertexId);
 }
 
 function getSnappedVertexId(snap: SnapResult<SketchEntityRef> | null): SketchVertexId | null {

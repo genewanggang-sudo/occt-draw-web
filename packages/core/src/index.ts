@@ -1,13 +1,30 @@
 export {
-    DocumentEditor,
-    DocumentOperation,
-    DocumentTransaction,
-    TransactionGroup,
+    DocumentSession,
+    type DocumentSessionChange,
+    type DocumentSessionRequestResult,
+    type DocumentSessionScopeCommitResult,
+    type DocumentSessionSnapshot,
+} from './documentSession';
+export {
+    FunctionalOperation,
+    MapOperation,
+    ReplaceStateOperation,
+    ReplaceValueOperation,
+    Transaction,
+    ChangeRecorder,
     createOperationId,
-    editDocument,
-    type DocumentEdit,
+    createRequestExecution,
+    createTransactionId,
+    type HistoryRecordLabels,
+    type Operation,
     type OperationId,
-} from './documentEditor';
+    type OperationResult,
+    type Request,
+    type RequestContext,
+    type RequestExecution,
+    type TransactionId,
+    type TransactionMergeKey,
+} from './editing';
 export {
     EditDraft,
     createEditDraft,
@@ -22,6 +39,24 @@ export {
 } from './editDraft';
 export type { DocumentId, FeatureId, ObjectId, PayloadId } from './ids';
 export { PayloadStore, type Payload } from './payload';
+export {
+    BaseDocumentModel,
+    BaseModelEntity,
+    BaseRevisionedModelEntity,
+    type IdentifiedModelEntity,
+    type ModelEntityInput,
+    type NamedModelEntity,
+    type RevisionedModelEntity,
+    type RevisionedModelEntityInput,
+} from './model';
+export {
+    AddModelEntityOperation,
+    MappedModelEntityStoreEditor,
+    ModelEntityStore,
+    ModelEntityStoreEditor,
+    RemoveModelEntityOperation,
+    ReplaceModelEntityOperation,
+} from './modelStore';
 export {
     SelectionSet,
     createEmptySelectionSet,

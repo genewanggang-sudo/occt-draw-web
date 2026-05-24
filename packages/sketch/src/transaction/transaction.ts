@@ -1,34 +1,42 @@
-import type { Sketch } from '../model/sketch';
-import type { SketchRequest } from '../request/requests';
+import { createOperationId, type Operation, type OperationId } from '@occt-draw/core';
 import {
     SketchChangeRecorder,
     type SketchChangeSet,
     withActiveSketchChangeRecorder,
 } from '../changes/changeTracking';
+import type { Sketch } from '../model/sketch';
+import type { SketchRequest } from '../request/requests';
 
-export class SketchTransaction {
+export class SketchChangeOperation implements Operation<Sketch> {
+    public readonly id: OperationId;
     public readonly label: string;
     public readonly request: SketchRequest;
     private changeSetValue: SketchChangeSet | null = null;
 
-    constructor(input: { readonly label: string; readonly request: SketchRequest }) {
+    constructor(input: {
+        readonly id?: OperationId | undefined;
+        readonly label: string;
+        readonly request: SketchRequest;
+    }) {
+        this.id = input.id ?? createOperationId('sketch-request', input.request.kind);
         this.label = input.label;
         this.request = input.request;
     }
 
     public get changeSet(): SketchChangeSet {
         if (!this.changeSetValue) {
-            throw new Error('Sketch transaction has not been committed.');
+            throw new Error('Sketch operation has not been applied.');
         }
 
         return this.changeSetValue;
     }
 
-    public apply(sketch: Sketch): void {
-        this.changeSet.apply(sketch);
-    }
+    public apply(sketch: Sketch): Sketch {
+        if (this.changeSetValue) {
+            this.changeSetValue.apply(sketch);
+            return sketch;
+        }
 
-    public commit(sketch: Sketch): SketchChangeSet {
         const recorder = new SketchChangeRecorder(this.label);
 
         withActiveSketchChangeRecorder(recorder, () => {
@@ -37,58 +45,12 @@ export class SketchTransaction {
         });
         this.changeSetValue = recorder.toChangeSet();
 
-        return this.changeSetValue;
+        return sketch;
     }
 
-    public revert(sketch: Sketch): void {
+    public revert(sketch: Sketch): Sketch {
         this.changeSet.revert(sketch);
+
+        return sketch;
     }
-}
-
-export class HistoryManager<TTarget extends object> {
-    private readonly redoStack: SketchTransaction[] = [];
-    private readonly undoStack: SketchTransaction[] = [];
-
-    public clearRedo(): void {
-        this.redoStack.length = 0;
-    }
-
-    public push(transaction: SketchTransaction): void {
-        this.undoStack.push(transaction);
-        this.clearRedo();
-    }
-
-    public redo(target: TTarget): TTarget {
-        const transaction = this.redoStack.pop();
-
-        if (!transaction) {
-            return target;
-        }
-
-        if (isSketchTarget(target)) {
-            transaction.apply(target);
-        }
-        this.undoStack.push(transaction);
-
-        return target;
-    }
-
-    public undo(target: TTarget): TTarget {
-        const transaction = this.undoStack.pop();
-
-        if (!transaction) {
-            return target;
-        }
-
-        if (isSketchTarget(target)) {
-            transaction.revert(target);
-        }
-        this.redoStack.push(transaction);
-
-        return target;
-    }
-}
-
-function isSketchTarget(target: object): target is Sketch {
-    return 'entities' in target && 'state' in target;
 }

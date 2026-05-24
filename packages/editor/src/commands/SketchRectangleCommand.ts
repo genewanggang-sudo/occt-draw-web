@@ -1,8 +1,8 @@
-import { createEditDraft, DocumentTransaction } from '@occt-draw/core';
+﻿import { createEditDraft } from '@occt-draw/core';
 import {
     findSketchByFeatureId,
     referencePlaneToPlane,
-    SetFeaturePayloadOperation,
+    SetFeaturePayloadRequest,
     type CadDocument,
 } from '@occt-draw/cad-model';
 import { LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
@@ -34,7 +34,7 @@ export class SketchRectangleCommand extends CadCommand {
             return createHandledCommandResult({
                 commandSession: {
                     id: 'sketch-rectangle',
-                    message: '进入草图后才能使用矩形。',
+                    message: 'Sketch command updated.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'blocked',
                 },
@@ -45,12 +45,12 @@ export class SketchRectangleCommand extends CadCommand {
             activeSketchSession: {
                 ...state.activeSketchSession,
                 activeTool: 'rectangle',
-                pendingLineStartVertexId: null,
+                pendingLineStart: null,
                 pendingRectangleStart: null,
             },
             commandSession: {
                 id: 'sketch-rectangle',
-                message: '指定矩形第一个角点。',
+                message: 'Sketch command updated.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
@@ -70,7 +70,7 @@ export class SketchRectangleCommand extends CadCommand {
                 },
                 commandSession: {
                     id: 'sketch-rectangle',
-                    message: '已取消当前矩形，继续指定矩形第一个角点。',
+                    message: 'Sketch command updated.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
                 },
@@ -82,7 +82,7 @@ export class SketchRectangleCommand extends CadCommand {
             activeSketchSession: null,
             commandSession: {
                 id: 'select',
-                message: '已退出草图。',
+                message: 'Sketch command updated.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'idle',
             },
@@ -116,7 +116,7 @@ export class SketchRectangleCommand extends CadCommand {
 
         if (!point) {
             return createHandledCommandResult({
-                message: '当前视线与草图平面平行，无法取点。',
+                message: 'Sketch command updated.',
             });
         }
 
@@ -128,7 +128,7 @@ export class SketchRectangleCommand extends CadCommand {
                 },
                 commandSession: {
                     id: 'sketch-rectangle',
-                    message: '指定矩形对角点。',
+                    message: 'Sketch command updated.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
                 },
@@ -214,9 +214,9 @@ export class SketchRectangleCommand extends CadCommand {
             firstCorner,
             oppositeCorner,
         });
-        const transaction = request.createTransaction();
+        const operation = request.createOperation();
 
-        transaction.commit(sketch);
+        operation.apply(sketch);
 
         return createHandledCommandResult({
             activeSketchSession: {
@@ -225,11 +225,11 @@ export class SketchRectangleCommand extends CadCommand {
             },
             commandSession: {
                 id: 'sketch-rectangle',
-                message: '矩形已创建，继续指定矩形第一个角点。',
+                message: 'Sketch command updated.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
-            documentEdit: createSetSketchPayloadTransaction(state, sketch),
+            documentRequest: createSetSketchPayloadRequest(state, sketch),
             draft: null,
         });
     }
@@ -310,20 +310,18 @@ function projectPointerToSketch(
     });
 }
 
-function createSetSketchPayloadTransaction(
+function createSetSketchPayloadRequest(
     state: EditorState,
     sketch: Sketch,
-): DocumentTransaction<CadDocument> {
-    return new DocumentTransaction<CadDocument>({
-        label: `更新${sketch.name}`,
-        operations: [
-            new SetFeaturePayloadOperation({
-                label: `更新${sketch.name}数据`,
-                partStudioId: state.document.getActivePartStudio().id,
-                payload: sketch,
-                payloadId: sketch.id,
-            }),
-        ],
+): SetFeaturePayloadRequest {
+    const partStudio = state.document.getActivePartStudio();
+
+    return new SetFeaturePayloadRequest({
+        label: `Update ${sketch.name}`,
+        partStudioId: partStudio.id,
+        payload: sketch,
+        payloadId: sketch.id,
+        transactionId: `set-sketch-payload:${sketch.id}`,
     });
 }
 

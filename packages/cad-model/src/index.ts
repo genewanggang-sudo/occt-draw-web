@@ -5,6 +5,13 @@ export {
     ReplacePartStudioOperation,
     SetFeaturePayloadOperation,
 } from './documentOperations';
+export {
+    CreateFeaturePayloadRequest,
+    SetFeaturePayloadRequest,
+    type CadDocumentRequestResult,
+    type CreateFeaturePayloadRequestResult,
+    type SetFeaturePayloadRequestResult,
+} from './documentRequests';
 export { createDefaultCadDocument } from './defaultDocument';
 export { findCadObjectById, getActivePartStudio, listVisibleCadObjects } from './documentQueries';
 export { Feature, type FeatureStatus, type FeatureTypeId } from './features';

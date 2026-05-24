@@ -1,10 +1,5 @@
-import type { CadDocument } from '@occt-draw/cad-model';
-import {
-    editDocument,
-    type DocumentEdit,
-    type EditDraft,
-    type SelectionTarget,
-} from '@occt-draw/core';
+import { findSketchByFeatureId, type CadDocument } from '@occt-draw/cad-model';
+import type { EditDraft, Request, SelectionTarget } from '@occt-draw/core';
 import { SelectionManager, type ViewNavigationState } from '@occt-draw/platform';
 import type { CommandResult } from '../commands/CadCommand';
 import {
@@ -16,7 +11,7 @@ import {
     updateCommandSessionMessage,
 } from '../commands/commandReducer';
 import type { CommandId } from '../commands/commandTypes';
-import type { EditorState } from '../state/editorState';
+import type { EditorState, SketchEditSession } from '../state/editorState';
 
 export class EditorController {
     private readonly selectionManager: SelectionManager;
@@ -38,10 +33,14 @@ export class EditorController {
         };
     }
 
-    public applyDocumentEdit(edit: DocumentEdit<CadDocument>): EditorState {
+    public executeDocumentRequest(request: Request<CadDocument, unknown>): EditorState {
+        const documentSession = this.state.documentSession.clone();
+        const result = documentSession.execute(request);
+
         return {
             ...this.state,
-            document: editDocument(this.state.document, edit),
+            document: result.document,
+            documentSession,
             draft: null,
         };
     }
@@ -95,8 +94,10 @@ export class EditorController {
             };
         }
 
-        if (result.documentEdit) {
-            nextState = new EditorController(nextState).applyDocumentEdit(result.documentEdit);
+        if (result.documentRequest) {
+            nextState = new EditorController(nextState).executeDocumentRequest(
+                result.documentRequest,
+            );
         }
 
         return nextState;
@@ -181,6 +182,40 @@ export class EditorController {
             commandSession: updateCommandSessionMessage(this.state.commandSession, message),
         };
     }
+
+    public undoDocument(): EditorState {
+        const documentSession = this.state.documentSession.clone();
+        const change = documentSession.undo();
+        const activeSketchSession = reconcileSketchSession(this.state, change.document);
+
+        return {
+            ...this.state,
+            activeSketchSession,
+            commandSession: activeSketchSession
+                ? this.state.commandSession
+                : resetToSelectCommandSession(),
+            document: change.document,
+            documentSession,
+            draft: null,
+        };
+    }
+
+    public redoDocument(): EditorState {
+        const documentSession = this.state.documentSession.clone();
+        const change = documentSession.redo();
+        const activeSketchSession = reconcileSketchSession(this.state, change.document);
+
+        return {
+            ...this.state,
+            activeSketchSession,
+            commandSession: activeSketchSession
+                ? this.state.commandSession
+                : resetToSelectCommandSession(),
+            document: change.document,
+            documentSession,
+            draft: null,
+        };
+    }
 }
 
 function createCommandAvailabilityContext(state: EditorState) {
@@ -201,5 +236,40 @@ function createCommandAvailabilityContext(state: EditorState) {
 }
 
 function shouldExitSketchSession(state: EditorState): boolean {
-    return state.activeSketchSession?.pendingLineStartVertexId === null;
+    return state.activeSketchSession?.pendingLineStart === null;
+}
+
+function reconcileSketchSession(
+    state: EditorState,
+    document: CadDocument,
+): EditorState['activeSketchSession'] {
+    const session = state.activeSketchSession;
+
+    if (!session) {
+        return null;
+    }
+
+    const sketch = findSketchByFeatureId(document.getActivePartStudio(), session.sketchFeatureId);
+
+    if (!sketch) {
+        return null;
+    }
+
+    return reconcileSketchLineStart(session, sketch);
+}
+
+function reconcileSketchLineStart(
+    session: SketchEditSession,
+    sketch: NonNullable<ReturnType<typeof findSketchByFeatureId>>,
+): SketchEditSession {
+    if (session.pendingLineStart?.kind !== 'vertex') {
+        return session;
+    }
+
+    return sketch.entities.topology.vertices.get(session.pendingLineStart.vertexId)
+        ? session
+        : {
+              ...session,
+              pendingLineStart: null,
+          };
 }

@@ -2,7 +2,7 @@ import type { Vector2 } from '@occt-draw/math';
 import { Line2D, Point2D } from '../geometry/geometry';
 import type { Sketch } from '../model/sketch';
 import { Edge, Vertex } from '../topology/topology';
-import { SketchTransaction } from '../transaction/transaction';
+import { SketchChangeOperation } from '../transaction/transaction';
 import {
     SketchEntityKind,
     type SketchEdgeId,
@@ -11,10 +11,11 @@ import {
 } from '../types';
 
 export abstract class SketchRequest {
+    public abstract readonly kind: string;
     public abstract readonly label: string;
 
-    public createTransaction(): SketchTransaction {
-        return new SketchTransaction({
+    public createOperation(): SketchChangeOperation {
+        return new SketchChangeOperation({
             label: this.label,
             request: this,
         });
@@ -24,7 +25,8 @@ export abstract class SketchRequest {
 }
 
 export class AddPointRequest extends SketchRequest {
-    public readonly label = '添加草图点';
+    public readonly kind = 'add-point';
+    public readonly label = 'Add sketch point';
     public createdPointId: string | null = null;
     public createdVertexId: SketchVertexId | null = null;
     private readonly position: Vector2;
@@ -56,28 +58,39 @@ export class AddPointRequest extends SketchRequest {
 }
 
 export class AddLineSegmentRequest extends SketchRequest {
-    public readonly label = '添加草图直线';
+    public readonly kind = 'add-line-segment';
+    public readonly label = 'Add sketch line';
     public createdEdgeId: SketchEdgeId | null = null;
     public createdEndVertexId: SketchVertexId | null = null;
     private readonly endPosition: Vector2 | null;
     private readonly endVertexId: SketchVertexId | null;
-    private readonly startVertexId: SketchVertexId;
+    private readonly startPosition: Vector2 | null;
+    private readonly startVertexId: SketchVertexId | null;
 
     constructor(
         input:
+            | { readonly endPosition: Vector2; readonly startPosition: Vector2 }
             | { readonly endPosition: Vector2; readonly startVertexId: SketchVertexId }
+            | { readonly endVertexId: SketchVertexId; readonly startPosition: Vector2 }
             | { readonly endVertexId: SketchVertexId; readonly startVertexId: SketchVertexId },
     ) {
         super();
         this.endPosition = 'endPosition' in input ? input.endPosition : null;
         this.endVertexId = 'endVertexId' in input ? input.endVertexId : null;
-        this.startVertexId = input.startVertexId;
+        this.startPosition = 'startPosition' in input ? input.startPosition : null;
+        this.startVertexId = 'startVertexId' in input ? input.startVertexId : null;
     }
 
     public apply(sketch: Sketch): void {
-        const startPoint = sketch.findPointForVertex(this.startVertexId);
+        const existingStartVertex = this.startVertexId
+            ? sketch.entities.topology.vertices.get(this.startVertexId)
+            : null;
+        const existingStartPoint = this.startVertexId
+            ? sketch.findPointForVertex(this.startVertexId)
+            : null;
+        const startPosition = existingStartPoint?.position ?? this.startPosition;
 
-        if (!startPoint) {
+        if (!startPosition) {
             return;
         }
 
@@ -93,10 +106,22 @@ export class AddLineSegmentRequest extends SketchRequest {
             return;
         }
 
+        const startVertexId = existingStartVertex?.id ?? sketch.state.allocateVertexId();
+        const startPointId = existingStartVertex?.pointId ?? sketch.state.allocatePointId();
         const endVertexId = existingEndVertex?.id ?? sketch.state.allocateVertexId();
         const endPointId = existingEndVertex?.pointId ?? sketch.state.allocatePointId();
         const curveId = sketch.state.allocateCurveId();
         const edgeId = sketch.state.allocateEdgeId();
+        const startPoint = new Point2D({
+            id: startPointId,
+            position: startPosition,
+            sketchId: sketch.id,
+        });
+        const startVertex = new Vertex({
+            id: startVertexId,
+            pointId: startPointId,
+            sketchId: sketch.id,
+        });
         const endPoint = new Point2D({
             id: endPointId,
             position: endPosition,
@@ -111,16 +136,20 @@ export class AddLineSegmentRequest extends SketchRequest {
             end: endPosition,
             id: curveId,
             sketchId: sketch.id,
-            start: startPoint.position,
+            start: startPosition,
         });
         const edge = new Edge({
             curveId,
             endVertexId,
             id: edgeId,
             sketchId: sketch.id,
-            startVertexId: this.startVertexId,
+            startVertexId,
         });
 
+        if (!existingStartVertex) {
+            sketch.entities.geometry.points.add(startPoint);
+            sketch.entities.topology.vertices.add(startVertex);
+        }
         if (!existingEndVertex) {
             sketch.entities.geometry.points.add(endPoint);
             sketch.entities.topology.vertices.add(endVertex);
@@ -133,7 +162,8 @@ export class AddLineSegmentRequest extends SketchRequest {
 }
 
 export class AddCornerRectangleRequest extends SketchRequest {
-    public readonly label = '添加草图矩形';
+    public readonly kind = 'add-corner-rectangle';
+    public readonly label = 'Add sketch rectangle';
     public readonly createdEdgeIds: SketchEdgeId[] = [];
     private readonly firstCorner: Vector2;
     private readonly oppositeCorner: Vector2;
@@ -198,7 +228,8 @@ export class AddCornerRectangleRequest extends SketchRequest {
 }
 
 export class DeleteSketchEntityRequest extends SketchRequest {
-    public readonly label = '删除草图对象';
+    public readonly kind = 'delete-entity';
+    public readonly label = 'Delete sketch entity';
     private readonly entityRef: SketchEntityRef;
 
     constructor(input: { readonly entityRef: SketchEntityRef }) {
@@ -219,7 +250,8 @@ export class DeleteSketchEntityRequest extends SketchRequest {
 }
 
 export class MoveVertexRequest extends SketchRequest {
-    public readonly label = '移动草图顶点';
+    public readonly kind = 'move-vertex';
+    public readonly label = 'Move sketch vertex';
     private readonly target: Vector2;
     private readonly vertexId: SketchVertexId;
 

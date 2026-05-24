@@ -1,12 +1,7 @@
-import {
-    createEditDraft,
-    DocumentTransaction,
-    editDocument,
-    type SelectionTarget,
-} from '@occt-draw/core';
+﻿import { createEditDraft, type SelectionTarget } from '@occt-draw/core';
 import {
     findSketchByFeatureId,
-    SetFeaturePayloadOperation,
+    SetFeaturePayloadRequest,
     type CadDocument,
 } from '@occt-draw/cad-model';
 import { Measurement } from '@occt-draw/math';
@@ -71,7 +66,7 @@ export class SelectCommand extends CadCommand {
                 activeSketchSession: {
                     ...state.activeSketchSession,
                     activeTool: 'select',
-                    pendingLineStartVertexId: null,
+                    pendingLineStart: null,
                     pendingRectangleStart: null,
                 },
                 draft: null,
@@ -233,9 +228,9 @@ export class SelectCommand extends CadCommand {
         pending: Extract<PendingSelectionPointer, { readonly kind: 'vertex-dragging' }>,
     ): CommandResult {
         const state = context.getState();
-        const transaction = createMoveVertexTransactionFromPointer(state, pending.entityRef, event);
+        const request = createMoveVertexRequestFromPointer(state, pending.entityRef, event);
 
-        if (!transaction) {
+        if (!request) {
             return createHandledCommandResult({ draft: null });
         }
 
@@ -246,7 +241,7 @@ export class SelectCommand extends CadCommand {
                 state.commandSession,
                 selection.selection,
             ),
-            documentEdit: transaction,
+            documentRequest: request,
             draft: null,
             selection,
         });
@@ -274,16 +269,16 @@ export class SelectCommand extends CadCommand {
 
         const sketch = activeSketch.sketch.clone();
         const request = new DeleteSketchEntityRequest({ entityRef });
-        const transaction = request.createTransaction();
+        const operation = request.createOperation();
 
-        transaction.commit(sketch);
+        operation.apply(sketch);
 
         return createHandledCommandResult({
             commandSession: consumeSelectionForCommandSession(
                 state.commandSession,
                 clearSelection(state.selection).selection,
             ),
-            documentEdit: createSetSketchPayloadTransaction(state, sketch),
+            documentRequest: createSetSketchPayloadRequest(state, sketch),
             draft: null,
             selection: clearSelection(state.selection),
         });
@@ -307,20 +302,18 @@ function isDeletableSketchRef(ref: SketchEntityRef): boolean {
     return ref.kind === SketchEntityKind.Edge || ref.kind === SketchEntityKind.Vertex;
 }
 
-function createSetSketchPayloadTransaction(
+function createSetSketchPayloadRequest(
     state: EditorState,
     sketch: Sketch,
-): DocumentTransaction<CadDocument> {
-    return new DocumentTransaction<CadDocument>({
-        label: `更新${sketch.name}`,
-        operations: [
-            new SetFeaturePayloadOperation({
-                label: `更新${sketch.name}数据`,
-                partStudioId: state.document.getActivePartStudio().id,
-                payload: sketch,
-                payloadId: sketch.id,
-            }),
-        ],
+): SetFeaturePayloadRequest {
+    const partStudio = state.document.getActivePartStudio();
+
+    return new SetFeaturePayloadRequest({
+        label: `Update ${sketch.name}`,
+        partStudioId: partStudio.id,
+        payload: sketch,
+        payloadId: sketch.id,
+        transactionId: `set-sketch-payload:${sketch.id}`,
     });
 }
 
@@ -329,23 +322,27 @@ function createVertexMoveDraft(
     entityRef: Extract<SketchEntityRef, { readonly kind: SketchEntityKind.Vertex }>,
     event: CommandPointerEvent,
 ) {
-    const transaction = createMoveVertexTransactionFromPointer(state, entityRef, event);
+    const request = createMoveVertexRequestFromPointer(state, entityRef, event);
 
-    if (!transaction) {
+    if (!request) {
         return null;
     }
 
     return createEditDraft<CadDocument>({
         id: 'draft:move-sketch-vertex',
         kind: 'transform',
-    }).withWorkingDocument(editDocument(state.document, transaction));
+    }).withWorkingDocument(
+        request
+            .execute({ activeScopeId: null, document: state.document })
+            .transaction.apply(state.document),
+    );
 }
 
-function createMoveVertexTransactionFromPointer(
+function createMoveVertexRequestFromPointer(
     state: EditorState,
     entityRef: Extract<SketchEntityRef, { readonly kind: SketchEntityKind.Vertex }>,
     event: CommandPointerEvent,
-): DocumentTransaction<CadDocument> | null {
+): SetFeaturePayloadRequest | null {
     const activeSketch = findActiveSketch(state);
 
     if (activeSketch?.sketch.id !== entityRef.sketchId) {
@@ -369,9 +366,9 @@ function createMoveVertexTransactionFromPointer(
         target,
         vertexId: entityRef.entityId,
     });
-    const transaction = request.createTransaction();
+    const operation = request.createOperation();
 
-    transaction.commit(sketch);
+    operation.apply(sketch);
 
-    return createSetSketchPayloadTransaction(state, sketch);
+    return createSetSketchPayloadRequest(state, sketch);
 }

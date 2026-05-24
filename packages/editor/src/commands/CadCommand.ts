@@ -1,9 +1,4 @@
-import type {
-    DocumentTransaction,
-    EditDraft,
-    SelectionTarget,
-    TransactionGroup,
-} from '@occt-draw/core';
+import type { EditDraft, Request, SelectionTarget } from '@occt-draw/core';
 import type { CadDocument } from '@occt-draw/cad-model';
 import {
     PlatformCommand,
@@ -32,7 +27,7 @@ export interface CommandContext {
 export interface CommandResult extends PlatformCommandResult {
     readonly handled: boolean;
     readonly commandSession?: CommandSession;
-    readonly documentEdit?: DocumentTransaction<CadDocument> | TransactionGroup<CadDocument>;
+    readonly documentRequest?: Request<CadDocument, unknown>;
     readonly draft?: EditDraft<CadDocument> | null;
     readonly message?: string;
     readonly navigation?: ViewNavigationState;
@@ -97,7 +92,7 @@ export function mergeCommandResults(first: CommandResult, second: CommandResult)
     }
 
     const commandSession = second.commandSession ?? first.commandSession;
-    const documentEdit = second.documentEdit ?? first.documentEdit;
+    const documentRequest = second.documentRequest ?? first.documentRequest;
     const message = second.message ?? first.message;
     const navigation = second.navigation ?? first.navigation;
     const nextCommandId = second.nextCommandId ?? first.nextCommandId;
@@ -107,7 +102,7 @@ export function mergeCommandResults(first: CommandResult, second: CommandResult)
     const merged: CommandResult = {
         handled: true,
         ...(commandSession ? { commandSession } : {}),
-        ...(documentEdit ? { documentEdit } : {}),
+        ...(documentRequest ? { documentRequest } : {}),
         ...(message ? { message } : {}),
         ...(navigation ? { navigation } : {}),
         ...(nextCommandId ? { nextCommandId } : {}),

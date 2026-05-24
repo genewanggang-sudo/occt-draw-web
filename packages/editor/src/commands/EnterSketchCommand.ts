@@ -1,15 +1,13 @@
 import {
-    AppendFeatureOperation,
+    CreateFeaturePayloadRequest,
     Feature,
-    SetFeaturePayloadOperation,
-    type ReferencePlaneObject,
     referencePlaneToPlane,
+    type ReferencePlaneObject,
 } from '@occt-draw/cad-model';
-import { DocumentTransaction } from '@occt-draw/core';
-import { Vec3 } from '@occt-draw/math';
-import { createSketchOnReferencePlane } from '@occt-draw/sketch';
-import { clearSelection } from '@occt-draw/platform';
 import type { CameraState } from '@occt-draw/canvas';
+import { Vec3 } from '@occt-draw/math';
+import { clearSelection } from '@occt-draw/platform';
+import { createSketchOnReferencePlane } from '@occt-draw/sketch';
 import {
     CadCommand,
     createHandledCommandResult,
@@ -30,7 +28,7 @@ export class EnterSketchCommand extends CadCommand {
             return createHandledCommandResult({
                 commandSession: {
                     id: 'sketch',
-                    message: '请选择一个基准面后再进入草图。',
+                    message: 'Select a reference plane before entering sketch.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'blocked',
                 },
@@ -44,7 +42,7 @@ export class EnterSketchCommand extends CadCommand {
         const sketchIndexText = String(sketchIndex);
         const sketchId = `sketch:${sketchIndexText}`;
         const featureId = `feature:sketch:${sketchIndexText}`;
-        const sketchName = `草图${sketchIndexText}`;
+        const sketchName = `Sketch ${sketchIndexText}`;
         const sketch = createSketchOnReferencePlane({
             id: sketchId,
             name: sketchName,
@@ -61,31 +59,26 @@ export class EnterSketchCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 activeTool: 'select',
-                pendingLineStartVertexId: null,
+                pendingLineStart: null,
                 pendingRectangleStart: null,
                 sketchFeatureId: feature.id,
             },
             commandSession: {
                 id: 'sketch',
-                message: `正在编辑 ${sketchName}。`,
+                message: `Editing ${sketchName}.`,
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
-            documentEdit: new DocumentTransaction({
-                label: `创建${sketchName}`,
-                operations: [
-                    new AppendFeatureOperation({
-                        feature,
-                        label: `创建${sketchName}`,
-                        partStudioId: partStudio.id,
-                    }),
-                    new SetFeaturePayloadOperation({
-                        label: `写入${sketchName}数据`,
-                        partStudioId: partStudio.id,
-                        payload: sketch,
-                        payloadId: sketch.id,
-                    }),
-                ],
+            documentRequest: new CreateFeaturePayloadRequest({
+                feature,
+                history: {
+                    record: `Create ${sketchName}`,
+                },
+                label: `Create ${sketchName}`,
+                partStudioId: partStudio.id,
+                payload: sketch,
+                payloadId: sketch.id,
+                transactionId: `create-sketch:${sketch.id}`,
             }),
             draft: null,
             selection: clearSelection(state.selection),
@@ -107,7 +100,7 @@ export class EnterSketchCommand extends CadCommand {
             activeSketchSession: null,
             commandSession: {
                 id: 'select',
-                message: '已退出草图。',
+                message: 'Exited sketch.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'idle',
             },
