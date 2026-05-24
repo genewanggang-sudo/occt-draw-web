@@ -115,6 +115,7 @@ export function App() {
                 <CommandToolbar
                     activeCommandId={activeCommandId}
                     commandAvailability={commandAvailability}
+                    isEditingSketch={editorState.activeSketchSession !== null}
                     onActivateCommand={(commandId) => {
                         runtimeRef.current?.activateCommand(commandId);
                     }}

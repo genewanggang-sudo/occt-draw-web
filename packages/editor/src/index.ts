@@ -74,6 +74,7 @@ export {
     evaluateCommandAvailabilityMap,
     getCommandDefinition,
     getCommandLabel,
+    sketchDrawingToolGroups,
 } from './commands/commandRegistry';
 export type {
     CommandAvailability,
@@ -85,6 +86,9 @@ export type {
     CommandSelectionContext,
     CommandSession,
     CommandStatus,
+    SketchToolDefinition,
+    SketchToolGroupDefinition,
+    SketchToolIcon,
 } from './commands/commandTypes';
 export { SelectCommand } from './commands/SelectCommand';
 export { EnterSketchCommand } from './commands/EnterSketchCommand';
