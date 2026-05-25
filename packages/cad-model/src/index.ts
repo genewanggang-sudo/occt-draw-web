@@ -8,6 +8,7 @@ export {
 } from './documentRequests';
 export {
     AddCornerRectangleRequest,
+    AddClosedLineSegmentsRequest,
     AddCircleRequest,
     AddLineSegmentRequest,
     DeleteSketchEntityRequest,
@@ -15,6 +16,7 @@ export {
     isEditableSketchEntityRef,
     predictLineSegmentEndVertexId,
     type AddCornerRectangleRequestResult,
+    type AddClosedLineSegmentsRequestResult,
     type AddCircleRequestResult,
     type AddLineSegmentRequestResult,
     type DeleteSketchEntityRequestResult,

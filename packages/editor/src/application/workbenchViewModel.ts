@@ -247,8 +247,20 @@ function getSketchToolLabel(tool: SketchEditSession['activeTool']): string {
         return 'Line';
     }
 
+    if (tool === 'midpoint-line') {
+        return 'Midpoint line';
+    }
+
     if (tool === 'rectangle') {
         return 'Rectangle';
+    }
+
+    if (tool === 'center-rectangle') {
+        return 'Center point rectangle';
+    }
+
+    if (tool === 'aligned-rectangle') {
+        return 'Aligned rectangle';
     }
 
     if (tool === 'circle') {

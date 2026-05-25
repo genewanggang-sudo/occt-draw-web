@@ -3,9 +3,12 @@ import type { SelectionTarget } from '@occt-draw/core';
 export type CommandId =
     | 'extrude'
     | 'select'
+    | 'sketch-aligned-rectangle'
+    | 'sketch-center-rectangle'
     | 'sketch'
     | 'sketch-circle'
     | 'sketch-line'
+    | 'sketch-midpoint-line'
     | 'sketch-rectangle';
 export type CommandKind = 'modal';
 export type CommandStatus = 'blocked' | 'cancelled' | 'completed' | 'idle' | 'running';
@@ -24,7 +27,15 @@ export interface CommandAvailability {
 export type CommandAvailabilityMap = Readonly<Record<CommandId, CommandAvailability>>;
 
 export interface CommandAvailabilityContext {
-    readonly activeSketchTool: 'circle' | 'line' | 'rectangle' | 'select' | null;
+    readonly activeSketchTool:
+        | 'aligned-rectangle'
+        | 'center-rectangle'
+        | 'circle'
+        | 'line'
+        | 'midpoint-line'
+        | 'rectangle'
+        | 'select'
+        | null;
     readonly hasSketchProfile: boolean;
     readonly isEditingSketch: boolean;
     readonly selectionObjectIds: readonly string[];

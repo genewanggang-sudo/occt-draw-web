@@ -120,8 +120,20 @@ function getCommandRunningMessage(commandId: CommandId): string {
         return 'Specify line start point.';
     }
 
+    if (commandId === 'sketch-midpoint-line') {
+        return 'Specify midpoint line center point.';
+    }
+
     if (commandId === 'sketch-rectangle') {
         return 'Specify rectangle first corner.';
+    }
+
+    if (commandId === 'sketch-center-rectangle') {
+        return 'Specify rectangle center point.';
+    }
+
+    if (commandId === 'sketch-aligned-rectangle') {
+        return 'Specify aligned rectangle first corner.';
     }
 
     if (commandId === 'sketch-circle') {

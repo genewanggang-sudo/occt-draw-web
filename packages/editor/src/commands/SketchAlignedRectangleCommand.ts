@@ -1,6 +1,6 @@
 import { createEditDraft } from '@occt-draw/core';
 import {
-    AddCircleRequest,
+    AddClosedLineSegmentsRequest,
     findSketchByFeatureId,
     referencePlaneToPlane,
     type CadDocument,
@@ -18,19 +18,18 @@ import {
 } from './CadCommand';
 import { projectScreenPointToSketch2 } from './sketchProjection';
 
-const MIN_CIRCLE_RADIUS = 1e-6;
-const CIRCLE_DRAG_THRESHOLD_PIXELS = 3;
-const CIRCLE_PREVIEW_SEGMENT_COUNT = 64;
+const ALIGNED_RECTANGLE_DRAG_THRESHOLD_PIXELS = 3;
+const MIN_RECTANGLE_SIDE = 1e-6;
 
-interface PendingCircleDrag {
+interface PendingAlignedRectangleDrag {
     readonly moved: boolean;
     readonly pointerId: number;
     readonly startPoint: CommandPointerEvent['point'];
 }
 
-export class SketchCircleCommand extends CadCommand {
-    public readonly id = 'sketch-circle';
-    private pendingDrag: PendingCircleDrag | null = null;
+export class SketchAlignedRectangleCommand extends CadCommand {
+    public readonly id = 'sketch-aligned-rectangle';
+    private pendingDrag: PendingAlignedRectangleDrag | null = null;
 
     public override enter(context: CommandContext): CommandResult {
         const state = context.getState();
@@ -39,7 +38,7 @@ export class SketchCircleCommand extends CadCommand {
         if (!state.activeSketchSession) {
             return createHandledCommandResult({
                 commandSession: {
-                    id: 'sketch-circle',
+                    id: 'sketch-aligned-rectangle',
                     message: 'Sketch command updated.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'blocked',
@@ -50,14 +49,14 @@ export class SketchCircleCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...state.activeSketchSession,
-                activeTool: 'circle',
-                pendingCircleCenter: null,
+                activeTool: 'aligned-rectangle',
                 pendingAlignedRectangleEdge: null,
+                pendingCircleCenter: null,
                 pendingLineStart: null,
                 pendingRectangleStart: null,
             },
             commandSession: {
-                id: 'sketch-circle',
+                id: 'sketch-aligned-rectangle',
                 message: 'Sketch command updated.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
@@ -71,14 +70,15 @@ export class SketchCircleCommand extends CadCommand {
         const session = state.activeSketchSession;
         this.pendingDrag = null;
 
-        if (session?.pendingCircleCenter) {
+        if (session?.pendingAlignedRectangleEdge || session?.pendingRectangleStart) {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingCircleCenter: null,
+                    pendingAlignedRectangleEdge: null,
+                    pendingRectangleStart: null,
                 },
                 commandSession: {
-                    id: 'sketch-circle',
+                    id: 'sketch-aligned-rectangle',
                     message: 'Sketch command updated.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
@@ -137,7 +137,7 @@ export class SketchCircleCommand extends CadCommand {
             });
         }
 
-        if (!session.pendingCircleCenter) {
+        if (!session.pendingRectangleStart && !session.pendingAlignedRectangleEdge) {
             this.pendingDrag = {
                 moved: false,
                 pointerId: event.pointerId,
@@ -147,10 +147,10 @@ export class SketchCircleCommand extends CadCommand {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingCircleCenter: point,
+                    pendingRectangleStart: point,
                 },
                 commandSession: {
-                    id: 'sketch-circle',
+                    id: 'sketch-aligned-rectangle',
                     message: 'Sketch command updated.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
@@ -159,7 +159,11 @@ export class SketchCircleCommand extends CadCommand {
             });
         }
 
-        return this.createCircleResult(context, session, point);
+        if (session.pendingRectangleStart && !session.pendingAlignedRectangleEdge) {
+            return this.createFirstEdgeResult(context, session, point);
+        }
+
+        return this.createAlignedRectangleResult(context, session, point);
     }
 
     public override pointerMove(
@@ -171,7 +175,7 @@ export class SketchCircleCommand extends CadCommand {
                 ...this.pendingDrag,
                 moved:
                     distanceScreenPoints(this.pendingDrag.startPoint, event.point) >
-                    CIRCLE_DRAG_THRESHOLD_PIXELS,
+                    ALIGNED_RECTANGLE_DRAG_THRESHOLD_PIXELS,
             };
         }
 
@@ -179,7 +183,7 @@ export class SketchCircleCommand extends CadCommand {
         const session = state.activeSketchSession;
         const activeSketch = session ? findActiveSketch(state, session) : null;
 
-        if (!session?.pendingCircleCenter || !activeSketch) {
+        if (!session || !activeSketch) {
             return createUnhandledCommandResult();
         }
 
@@ -190,15 +194,25 @@ export class SketchCircleCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const radius = Vec2.distance(session.pendingCircleCenter, point);
-
-        if (radius <= MIN_CIRCLE_RADIUS) {
-            return createUnhandledCommandResult();
+        if (session.pendingRectangleStart && !session.pendingAlignedRectangleEdge) {
+            return createHandledCommandResult({
+                draft: createLineDraft(plane, session.pendingRectangleStart, point),
+            });
         }
 
-        return createHandledCommandResult({
-            draft: createCircleDraft(plane, session.pendingCircleCenter, radius),
-        });
+        if (session.pendingAlignedRectangleEdge) {
+            const corners = getAlignedRectangleCorners(session.pendingAlignedRectangleEdge, point);
+
+            if (!corners) {
+                return createUnhandledCommandResult();
+            }
+
+            return createHandledCommandResult({
+                draft: createRectangleDraft(plane, corners),
+            });
+        }
+
+        return createUnhandledCommandResult();
     }
 
     public override pointerUp(event: CommandPointerEvent, context: CommandContext): CommandResult {
@@ -208,7 +222,7 @@ export class SketchCircleCommand extends CadCommand {
         const drag = this.pendingDrag?.pointerId === event.pointerId ? this.pendingDrag : null;
         this.pendingDrag = null;
 
-        if (!session?.pendingCircleCenter || !activeSketch || !drag?.moved) {
+        if (!session?.pendingRectangleStart || !activeSketch || !drag?.moved) {
             return createHandledCommandResult({
                 message: 'Sketch command updated.',
             });
@@ -222,42 +236,73 @@ export class SketchCircleCommand extends CadCommand {
             });
         }
 
-        return this.createCircleResult(context, session, point);
+        return this.createFirstEdgeResult(context, session, point);
     }
 
-    private createCircleResult(
+    private createFirstEdgeResult(
         context: CommandContext,
         session: SketchEditSession,
         point: Vector2,
     ): CommandResult {
         const state = context.getState();
-        const center = session.pendingCircleCenter;
+        const start = session.pendingRectangleStart;
 
-        if (!center) {
-            return createUnhandledCommandResult();
-        }
-
-        const radius = Vec2.distance(center, point);
-
-        if (radius <= MIN_CIRCLE_RADIUS) {
+        if (!start || Vec2.distance(start, point) <= MIN_RECTANGLE_SIDE) {
             return createHandledCommandResult();
         }
 
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingCircleCenter: null,
+                pendingAlignedRectangleEdge: {
+                    end: point,
+                    start,
+                },
+                pendingRectangleStart: null,
             },
             commandSession: {
-                id: 'sketch-circle',
+                id: 'sketch-aligned-rectangle',
                 message: 'Sketch command updated.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
-            documentRequest: new AddCircleRequest({
-                center,
+            draft: null,
+        });
+    }
+
+    private createAlignedRectangleResult(
+        context: CommandContext,
+        session: SketchEditSession,
+        point: Vector2,
+    ): CommandResult {
+        const state = context.getState();
+        const firstEdge = session.pendingAlignedRectangleEdge;
+
+        if (!firstEdge) {
+            return createUnhandledCommandResult();
+        }
+
+        const corners = getAlignedRectangleCorners(firstEdge, point);
+
+        if (!corners) {
+            return createHandledCommandResult();
+        }
+
+        return createHandledCommandResult({
+            activeSketchSession: {
+                ...session,
+                pendingAlignedRectangleEdge: null,
+                pendingRectangleStart: null,
+            },
+            commandSession: {
+                id: 'sketch-aligned-rectangle',
+                message: 'Sketch command updated.',
+                selectionContext: state.commandSession.selectionContext,
+                status: 'running',
+            },
+            documentRequest: new AddClosedLineSegmentsRequest({
                 partStudioId: state.document.getActivePartStudio().id,
-                radius,
+                points: corners,
                 sketchFeatureId: session.sketchFeatureId,
             }),
             draft: null,
@@ -265,48 +310,72 @@ export class SketchCircleCommand extends CadCommand {
     }
 }
 
-function createCircleDraft(plane: Plane3, center: Vector2, radius: number) {
+function createLineDraft(plane: Plane3, start: Vector2, end: Vector2) {
     return createEditDraft<CadDocument>({
-        id: 'draft:sketch-circle',
+        id: 'draft:sketch-aligned-rectangle:first-edge',
         kind: 'temporary',
-    }).withTemporaryObjects(
-        sampleCircleSegments(center, radius).map((segment, index) => ({
+    }).withTemporaryObjects([
+        {
             color: Vec3.of(0.1, 0.55, 1),
-            id: `draft:sketch-circle:segment:${String(index)}`,
+            id: 'draft:sketch-aligned-rectangle:first-edge:segment',
             kind: 'line-segment',
             segment: new LineSegment3(
-                sketchPointToWorldOnPlane(plane, segment.start),
-                sketchPointToWorldOnPlane(plane, segment.end),
+                sketchPointToWorldOnPlane(plane, start),
+                sketchPointToWorldOnPlane(plane, end),
             ),
             visible: true,
-        })),
+        },
+    ]);
+}
+
+function createRectangleDraft(plane: Plane3, corners: readonly Vector2[]) {
+    return createEditDraft<CadDocument>({
+        id: 'draft:sketch-aligned-rectangle',
+        kind: 'temporary',
+    }).withTemporaryObjects(
+        corners.map((corner, index) => {
+            const next = corners[(index + 1) % corners.length] ?? corner;
+
+            return {
+                color: Vec3.of(0.1, 0.55, 1),
+                id: `draft:sketch-aligned-rectangle:segment:${String(index)}`,
+                kind: 'line-segment',
+                segment: new LineSegment3(
+                    sketchPointToWorldOnPlane(plane, corner),
+                    sketchPointToWorldOnPlane(plane, next),
+                ),
+                visible: true,
+            };
+        }),
     );
 }
 
-function sampleCircleSegments(
-    center: Vector2,
-    radius: number,
-): readonly { readonly end: Vector2; readonly start: Vector2 }[] {
-    const segments: { readonly end: Vector2; readonly start: Vector2 }[] = [];
+function getAlignedRectangleCorners(
+    firstEdge: { readonly end: Vector2; readonly start: Vector2 },
+    point: Vector2,
+): readonly Vector2[] | null {
+    const edge = Vec2.subtract(firstEdge.end, firstEdge.start);
+    const edgeLength = Vec2.length(edge);
 
-    for (let index = 0; index < CIRCLE_PREVIEW_SEGMENT_COUNT; index += 1) {
-        const startAngle = (index / CIRCLE_PREVIEW_SEGMENT_COUNT) * Math.PI * 2;
-        const endAngle = ((index + 1) / CIRCLE_PREVIEW_SEGMENT_COUNT) * Math.PI * 2;
-
-        segments.push({
-            start: pointOnCircle(center, radius, startAngle),
-            end: pointOnCircle(center, radius, endAngle),
-        });
+    if (edgeLength <= MIN_RECTANGLE_SIDE) {
+        return null;
     }
 
-    return segments;
-}
+    const normal = Vec2.of(-edge.y / edgeLength, edge.x / edgeLength);
+    const height = Vec2.dot(Vec2.subtract(point, firstEdge.end), normal);
 
-function pointOnCircle(center: Vector2, radius: number, angleRadians: number): Vector2 {
-    return Vec2.of(
-        center.x + Math.cos(angleRadians) * radius,
-        center.y + Math.sin(angleRadians) * radius,
-    );
+    if (Math.abs(height) <= MIN_RECTANGLE_SIDE) {
+        return null;
+    }
+
+    const offset = Vec2.scale(normal, height);
+
+    return [
+        firstEdge.start,
+        firstEdge.end,
+        Vec2.add(firstEdge.end, offset),
+        Vec2.add(firstEdge.start, offset),
+    ];
 }
 
 function projectPointerToSketch(

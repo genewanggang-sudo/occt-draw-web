@@ -21,6 +21,7 @@ export {
 export { SketchChangeRecorder } from './changes/changeTracking';
 export {
     AddCornerRectangleEdit,
+    AddClosedLineSegmentsEdit,
     AddCircleEdit,
     AddLineSegmentEdit,
     AddPointEdit,

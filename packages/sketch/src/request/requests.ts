@@ -153,6 +153,73 @@ export class AddLineSegmentEdit extends SketchEdit {
     }
 }
 
+export class AddClosedLineSegmentsEdit extends SketchEdit {
+    public readonly kind = 'add-closed-line-segments';
+    public readonly label = 'Add sketch line segments';
+    public readonly createdEdgeIds: SketchEdgeId[] = [];
+    private readonly points: readonly Vector2[];
+
+    constructor(input: { readonly points: readonly Vector2[] }) {
+        super();
+        this.points = input.points;
+    }
+
+    public apply(sketch: Sketch): void {
+        if (this.points.length < 3) {
+            return;
+        }
+
+        const vertices = this.points.map((position) => {
+            const pointId = sketch.state.allocatePointId();
+            const vertexId = sketch.state.allocateVertexId();
+            const point = new Point2D({
+                id: pointId,
+                position,
+                sketchId: sketch.id,
+            });
+            const vertex = new Vertex({
+                id: vertexId,
+                pointId,
+                sketchId: sketch.id,
+            });
+
+            sketch.entities.geometry.points.add(point);
+            sketch.entities.topology.vertices.add(vertex);
+
+            return { point, vertex };
+        });
+
+        for (let index = 0; index < vertices.length; index += 1) {
+            const start = vertices[index];
+            const end = vertices[(index + 1) % vertices.length];
+
+            if (!start || !end) {
+                continue;
+            }
+
+            const curveId = sketch.state.allocateCurveId();
+            const edgeId = sketch.state.allocateEdgeId();
+            const curve = Line2D.fromPoints({
+                end: end.point.position,
+                id: curveId,
+                sketchId: sketch.id,
+                start: start.point.position,
+            });
+            const edge = new Edge({
+                curveId,
+                endVertexId: end.vertex.id,
+                id: edgeId,
+                sketchId: sketch.id,
+                startVertexId: start.vertex.id,
+            });
+
+            sketch.entities.geometry.curves.add(curve);
+            sketch.entities.topology.edges.add(edge);
+            this.createdEdgeIds.push(edgeId);
+        }
+    }
+}
+
 export class AddCornerRectangleEdit extends SketchEdit {
     public readonly kind = 'add-corner-rectangle';
     public readonly label = 'Add sketch rectangle';

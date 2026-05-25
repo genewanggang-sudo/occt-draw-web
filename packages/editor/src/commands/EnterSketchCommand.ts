@@ -65,6 +65,7 @@ export class EnterSketchCommand extends CadCommand {
             activeSketchSession: {
                 activeTool: 'select',
                 pendingCircleCenter: null,
+                pendingAlignedRectangleEdge: null,
                 pendingLineStart: null,
                 pendingRectangleStart: null,
                 sketchFeatureId: feature.id,

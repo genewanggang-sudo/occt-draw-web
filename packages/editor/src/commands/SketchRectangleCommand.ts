@@ -19,12 +19,21 @@ import {
 import { projectScreenPointToSketch2 } from './sketchProjection';
 
 const MIN_RECTANGLE_SIDE = 1e-6;
+const RECTANGLE_DRAG_THRESHOLD_PIXELS = 3;
+
+interface PendingRectangleDrag {
+    readonly moved: boolean;
+    readonly pointerId: number;
+    readonly startPoint: CommandPointerEvent['point'];
+}
 
 export class SketchRectangleCommand extends CadCommand {
     public readonly id = 'sketch-rectangle';
+    private pendingDrag: PendingRectangleDrag | null = null;
 
     public override enter(context: CommandContext): CommandResult {
         const state = context.getState();
+        this.pendingDrag = null;
 
         if (!state.activeSketchSession) {
             return createHandledCommandResult({
@@ -42,6 +51,7 @@ export class SketchRectangleCommand extends CadCommand {
                 ...state.activeSketchSession,
                 activeTool: 'rectangle',
                 pendingCircleCenter: null,
+                pendingAlignedRectangleEdge: null,
                 pendingLineStart: null,
                 pendingRectangleStart: null,
             },
@@ -58,6 +68,7 @@ export class SketchRectangleCommand extends CadCommand {
     public override cancel(context: CommandContext): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
+        this.pendingDrag = null;
 
         if (session?.pendingRectangleStart) {
             return createHandledCommandResult({
@@ -88,6 +99,14 @@ export class SketchRectangleCommand extends CadCommand {
     }
 
     public override exit(): CommandResult {
+        this.pendingDrag = null;
+        return createHandledCommandResult({
+            draft: null,
+        });
+    }
+
+    public override pointerCancel(): CommandResult {
+        this.pendingDrag = null;
         return createHandledCommandResult({
             draft: null,
         });
@@ -118,6 +137,12 @@ export class SketchRectangleCommand extends CadCommand {
         }
 
         if (!session.pendingRectangleStart) {
+            this.pendingDrag = {
+                moved: false,
+                pointerId: event.pointerId,
+                startPoint: event.point,
+            };
+
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
@@ -140,6 +165,15 @@ export class SketchRectangleCommand extends CadCommand {
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
+        if (this.pendingDrag?.pointerId === event.pointerId && !this.pendingDrag.moved) {
+            this.pendingDrag = {
+                ...this.pendingDrag,
+                moved:
+                    distanceScreenPoints(this.pendingDrag.startPoint, event.point) >
+                    RECTANGLE_DRAG_THRESHOLD_PIXELS,
+            };
+        }
+
         const state = context.getState();
         const session = state.activeSketchSession;
         const activeSketch = session ? findActiveSketch(state, session) : null;
@@ -170,9 +204,13 @@ export class SketchRectangleCommand extends CadCommand {
         const state = context.getState();
         const session = state.activeSketchSession;
         const activeSketch = session ? findActiveSketch(state, session) : null;
+        const drag = this.pendingDrag?.pointerId === event.pointerId ? this.pendingDrag : null;
+        this.pendingDrag = null;
 
-        if (!session?.pendingRectangleStart || !activeSketch) {
-            return createUnhandledCommandResult();
+        if (!session?.pendingRectangleStart || !activeSketch || !drag?.moved) {
+            return createHandledCommandResult({
+                message: 'Sketch command updated.',
+            });
         }
 
         const point = projectPointerToSketch(state, activeSketch.sketch, event);
@@ -319,4 +357,11 @@ function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
         .findObjectById(sketch.plane.planeObjectRef.id);
 
     return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
+}
+
+function distanceScreenPoints(
+    first: CommandPointerEvent['point'],
+    second: CommandPointerEvent['point'],
+): number {
+    return Math.hypot(second.x - first.x, second.y - first.y);
 }

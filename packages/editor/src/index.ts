@@ -88,8 +88,11 @@ export type {
 } from './commands/commandTypes';
 export { SelectCommand } from './commands/SelectCommand';
 export { EnterSketchCommand } from './commands/EnterSketchCommand';
+export { SketchAlignedRectangleCommand } from './commands/SketchAlignedRectangleCommand';
 export { SketchCircleCommand } from './commands/SketchCircleCommand';
+export { SketchCenterRectangleCommand } from './commands/SketchCenterRectangleCommand';
 export { SketchLineCommand } from './commands/SketchLineCommand';
+export { SketchMidpointLineCommand } from './commands/SketchMidpointLineCommand';
 export { SketchRectangleCommand } from './commands/SketchRectangleCommand';
 export { createInitialEditorState } from './state/createInitialEditorState';
 export type { EditorState, SketchEditSession } from './state/editorState';

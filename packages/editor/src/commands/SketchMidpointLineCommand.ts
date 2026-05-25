@@ -1,6 +1,6 @@
 import { createEditDraft } from '@occt-draw/core';
 import {
-    AddCircleRequest,
+    AddLineSegmentRequest,
     findSketchByFeatureId,
     referencePlaneToPlane,
     type CadDocument,
@@ -18,19 +18,18 @@ import {
 } from './CadCommand';
 import { projectScreenPointToSketch2 } from './sketchProjection';
 
-const MIN_CIRCLE_RADIUS = 1e-6;
-const CIRCLE_DRAG_THRESHOLD_PIXELS = 3;
-const CIRCLE_PREVIEW_SEGMENT_COUNT = 64;
+const MIDPOINT_LINE_DRAG_THRESHOLD_PIXELS = 3;
+const MIN_LINE_LENGTH = 1e-6;
 
-interface PendingCircleDrag {
+interface PendingMidpointLineDrag {
     readonly moved: boolean;
     readonly pointerId: number;
     readonly startPoint: CommandPointerEvent['point'];
 }
 
-export class SketchCircleCommand extends CadCommand {
-    public readonly id = 'sketch-circle';
-    private pendingDrag: PendingCircleDrag | null = null;
+export class SketchMidpointLineCommand extends CadCommand {
+    public readonly id = 'sketch-midpoint-line';
+    private pendingDrag: PendingMidpointLineDrag | null = null;
 
     public override enter(context: CommandContext): CommandResult {
         const state = context.getState();
@@ -39,7 +38,7 @@ export class SketchCircleCommand extends CadCommand {
         if (!state.activeSketchSession) {
             return createHandledCommandResult({
                 commandSession: {
-                    id: 'sketch-circle',
+                    id: 'sketch-midpoint-line',
                     message: 'Sketch command updated.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'blocked',
@@ -50,14 +49,14 @@ export class SketchCircleCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...state.activeSketchSession,
-                activeTool: 'circle',
+                activeTool: 'midpoint-line',
                 pendingCircleCenter: null,
                 pendingAlignedRectangleEdge: null,
                 pendingLineStart: null,
                 pendingRectangleStart: null,
             },
             commandSession: {
-                id: 'sketch-circle',
+                id: 'sketch-midpoint-line',
                 message: 'Sketch command updated.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
@@ -71,14 +70,14 @@ export class SketchCircleCommand extends CadCommand {
         const session = state.activeSketchSession;
         this.pendingDrag = null;
 
-        if (session?.pendingCircleCenter) {
+        if (session?.pendingLineStart) {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingCircleCenter: null,
+                    pendingLineStart: null,
                 },
                 commandSession: {
-                    id: 'sketch-circle',
+                    id: 'sketch-midpoint-line',
                     message: 'Sketch command updated.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
@@ -137,7 +136,7 @@ export class SketchCircleCommand extends CadCommand {
             });
         }
 
-        if (!session.pendingCircleCenter) {
+        if (!session.pendingLineStart) {
             this.pendingDrag = {
                 moved: false,
                 pointerId: event.pointerId,
@@ -147,10 +146,13 @@ export class SketchCircleCommand extends CadCommand {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingCircleCenter: point,
+                    pendingLineStart: {
+                        kind: 'point',
+                        point,
+                    },
                 },
                 commandSession: {
-                    id: 'sketch-circle',
+                    id: 'sketch-midpoint-line',
                     message: 'Sketch command updated.',
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
@@ -159,7 +161,7 @@ export class SketchCircleCommand extends CadCommand {
             });
         }
 
-        return this.createCircleResult(context, session, point);
+        return this.createMidpointLineResult(context, session, point);
     }
 
     public override pointerMove(
@@ -171,7 +173,7 @@ export class SketchCircleCommand extends CadCommand {
                 ...this.pendingDrag,
                 moved:
                     distanceScreenPoints(this.pendingDrag.startPoint, event.point) >
-                    CIRCLE_DRAG_THRESHOLD_PIXELS,
+                    MIDPOINT_LINE_DRAG_THRESHOLD_PIXELS,
             };
         }
 
@@ -179,25 +181,25 @@ export class SketchCircleCommand extends CadCommand {
         const session = state.activeSketchSession;
         const activeSketch = session ? findActiveSketch(state, session) : null;
 
-        if (!session?.pendingCircleCenter || !activeSketch) {
+        if (!session?.pendingLineStart || !activeSketch) {
             return createUnhandledCommandResult();
         }
 
         const plane = findSketchPlane(state, activeSketch.sketch);
         const point = projectPointerToSketch(state, activeSketch.sketch, event);
 
-        if (!plane || !point) {
+        if (!plane || !point || session.pendingLineStart.kind !== 'point') {
             return createUnhandledCommandResult();
         }
 
-        const radius = Vec2.distance(session.pendingCircleCenter, point);
+        const segment = getMidpointLineSegment(session.pendingLineStart.point, point);
 
-        if (radius <= MIN_CIRCLE_RADIUS) {
+        if (!segment) {
             return createUnhandledCommandResult();
         }
 
         return createHandledCommandResult({
-            draft: createCircleDraft(plane, session.pendingCircleCenter, radius),
+            draft: createMidpointLineDraft(plane, segment.start, segment.end),
         });
     }
 
@@ -208,7 +210,7 @@ export class SketchCircleCommand extends CadCommand {
         const drag = this.pendingDrag?.pointerId === event.pointerId ? this.pendingDrag : null;
         this.pendingDrag = null;
 
-        if (!session?.pendingCircleCenter || !activeSketch || !drag?.moved) {
+        if (!session?.pendingLineStart || !activeSketch || !drag?.moved) {
             return createHandledCommandResult({
                 message: 'Sketch command updated.',
             });
@@ -222,91 +224,81 @@ export class SketchCircleCommand extends CadCommand {
             });
         }
 
-        return this.createCircleResult(context, session, point);
+        return this.createMidpointLineResult(context, session, point);
     }
 
-    private createCircleResult(
+    private createMidpointLineResult(
         context: CommandContext,
         session: SketchEditSession,
         point: Vector2,
     ): CommandResult {
         const state = context.getState();
-        const center = session.pendingCircleCenter;
+        const midpoint = session.pendingLineStart;
 
-        if (!center) {
+        if (midpoint?.kind !== 'point') {
             return createUnhandledCommandResult();
         }
 
-        const radius = Vec2.distance(center, point);
+        const segment = getMidpointLineSegment(midpoint.point, point);
 
-        if (radius <= MIN_CIRCLE_RADIUS) {
+        if (!segment) {
             return createHandledCommandResult();
         }
 
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingCircleCenter: null,
+                pendingLineStart: null,
             },
             commandSession: {
-                id: 'sketch-circle',
+                id: 'sketch-midpoint-line',
                 message: 'Sketch command updated.',
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
-            documentRequest: new AddCircleRequest({
-                center,
+            documentRequest: new AddLineSegmentRequest({
+                endPosition: segment.end,
                 partStudioId: state.document.getActivePartStudio().id,
-                radius,
                 sketchFeatureId: session.sketchFeatureId,
+                startPosition: segment.start,
             }),
             draft: null,
         });
     }
 }
 
-function createCircleDraft(plane: Plane3, center: Vector2, radius: number) {
+function createMidpointLineDraft(plane: Plane3, start: Vector2, end: Vector2) {
     return createEditDraft<CadDocument>({
-        id: 'draft:sketch-circle',
+        id: 'draft:sketch-midpoint-line',
         kind: 'temporary',
-    }).withTemporaryObjects(
-        sampleCircleSegments(center, radius).map((segment, index) => ({
+    }).withTemporaryObjects([
+        {
             color: Vec3.of(0.1, 0.55, 1),
-            id: `draft:sketch-circle:segment:${String(index)}`,
+            id: 'draft:sketch-midpoint-line:segment',
             kind: 'line-segment',
             segment: new LineSegment3(
-                sketchPointToWorldOnPlane(plane, segment.start),
-                sketchPointToWorldOnPlane(plane, segment.end),
+                sketchPointToWorldOnPlane(plane, start),
+                sketchPointToWorldOnPlane(plane, end),
             ),
             visible: true,
-        })),
-    );
+        },
+    ]);
 }
 
-function sampleCircleSegments(
-    center: Vector2,
-    radius: number,
-): readonly { readonly end: Vector2; readonly start: Vector2 }[] {
-    const segments: { readonly end: Vector2; readonly start: Vector2 }[] = [];
+function getMidpointLineSegment(
+    midpoint: Vector2,
+    endpoint: Vector2,
+): { readonly end: Vector2; readonly start: Vector2 } | null {
+    const start = Vec2.of(midpoint.x * 2 - endpoint.x, midpoint.y * 2 - endpoint.y);
 
-    for (let index = 0; index < CIRCLE_PREVIEW_SEGMENT_COUNT; index += 1) {
-        const startAngle = (index / CIRCLE_PREVIEW_SEGMENT_COUNT) * Math.PI * 2;
-        const endAngle = ((index + 1) / CIRCLE_PREVIEW_SEGMENT_COUNT) * Math.PI * 2;
-
-        segments.push({
-            start: pointOnCircle(center, radius, startAngle),
-            end: pointOnCircle(center, radius, endAngle),
-        });
+    if (Vec2.distance(start, endpoint) <= MIN_LINE_LENGTH) {
+        return null;
     }
 
-    return segments;
-}
-
-function pointOnCircle(center: Vector2, radius: number, angleRadians: number): Vector2 {
-    return Vec2.of(
-        center.x + Math.cos(angleRadians) * radius,
-        center.y + Math.sin(angleRadians) * radius,
-    );
+    return {
+        end: endpoint,
+        start,
+    };
 }
 
 function projectPointerToSketch(

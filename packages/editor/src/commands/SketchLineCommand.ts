@@ -28,14 +28,24 @@ import {
 import { projectScreenPointToSketch2 } from './sketchProjection';
 
 const MIN_LINE_LENGTH = 1e-6;
+const LINE_DRAG_THRESHOLD_PIXELS = 3;
 const LINE_SNAP_THRESHOLD_PIXELS = 9;
+
+interface PendingLineDrag {
+    readonly pointerId: number;
+    readonly startPoint: CommandPointerEvent['point'];
+    readonly startedLine: boolean;
+    readonly moved: boolean;
+}
 
 export class SketchLineCommand extends CadCommand {
     public readonly id = 'sketch-line';
+    private pendingDrag: PendingLineDrag | null = null;
     private readonly snapService = new SnapService();
 
     public override enter(context: CommandContext): CommandResult {
         const state = context.getState();
+        this.pendingDrag = null;
 
         if (!state.activeSketchSession) {
             return createHandledCommandResult({
@@ -53,6 +63,7 @@ export class SketchLineCommand extends CadCommand {
                 ...state.activeSketchSession,
                 activeTool: 'line',
                 pendingCircleCenter: null,
+                pendingAlignedRectangleEdge: null,
                 pendingLineStart: null,
                 pendingRectangleStart: null,
             },
@@ -69,6 +80,7 @@ export class SketchLineCommand extends CadCommand {
     public override cancel(context: CommandContext): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
+        this.pendingDrag = null;
 
         if (session?.pendingLineStart) {
             return createHandledCommandResult({
@@ -99,6 +111,14 @@ export class SketchLineCommand extends CadCommand {
     }
 
     public override exit(): CommandResult {
+        this.pendingDrag = null;
+        return createHandledCommandResult({
+            draft: null,
+        });
+    }
+
+    public override pointerCancel(): CommandResult {
+        this.pendingDrag = null;
         return createHandledCommandResult({
             draft: null,
         });
@@ -131,6 +151,13 @@ export class SketchLineCommand extends CadCommand {
         }
 
         if (!session.pendingLineStart) {
+            this.pendingDrag = {
+                moved: false,
+                pointerId: event.pointerId,
+                startPoint: event.point,
+                startedLine: true,
+            };
+
             if (snappedVertexId) {
                 return this.createLineStartFromVertexResult(context, snappedVertexId);
             }
@@ -144,6 +171,7 @@ export class SketchLineCommand extends CadCommand {
             session.pendingLineStart,
             point2,
             snappedVertexId,
+            { continueFromEnd: (event.clickCount ?? 1) < 2 },
         );
     }
 
@@ -151,6 +179,15 @@ export class SketchLineCommand extends CadCommand {
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
+        if (this.pendingDrag?.pointerId === event.pointerId && !this.pendingDrag.moved) {
+            this.pendingDrag = {
+                ...this.pendingDrag,
+                moved:
+                    distanceScreenPoints(this.pendingDrag.startPoint, event.point) >
+                    LINE_DRAG_THRESHOLD_PIXELS,
+            };
+        }
+
         const state = context.getState();
         const session = state.activeSketchSession;
         const activeSketch = session ? findActiveSketch(state, session) : null;
@@ -203,6 +240,43 @@ export class SketchLineCommand extends CadCommand {
                     : []),
             ]),
         });
+    }
+
+    public override pointerUp(event: CommandPointerEvent, context: CommandContext): CommandResult {
+        const state = context.getState();
+        const session = state.activeSketchSession;
+        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const drag = this.pendingDrag?.pointerId === event.pointerId ? this.pendingDrag : null;
+        this.pendingDrag = null;
+
+        if (!session?.pendingLineStart || !activeSketch || !drag?.startedLine || !drag.moved) {
+            return createHandledCommandResult({
+                message: 'Sketch command updated.',
+            });
+        }
+
+        const resolvedPoint = this.resolveLinePoint(
+            context,
+            activeSketch.sketch,
+            event,
+            getPendingLineStartVertexId(session.pendingLineStart),
+        );
+        const point2 = resolvedPoint.snap?.point ?? resolvedPoint.rawPoint;
+
+        if (!point2) {
+            return createHandledCommandResult({
+                message: 'Sketch command updated.',
+            });
+        }
+
+        return this.createLineEndResult(
+            context,
+            activeSketch.sketch,
+            session.pendingLineStart,
+            point2,
+            getSnappedVertexId(resolvedPoint.snap),
+            { continueFromEnd: false },
+        );
     }
 
     private resolveLinePoint(
@@ -302,6 +376,7 @@ export class SketchLineCommand extends CadCommand {
         start: SketchLineStart,
         point: Vector2,
         snappedEndVertexId: SketchVertexId | null,
+        options: { readonly continueFromEnd: boolean } = { continueFromEnd: true },
     ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
@@ -313,6 +388,22 @@ export class SketchLineCommand extends CadCommand {
         const startPoint = resolveLineStartPoint(sourceSketch, start);
 
         if (!startPoint || Vec2.distance(startPoint.position, point) <= MIN_LINE_LENGTH) {
+            if (!options.continueFromEnd) {
+                return createHandledCommandResult({
+                    activeSketchSession: {
+                        ...session,
+                        pendingLineStart: null,
+                    },
+                    commandSession: {
+                        id: 'sketch-line',
+                        message: 'Sketch command updated.',
+                        selectionContext: state.commandSession.selectionContext,
+                        status: 'running',
+                    },
+                    draft: null,
+                });
+            }
+
             return createHandledCommandResult({
                 commandSession: {
                     id: 'sketch-line',
@@ -333,10 +424,12 @@ export class SketchLineCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingLineStart: {
-                    kind: 'vertex',
-                    vertexId: createdEndVertexId,
-                },
+                pendingLineStart: options.continueFromEnd
+                    ? {
+                          kind: 'vertex',
+                          vertexId: createdEndVertexId,
+                      }
+                    : null,
             },
             commandSession: {
                 id: 'sketch-line',
@@ -457,4 +550,11 @@ function collectSketchVertexSnapSources(
 
 function getSnappedVertexId(snap: SnapResult<SketchEntityRef> | null): SketchVertexId | null {
     return snap?.sourceRef?.kind === SketchEntityKind.Vertex ? snap.sourceRef.id : null;
+}
+
+function distanceScreenPoints(
+    first: CommandPointerEvent['point'],
+    second: CommandPointerEvent['point'],
+): number {
+    return Math.hypot(second.x - first.x, second.y - first.y);
 }

@@ -25,6 +25,7 @@ const sketchDrawingToolGroups: readonly SketchToolbarGroup[] = [
                 shortcut: 'L',
             },
             {
+                commandId: 'sketch-midpoint-line',
                 icon: ToolbarIconId.MidpointLine,
                 label: '中点线',
             },
@@ -40,11 +41,13 @@ const sketchDrawingToolGroups: readonly SketchToolbarGroup[] = [
                 shortcut: 'G',
             },
             {
+                commandId: 'sketch-center-rectangle',
                 icon: ToolbarIconId.CenterRectangle,
                 label: '中心点矩形',
                 shortcut: 'R',
             },
             {
+                commandId: 'sketch-aligned-rectangle',
                 icon: ToolbarIconId.AlignedRectangle,
                 label: '对齐矩形',
             },
@@ -58,70 +61,6 @@ const sketchDrawingToolGroups: readonly SketchToolbarGroup[] = [
                 icon: ToolbarIconId.CenterCircle,
                 label: '中心点圆',
                 shortcut: 'C',
-            },
-            {
-                icon: ToolbarIconId.Circle3Point,
-                label: '3 点圆',
-            },
-            {
-                icon: ToolbarIconId.Ellipse,
-                label: '椭圆',
-            },
-        ],
-    },
-    {
-        label: '3 点圆弧',
-        tools: [
-            {
-                icon: ToolbarIconId.Arc,
-                label: '3 点圆弧',
-                shortcut: 'A',
-            },
-            {
-                icon: ToolbarIconId.TangentArc,
-                label: '相切圆弧',
-            },
-            {
-                icon: ToolbarIconId.CenterArc,
-                label: '圆心圆弧',
-            },
-            {
-                icon: ToolbarIconId.EllipseArc,
-                label: '椭圆弧',
-            },
-            {
-                icon: ToolbarIconId.CircleConic,
-                label: '圆锥',
-            },
-        ],
-    },
-    {
-        label: '内切多边形',
-        tools: [
-            {
-                icon: ToolbarIconId.InscribedPolygon,
-                label: '内切多边形',
-            },
-            {
-                icon: ToolbarIconId.CircumscribedPolygon,
-                label: '外接多边形',
-            },
-        ],
-    },
-    {
-        label: '样条',
-        tools: [
-            {
-                icon: ToolbarIconId.Spline,
-                label: '样条',
-            },
-            {
-                icon: ToolbarIconId.Bezier,
-                label: 'Bezier',
-            },
-            {
-                icon: ToolbarIconId.ControlSpline,
-                label: '样条控制点',
             },
         ],
     },
@@ -152,7 +91,10 @@ export function CommandToolbar({
         }
 
         const closeOnOutsidePointer = (event: PointerEvent) => {
-            if (!sketchToolbarRef.current?.contains(event.target as Node)) {
+            if (
+                !(event.target instanceof Node) ||
+                !sketchToolbarRef.current?.contains(event.target)
+            ) {
                 setOpenSketchToolMenu(null);
             }
         };

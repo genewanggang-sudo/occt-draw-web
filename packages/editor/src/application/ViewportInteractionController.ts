@@ -33,8 +33,11 @@ import {
 } from '../commands/CadCommand';
 import { SelectCommand } from '../commands/SelectCommand';
 import { EnterSketchCommand } from '../commands/EnterSketchCommand';
+import { SketchAlignedRectangleCommand } from '../commands/SketchAlignedRectangleCommand';
 import { SketchCircleCommand } from '../commands/SketchCircleCommand';
+import { SketchCenterRectangleCommand } from '../commands/SketchCenterRectangleCommand';
 import { SketchLineCommand } from '../commands/SketchLineCommand';
+import { SketchMidpointLineCommand } from '../commands/SketchMidpointLineCommand';
 import { SketchRectangleCommand } from '../commands/SketchRectangleCommand';
 import type { CommandId } from '../commands/commandTypes';
 import type { EditorState } from '../state/editorState';
@@ -84,7 +87,10 @@ export class ViewportInteractionController {
         | SelectCommand
         | EnterSketchCommand
         | SketchLineCommand
+        | SketchMidpointLineCommand
         | SketchRectangleCommand
+        | SketchCenterRectangleCommand
+        | SketchAlignedRectangleCommand
         | SketchCircleCommand
     >;
     private readonly context: ViewportInteractionContext;
@@ -97,7 +103,10 @@ export class ViewportInteractionController {
                 new SelectCommand(),
                 new EnterSketchCommand(),
                 new SketchLineCommand(),
+                new SketchMidpointLineCommand(),
                 new SketchRectangleCommand(),
+                new SketchCenterRectangleCommand(),
+                new SketchAlignedRectangleCommand(),
                 new SketchCircleCommand(),
             ],
             createUnhandledResult: createUnhandledCommandResult,

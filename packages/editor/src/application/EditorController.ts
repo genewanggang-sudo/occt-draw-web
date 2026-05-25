@@ -245,6 +245,7 @@ function createCommandAvailabilityContext(state: EditorState) {
 function shouldExitSketchSession(state: EditorState): boolean {
     return (
         state.activeSketchSession?.pendingCircleCenter === null &&
+        state.activeSketchSession.pendingAlignedRectangleEdge === null &&
         state.activeSketchSession.pendingLineStart === null &&
         state.activeSketchSession.pendingRectangleStart === null
     );

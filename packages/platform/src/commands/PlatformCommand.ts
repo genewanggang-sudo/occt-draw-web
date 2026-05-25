@@ -2,6 +2,7 @@ export interface PlatformCommandPointerEvent<TPoint> {
     readonly altKey: boolean;
     readonly button: number;
     readonly buttons: number;
+    readonly clickCount?: number;
     readonly ctrlKey: boolean;
     readonly point: TPoint;
     readonly pointerId: number;

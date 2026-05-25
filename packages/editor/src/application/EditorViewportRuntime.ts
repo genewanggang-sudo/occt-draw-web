@@ -599,6 +599,7 @@ function toEditorPointerInputFromPoint(
         altKey: event.altKey,
         button: event.button,
         buttons: event.buttons,
+        clickCount: event.detail,
         ctrlKey: event.ctrlKey,
         pointerId: event.pointerId,
         point,

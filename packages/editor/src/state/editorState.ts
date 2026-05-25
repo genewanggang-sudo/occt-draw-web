@@ -15,9 +15,22 @@ export type SketchLineStart =
           readonly vertexId: SketchVertexId;
       };
 
+export interface SketchAlignedRectangleEdge {
+    readonly end: Vector2;
+    readonly start: Vector2;
+}
+
 export interface SketchEditSession {
-    readonly activeTool: 'circle' | 'line' | 'rectangle' | 'select';
+    readonly activeTool:
+        | 'aligned-rectangle'
+        | 'center-rectangle'
+        | 'circle'
+        | 'line'
+        | 'midpoint-line'
+        | 'rectangle'
+        | 'select';
     readonly pendingCircleCenter: Vector2 | null;
+    readonly pendingAlignedRectangleEdge: SketchAlignedRectangleEdge | null;
     readonly pendingLineStart: SketchLineStart | null;
     readonly pendingRectangleStart: Vector2 | null;
     readonly sketchFeatureId: string;

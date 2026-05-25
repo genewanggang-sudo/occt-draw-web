@@ -9,6 +9,7 @@ import {
 import type { Vector2 } from '@occt-draw/math';
 import {
     AddCircleEdit,
+    AddClosedLineSegmentsEdit,
     AddCornerRectangleEdit,
     AddLineSegmentEdit,
     DeleteSketchEntityEdit,
@@ -125,6 +126,46 @@ export class AddLineSegmentRequest
         return {
             createdEdgeId: edit.createdEdgeId,
             createdEndVertexId: edit.createdEndVertexId,
+            partStudioId: this.partStudioId,
+            payloadId: sketch.id,
+            sketchFeatureId: this.sketchFeatureId,
+        };
+    }
+}
+
+export interface AddClosedLineSegmentsRequestResult extends SketchDocumentRequestContext {
+    readonly createdEdgeIds: readonly SketchEdgeId[];
+    readonly payloadId: FeaturePayloadId;
+}
+
+export class AddClosedLineSegmentsRequest
+    extends SketchDocumentRequest<AddClosedLineSegmentsRequestResult, AddClosedLineSegmentsEdit>
+    implements Request<CadDocument, AddClosedLineSegmentsRequestResult>
+{
+    private readonly points: readonly Vector2[];
+
+    constructor(input: SketchDocumentRequestContext & { readonly points: readonly Vector2[] }) {
+        super({
+            label: 'Add sketch line segments',
+            partStudioId: input.partStudioId,
+            sketchFeatureId: input.sketchFeatureId,
+            transactionId: `add-sketch-line-segments:${input.sketchFeatureId}`,
+        });
+        this.points = input.points;
+    }
+
+    protected createEdit(): AddClosedLineSegmentsEdit {
+        return new AddClosedLineSegmentsEdit({
+            points: this.points,
+        });
+    }
+
+    protected readResult(
+        sketch: Sketch,
+        edit: AddClosedLineSegmentsEdit,
+    ): AddClosedLineSegmentsRequestResult {
+        return {
+            createdEdgeIds: edit.createdEdgeIds,
             partStudioId: this.partStudioId,
             payloadId: sketch.id,
             sketchFeatureId: this.sketchFeatureId,
