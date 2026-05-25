@@ -7,6 +7,7 @@ import {
     type EditorState,
     type EditorViewportRuntimeStatus,
 } from '@occt-draw/editor';
+import { ToolbarIcon, ToolbarIconId, ToolbarIconSprite } from '@occt-draw/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CommandToolbar } from '../editor/commands/CommandToolbar';
 import { ViewToolbar } from '../editor/view-toolbar/ViewToolbar';
@@ -34,6 +35,7 @@ export function App() {
     const activeCommandId = editorState.commandSession.id;
     const activeCommandLabel = getCommandLabel(activeCommandId);
     const commandAvailability = workbenchView.commandAvailability;
+    const isEditingSketch = editorState.activeSketchSession !== null;
 
     useEffect(() => {
         const hostElement = viewportHostRef.current;
@@ -69,15 +71,17 @@ export function App() {
     }, [editorState]);
 
     return (
-        <main className="cad-workbench">
-            <header className="cad-workbench__topbar">
-                <div className="cad-workbench__brand">
-                    <span className="cad-workbench__mark">OC</span>
-                    <span className="cad-workbench__title">{appTitle}</span>
-                </div>
-                <nav className="cad-workbench__actions" aria-label="基础功能入口">
+        <main className={`cad-workbench${isEditingSketch ? ' cad-workbench--sketch' : ''}`}>
+            <header
+                className={`cad-workbench__topbar${isEditingSketch ? ' cad-workbench__topbar--sketch' : ''}`}
+            >
+                <ToolbarIconSprite />
+                <nav
+                    className="cad-workbench__actions cad-workbench__history-actions"
+                    aria-label="历史操作"
+                >
                     <button
-                        className="cad-workbench__action"
+                        className="cad-workbench__toolbar-icon-button cad-workbench__history-action"
                         disabled={!editorState.documentSession.canUndo}
                         onClick={() => {
                             setEditorState((current) =>
@@ -86,11 +90,15 @@ export function App() {
                         }}
                         title={editorState.documentSession.undoLabel ?? 'Undo'}
                         type="button"
+                        aria-label={editorState.documentSession.undoLabel ?? 'Undo'}
                     >
-                        Undo
+                        <ToolbarIcon
+                            className="cad-workbench__history-action-icon"
+                            icon={ToolbarIconId.Undo}
+                        />
                     </button>
                     <button
-                        className="cad-workbench__action"
+                        className="cad-workbench__toolbar-icon-button cad-workbench__history-action"
                         disabled={!editorState.documentSession.canRedo}
                         onClick={() => {
                             setEditorState((current) =>
@@ -99,35 +107,52 @@ export function App() {
                         }}
                         title={editorState.documentSession.redoLabel ?? 'Redo'}
                         type="button"
+                        aria-label={editorState.documentSession.redoLabel ?? 'Redo'}
                     >
-                        Redo
-                    </button>
-                    <button className="cad-workbench__action" type="button">
-                        打开
-                    </button>
-                    <button className="cad-workbench__action" type="button">
-                        保存
-                    </button>
-                    <button className="cad-workbench__action" type="button">
-                        设置
+                        <ToolbarIcon
+                            className="cad-workbench__history-action-icon"
+                            icon={ToolbarIconId.Redo}
+                        />
                     </button>
                 </nav>
+                <div className="cad-workbench__brand">
+                    <span className="cad-workbench__mark">OC</span>
+                    <span className="cad-workbench__title">{appTitle}</span>
+                </div>
+                {isEditingSketch ? null : (
+                    <nav
+                        className="cad-workbench__actions cad-workbench__file-actions"
+                        aria-label="基础功能入口"
+                    >
+                        <button className="cad-workbench__action" type="button">
+                            打开
+                        </button>
+                        <button className="cad-workbench__action" type="button">
+                            保存
+                        </button>
+                        <button className="cad-workbench__action" type="button">
+                            设置
+                        </button>
+                    </nav>
+                )}
                 <CommandToolbar
                     activeCommandId={activeCommandId}
                     commandAvailability={commandAvailability}
-                    isEditingSketch={editorState.activeSketchSession !== null}
+                    isEditingSketch={isEditingSketch}
                     onActivateCommand={(commandId) => {
                         runtimeRef.current?.activateCommand(commandId);
                     }}
                 />
-                <ViewToolbar
-                    onFitView={() => {
-                        runtimeRef.current?.fitView();
-                    }}
-                    onStandardView={(view) => {
-                        runtimeRef.current?.setStandardView(view);
-                    }}
-                />
+                {isEditingSketch ? null : (
+                    <ViewToolbar
+                        onFitView={() => {
+                            runtimeRef.current?.fitView();
+                        }}
+                        onStandardView={(view) => {
+                            runtimeRef.current?.setStandardView(view);
+                        }}
+                    />
+                )}
             </header>
 
             <WorkbenchLayout

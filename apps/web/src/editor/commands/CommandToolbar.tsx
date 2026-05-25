@@ -1,12 +1,131 @@
-import {
-    commandDefinitions,
-    sketchDrawingToolGroups,
-    type CommandAvailabilityMap,
-    type CommandId,
-    type SketchToolDefinition,
-    type SketchToolGroupDefinition,
-    type SketchToolIcon,
-} from '@occt-draw/editor';
+import { commandDefinitions, type CommandAvailabilityMap, type CommandId } from '@occt-draw/editor';
+import { SplitIconDropdown, ToolbarIconId, type SplitIconDropdownItem } from '@occt-draw/ui';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+
+interface SketchToolbarTool {
+    readonly commandId?: CommandId;
+    readonly icon: ToolbarIconId;
+    readonly label: string;
+    readonly shortcut?: string;
+}
+
+interface SketchToolbarGroup {
+    readonly label: string;
+    readonly tools: readonly SketchToolbarTool[];
+}
+
+const sketchDrawingToolGroups: readonly SketchToolbarGroup[] = [
+    {
+        label: '线',
+        tools: [
+            {
+                commandId: 'sketch-line',
+                icon: ToolbarIconId.Line,
+                label: '线',
+                shortcut: 'L',
+            },
+            {
+                icon: ToolbarIconId.MidpointLine,
+                label: '中点线',
+            },
+        ],
+    },
+    {
+        label: '拐角矩形',
+        tools: [
+            {
+                commandId: 'sketch-rectangle',
+                icon: ToolbarIconId.CornerRectangle,
+                label: '拐角矩形',
+                shortcut: 'G',
+            },
+            {
+                icon: ToolbarIconId.CenterRectangle,
+                label: '中心点矩形',
+                shortcut: 'R',
+            },
+            {
+                icon: ToolbarIconId.AlignedRectangle,
+                label: '对齐矩形',
+            },
+        ],
+    },
+    {
+        label: '中心点圆',
+        tools: [
+            {
+                commandId: 'sketch-circle',
+                icon: ToolbarIconId.CenterCircle,
+                label: '中心点圆',
+                shortcut: 'C',
+            },
+            {
+                icon: ToolbarIconId.Circle3Point,
+                label: '3 点圆',
+            },
+            {
+                icon: ToolbarIconId.Ellipse,
+                label: '椭圆',
+            },
+        ],
+    },
+    {
+        label: '3 点圆弧',
+        tools: [
+            {
+                icon: ToolbarIconId.Arc,
+                label: '3 点圆弧',
+                shortcut: 'A',
+            },
+            {
+                icon: ToolbarIconId.TangentArc,
+                label: '相切圆弧',
+            },
+            {
+                icon: ToolbarIconId.CenterArc,
+                label: '圆心圆弧',
+            },
+            {
+                icon: ToolbarIconId.EllipseArc,
+                label: '椭圆弧',
+            },
+            {
+                icon: ToolbarIconId.CircleConic,
+                label: '圆锥',
+            },
+        ],
+    },
+    {
+        label: '内切多边形',
+        tools: [
+            {
+                icon: ToolbarIconId.InscribedPolygon,
+                label: '内切多边形',
+            },
+            {
+                icon: ToolbarIconId.CircumscribedPolygon,
+                label: '外接多边形',
+            },
+        ],
+    },
+    {
+        label: '样条',
+        tools: [
+            {
+                icon: ToolbarIconId.Spline,
+                label: '样条',
+            },
+            {
+                icon: ToolbarIconId.Bezier,
+                label: 'Bezier',
+            },
+            {
+                icon: ToolbarIconId.ControlSpline,
+                label: '样条控制点',
+            },
+        ],
+    },
+] as const;
 
 interface CommandToolbarProps {
     readonly activeCommandId: CommandId;
@@ -21,18 +140,66 @@ export function CommandToolbar({
     isEditingSketch,
     onActivateCommand,
 }: CommandToolbarProps) {
+    const [openSketchToolMenu, setOpenSketchToolMenu] = useState<string | null>(null);
+    const [selectedSketchTools, setSelectedSketchTools] = useState<
+        Readonly<Record<string, string>>
+    >({});
+    const sketchToolbarRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        if (!openSketchToolMenu) {
+            return;
+        }
+
+        const closeOnOutsidePointer = (event: PointerEvent) => {
+            if (!sketchToolbarRef.current?.contains(event.target as Node)) {
+                setOpenSketchToolMenu(null);
+            }
+        };
+
+        document.addEventListener('pointerdown', closeOnOutsidePointer);
+
+        return () => {
+            document.removeEventListener('pointerdown', closeOnOutsidePointer);
+        };
+    }, [openSketchToolMenu]);
+
     if (isEditingSketch) {
         return (
-            <nav className="cad-workbench__command-actions" aria-label="草图绘制工具">
-                {sketchDrawingToolGroups.map((group) => (
-                    <SketchToolGroup
-                        key={group.label}
-                        activeCommandId={activeCommandId}
-                        commandAvailability={commandAvailability}
-                        group={group}
-                        onActivateCommand={onActivateCommand}
-                    />
-                ))}
+            <nav
+                ref={sketchToolbarRef}
+                className="cad-workbench__command-actions cad-workbench__command-actions--sketch"
+                aria-label="草图工具"
+            >
+                <ToolbarGroup label="草图绘制">
+                    {sketchDrawingToolGroups.map((group) => (
+                        <SketchToolGroup
+                            key={group.label}
+                            activeCommandId={activeCommandId}
+                            commandAvailability={commandAvailability}
+                            group={group}
+                            isMenuOpen={openSketchToolMenu === group.label}
+                            onActivateCommand={onActivateCommand}
+                            onSelectTool={(tool) => {
+                                setSelectedSketchTools((current) => ({
+                                    ...current,
+                                    [group.label]: tool.label,
+                                }));
+                            }}
+                            onToggleMenu={() => {
+                                setOpenSketchToolMenu((current) =>
+                                    current === group.label ? null : group.label,
+                                );
+                            }}
+                            onCloseMenu={() => {
+                                setOpenSketchToolMenu((current) =>
+                                    current === group.label ? null : current,
+                                );
+                            }}
+                            selectedToolLabel={selectedSketchTools[group.label]}
+                        />
+                    ))}
+                </ToolbarGroup>
             </nav>
         );
     }
@@ -64,196 +231,116 @@ export function CommandToolbar({
     );
 }
 
-function SketchToolGroup({
-    activeCommandId,
-    commandAvailability,
-    group,
-    onActivateCommand,
+function ToolbarGroup({
+    children,
+    label,
 }: {
-    readonly activeCommandId: CommandId;
-    readonly commandAvailability: CommandAvailabilityMap;
-    readonly group: SketchToolGroupDefinition;
-    readonly onActivateCommand: (commandId: CommandId) => void;
+    readonly children: ReactNode;
+    readonly label: string;
 }) {
-    const primaryAvailability = group.primaryCommandId
-        ? commandAvailability[group.primaryCommandId]
-        : null;
-    const isActive = group.tools.some((tool) => tool.commandId === activeCommandId);
-    const primaryTitle =
-        primaryAvailability?.reason ??
-        (group.primaryCommandId ? group.label : `${group.label}：尚未实现`);
-
     return (
-        <div className="cad-workbench__sketch-tool-group">
-            <button
-                className="cad-workbench__sketch-tool"
-                disabled={!group.primaryCommandId || primaryAvailability?.enabled === false}
-                title={primaryTitle}
-                type="button"
-                aria-label={group.label}
-                aria-pressed={isActive}
-                onClick={() => {
-                    if (group.primaryCommandId && primaryAvailability?.enabled !== false) {
-                        onActivateCommand(group.primaryCommandId);
-                    }
-                }}
-            >
-                <SketchToolIconView icon={group.icon} />
-                <span className="cad-workbench__sketch-tool-label">{group.label}</span>
-            </button>
-            <button
-                className="cad-workbench__sketch-tool-menu"
-                type="button"
-                aria-label={`${group.label} 工具`}
-                title={`${group.label} 工具`}
-            >
-                v
-            </button>
-            <div className="cad-workbench__sketch-tool-menu-panel" role="menu">
-                {group.tools.map((tool) => (
-                    <SketchToolMenuItem
-                        key={tool.label}
-                        activeCommandId={activeCommandId}
-                        commandAvailability={commandAvailability}
-                        onActivateCommand={onActivateCommand}
-                        tool={tool}
-                    />
-                ))}
-            </div>
+        <div className="cad-workbench__toolbar-group" aria-label={label}>
+            {children}
         </div>
     );
 }
 
-function SketchToolMenuItem({
+function SketchToolGroup({
     activeCommandId,
     commandAvailability,
+    group,
+    isMenuOpen,
     onActivateCommand,
-    tool,
+    onCloseMenu,
+    onSelectTool,
+    onToggleMenu,
+    selectedToolLabel,
 }: {
     readonly activeCommandId: CommandId;
     readonly commandAvailability: CommandAvailabilityMap;
+    readonly group: SketchToolbarGroup;
+    readonly isMenuOpen: boolean;
     readonly onActivateCommand: (commandId: CommandId) => void;
-    readonly tool: SketchToolDefinition;
+    readonly onCloseMenu: () => void;
+    readonly onSelectTool: (tool: SketchToolbarTool) => void;
+    readonly onToggleMenu: () => void;
+    readonly selectedToolLabel: string | undefined;
 }) {
-    const availability = tool.commandId ? commandAvailability[tool.commandId] : null;
-    const isEnabled = Boolean(tool.commandId && availability?.enabled !== false);
-    const title = availability?.reason ?? (isEnabled ? tool.label : `${tool.label}：尚未实现`);
+    const selectedTool =
+        group.tools.find((tool) => tool.label === selectedToolLabel) ?? group.tools[0];
+
+    if (!selectedTool) {
+        return null;
+    }
+
+    const selectedAvailability = selectedTool.commandId
+        ? commandAvailability[selectedTool.commandId]
+        : null;
+    const isSelectedToolEnabled = Boolean(
+        selectedTool.commandId && selectedAvailability?.enabled !== false,
+    );
+    const isSelectedToolDisabled = Boolean(
+        selectedTool.commandId && selectedAvailability?.enabled === false,
+    );
+    const isActive =
+        selectedTool.commandId === activeCommandId || selectedTool.label === selectedToolLabel;
+    const primaryTitle =
+        selectedTool.commandId && selectedAvailability?.reason
+            ? selectedAvailability.reason
+            : selectedTool.commandId
+              ? selectedTool.label
+              : selectedTool.label;
+    const menuItems = group.tools.map((tool): SplitIconDropdownItem => {
+        const availability = tool.commandId ? commandAvailability[tool.commandId] : null;
+        const isDisabled = Boolean(tool.commandId && availability?.enabled === false);
+
+        return {
+            disabled: isDisabled,
+            icon: tool.icon,
+            id: tool.label,
+            label: tool.label,
+            ...(tool.shortcut ? { shortcut: tool.shortcut } : {}),
+            title: availability?.reason ?? tool.label,
+        };
+    });
+
+    const selectTool = (item: SplitIconDropdownItem) => {
+        const tool = group.tools.find((candidate) => candidate.label === item.id);
+
+        if (!tool) {
+            return;
+        }
+
+        const availability = tool.commandId ? commandAvailability[tool.commandId] : null;
+        const isEnabled = Boolean(tool.commandId && availability?.enabled !== false);
+
+        onSelectTool(tool);
+
+        if (tool.commandId && isEnabled) {
+            onActivateCommand(tool.commandId);
+        }
+    };
 
     return (
-        <button
-            className="cad-workbench__sketch-tool-menu-item"
-            disabled={!isEnabled}
-            type="button"
-            role="menuitem"
-            title={title}
-            aria-pressed={tool.commandId === activeCommandId}
-            onClick={() => {
-                if (tool.commandId && isEnabled) {
-                    onActivateCommand(tool.commandId);
+        <SplitIconDropdown
+            active={isActive}
+            ariaLabel={selectedTool.label}
+            caretAriaLabel={`${group.label} 工具`}
+            caretTitle={`${group.label} 工具`}
+            classNamePrefix="cad-workbench"
+            disabled={isSelectedToolDisabled}
+            isOpen={isMenuOpen}
+            items={menuItems}
+            onClose={onCloseMenu}
+            onPrimaryAction={() => {
+                if (selectedTool.commandId && isSelectedToolEnabled) {
+                    onActivateCommand(selectedTool.commandId);
                 }
             }}
-        >
-            <SketchToolIconView icon={tool.icon} />
-            <span>{tool.label}</span>
-            {tool.shortcut ? (
-                <span className="cad-workbench__sketch-tool-shortcut">{tool.shortcut}</span>
-            ) : null}
-        </button>
+            onSelectItem={selectTool}
+            onToggleOpen={onToggleMenu}
+            selectedItemId={selectedTool.label}
+            title={primaryTitle}
+        />
     );
-}
-
-function SketchToolIconView({ icon }: { readonly icon: SketchToolIcon }) {
-    return (
-        <svg
-            className="cad-workbench__sketch-tool-icon"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            focusable="false"
-        >
-            {renderSketchToolIcon(icon)}
-        </svg>
-    );
-}
-
-function renderSketchToolIcon(icon: SketchToolIcon) {
-    switch (icon) {
-        case 'aligned-rectangle':
-            return (
-                <>
-                    <path d="M6 8h12v8H6z" />
-                    <path d="M6 16l12-8" />
-                </>
-            );
-        case 'arc':
-            return <path d="M5 17c2-8 8-12 14-10" />;
-        case 'bezier':
-            return (
-                <>
-                    <path d="M4 17c5-10 11 4 16-6" />
-                    <path d="M4 17l5-8M20 11l-5 4" />
-                </>
-            );
-        case 'center-circle':
-            return (
-                <>
-                    <circle cx="12" cy="12" r="6" />
-                    <path d="M12 8v8M8 12h8" />
-                </>
-            );
-        case 'center-rectangle':
-            return (
-                <>
-                    <path d="M5 7h14v10H5z" />
-                    <path d="M12 9v6M9 12h6" />
-                </>
-            );
-        case 'circle-3-point':
-            return (
-                <>
-                    <circle cx="12" cy="12" r="6" />
-                    <circle cx="7" cy="9" r="1" />
-                    <circle cx="14" cy="6" r="1" />
-                    <circle cx="18" cy="14" r="1" />
-                </>
-            );
-        case 'circle-conic':
-            return <path d="M5 17c4-12 10-12 14 0" />;
-        case 'control-spline':
-            return (
-                <>
-                    <path d="M4 16c5-9 11 3 16-7" />
-                    <path d="M6 15h4M14 11h4" />
-                    <circle cx="6" cy="15" r="1" />
-                    <circle cx="18" cy="9" r="1" />
-                </>
-            );
-        case 'corner-rectangle':
-            return <path d="M5 7h14v10H5z" />;
-        case 'ellipse':
-            return <ellipse cx="12" cy="12" rx="8" ry="5" />;
-        case 'ellipse-arc':
-            return <path d="M4 14c3-7 13-7 16 0" />;
-        case 'inscribed-polygon':
-            return <path d="M12 4l8 6-3 10H7L4 10z" />;
-        case 'line':
-            return <path d="M5 18L19 6" />;
-        case 'midpoint-line':
-            return (
-                <>
-                    <path d="M5 18L19 6" />
-                    <circle cx="12" cy="12" r="1.5" />
-                </>
-            );
-        case 'point':
-            return <circle cx="12" cy="12" r="3" />;
-        case 'spline':
-            return <path d="M4 16c5-9 11 3 16-7" />;
-        case 'tangent-arc':
-            return (
-                <>
-                    <path d="M5 17c4-8 9-10 14-7" />
-                    <path d="M4 18h8" />
-                </>
-            );
-    }
 }

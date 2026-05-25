@@ -16,39 +16,6 @@ export interface CommandDefinition {
     readonly label: string;
 }
 
-export interface SketchToolDefinition {
-    readonly commandId?: CommandId;
-    readonly icon: SketchToolIcon;
-    readonly label: string;
-    readonly shortcut?: string;
-}
-
-export interface SketchToolGroupDefinition {
-    readonly icon: SketchToolIcon;
-    readonly label: string;
-    readonly primaryCommandId?: CommandId;
-    readonly tools: readonly SketchToolDefinition[];
-}
-
-export type SketchToolIcon =
-    | 'aligned-rectangle'
-    | 'arc'
-    | 'bezier'
-    | 'center-circle'
-    | 'center-rectangle'
-    | 'circle-3-point'
-    | 'circle-conic'
-    | 'control-spline'
-    | 'corner-rectangle'
-    | 'ellipse'
-    | 'ellipse-arc'
-    | 'inscribed-polygon'
-    | 'line'
-    | 'midpoint-line'
-    | 'point'
-    | 'spline'
-    | 'tangent-arc';
-
 export interface CommandAvailability {
     readonly enabled: boolean;
     readonly reason: string | null;

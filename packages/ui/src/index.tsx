@@ -1,4 +1,10 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
+export {
+    SplitIconDropdown,
+    type SplitIconDropdownItem,
+    type SplitIconDropdownProps,
+} from './SplitIconDropdown';
+export { ToolbarIcon, ToolbarIconId, ToolbarIconSprite } from './ToolbarIcon';
 
 export interface UiPanelProps {
     children: ReactNode;
