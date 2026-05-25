@@ -79,10 +79,6 @@ button {
     min-width: 0;
 }
 
-.cad-workbench__topbar--sketch .cad-workbench__brand {
-    display: none;
-}
-
 .cad-workbench__mark {
     display: inline-grid;
     place-items: center;
@@ -266,8 +262,8 @@ button {
     --os-icon-accent-primary: #1651b0;
     --os-icon-fill-primary--static: #ffffff;
     --os-icon-fill-tertiary: currentColor;
-    --os-icon-outline-primary: #333333;
-    --os-icon-outline-secondary: #333333;
+    --os-icon-outline-primary: currentColor;
+    --os-icon-outline-secondary: currentColor;
 
     display: inline-grid;
     place-items: center;
@@ -361,8 +357,8 @@ button {
     --os-icon-accent-primary: #1651b0;
     --os-icon-fill-primary--static: #ffffff;
     --os-icon-fill-tertiary: currentColor;
-    --os-icon-outline-primary: #333333;
-    --os-icon-outline-secondary: #333333;
+    --os-icon-outline-primary: currentColor;
+    --os-icon-outline-secondary: currentColor;
 
     width: 20px;
     height: 20px;
@@ -373,8 +369,8 @@ button {
     --os-icon-accent-primary: #1651b0;
     --os-icon-fill-primary--static: #ffffff;
     --os-icon-fill-tertiary: currentColor;
-    --os-icon-outline-primary: #333333;
-    --os-icon-outline-secondary: #333333;
+    --os-icon-outline-primary: currentColor;
+    --os-icon-outline-secondary: currentColor;
 
     width: 10px;
     height: 10px;
@@ -385,8 +381,8 @@ button {
     --os-icon-accent-primary: #1651b0;
     --os-icon-fill-primary--static: #ffffff;
     --os-icon-fill-tertiary: currentColor;
-    --os-icon-outline-primary: #333333;
-    --os-icon-outline-secondary: #333333;
+    --os-icon-outline-primary: currentColor;
+    --os-icon-outline-secondary: currentColor;
 
     width: 20px;
     height: 20px;

@@ -76,6 +76,10 @@ export function App() {
                 className={`cad-workbench__topbar${isEditingSketch ? ' cad-workbench__topbar--sketch' : ''}`}
             >
                 <ToolbarIconSprite />
+                <div className="cad-workbench__brand">
+                    <span className="cad-workbench__mark">OC</span>
+                    <span className="cad-workbench__title">{appTitle}</span>
+                </div>
                 <nav
                     className="cad-workbench__actions cad-workbench__history-actions"
                     aria-label="历史操作"
@@ -115,10 +119,6 @@ export function App() {
                         />
                     </button>
                 </nav>
-                <div className="cad-workbench__brand">
-                    <span className="cad-workbench__mark">OC</span>
-                    <span className="cad-workbench__title">{appTitle}</span>
-                </div>
                 {isEditingSketch ? null : (
                     <nav
                         className="cad-workbench__actions cad-workbench__file-actions"
