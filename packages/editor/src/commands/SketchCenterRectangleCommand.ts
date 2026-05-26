@@ -219,9 +219,16 @@ export class SketchCenterRectangleCommand extends CadCommand {
         const point = projectPointerToSketch(state, activeSketch.sketch, event);
 
         if (!point) {
-            return createHandledCommandResult({
-                message: 'Sketch command updated.',
-            });
+            return this.clearPendingRectangleResult(context, session);
+        }
+
+        const rectangle = getCenterRectangleCorners(
+            session.pendingRectangleStart,
+            event.altKey ? constrainCornerToSquare(session.pendingRectangleStart, point) : point,
+        );
+
+        if (!rectangle) {
+            return this.clearPendingRectangleResult(context, session);
         }
 
         return this.createCenterRectangleResult(context, session, point, event);
@@ -266,6 +273,27 @@ export class SketchCenterRectangleCommand extends CadCommand {
                 partStudioId: state.document.getActivePartStudio().id,
                 sketchFeatureId: session.sketchFeatureId,
             }),
+            draft: null,
+        });
+    }
+
+    private clearPendingRectangleResult(
+        context: CommandContext,
+        session: SketchEditSession,
+    ): CommandResult {
+        const state = context.getState();
+
+        return createHandledCommandResult({
+            activeSketchSession: {
+                ...session,
+                pendingRectangleStart: null,
+            },
+            commandSession: {
+                id: 'sketch-center-rectangle',
+                message: 'Sketch command updated.',
+                selectionContext: state.commandSession.selectionContext,
+                status: 'running',
+            },
             draft: null,
         });
     }

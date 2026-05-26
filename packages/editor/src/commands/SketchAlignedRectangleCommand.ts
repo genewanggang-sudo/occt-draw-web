@@ -231,23 +231,26 @@ export class SketchAlignedRectangleCommand extends CadCommand {
         const point = projectPointerToSketch(state, activeSketch.sketch, event);
 
         if (!point) {
-            return createHandledCommandResult({
-                message: 'Sketch command updated.',
-            });
+            return this.clearPendingAlignedRectangleResult(context, session);
         }
 
-        return this.createFirstEdgeResult(context, session, point);
+        return this.createFirstEdgeResult(context, session, point, { clearOnInvalid: true });
     }
 
     private createFirstEdgeResult(
         context: CommandContext,
         session: SketchEditSession,
         point: Vector2,
+        options: { readonly clearOnInvalid: boolean } = { clearOnInvalid: false },
     ): CommandResult {
         const state = context.getState();
         const start = session.pendingRectangleStart;
 
         if (!start || Vec2.distance(start, point) <= MIN_RECTANGLE_SIDE) {
+            if (options.clearOnInvalid) {
+                return this.clearPendingAlignedRectangleResult(context, session);
+            }
+
             return createHandledCommandResult();
         }
 
@@ -285,7 +288,7 @@ export class SketchAlignedRectangleCommand extends CadCommand {
         const corners = getAlignedRectangleCorners(firstEdge, point);
 
         if (!corners) {
-            return createHandledCommandResult();
+            return this.clearPendingAlignedRectangleResult(context, session);
         }
 
         return createHandledCommandResult({
@@ -305,6 +308,28 @@ export class SketchAlignedRectangleCommand extends CadCommand {
                 points: corners,
                 sketchFeatureId: session.sketchFeatureId,
             }),
+            draft: null,
+        });
+    }
+
+    private clearPendingAlignedRectangleResult(
+        context: CommandContext,
+        session: SketchEditSession,
+    ): CommandResult {
+        const state = context.getState();
+
+        return createHandledCommandResult({
+            activeSketchSession: {
+                ...session,
+                pendingAlignedRectangleEdge: null,
+                pendingRectangleStart: null,
+            },
+            commandSession: {
+                id: 'sketch-aligned-rectangle',
+                message: 'Sketch command updated.',
+                selectionContext: state.commandSession.selectionContext,
+                status: 'running',
+            },
             draft: null,
         });
     }

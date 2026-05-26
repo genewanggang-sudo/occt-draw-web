@@ -215,8 +215,16 @@ export class SketchRectangleCommand extends CadCommand {
 
         const point = projectPointerToSketch(state, activeSketch.sketch, event);
 
-        if (!point || !isValidRectangle(session.pendingRectangleStart, point)) {
-            return createHandledCommandResult();
+        if (!point) {
+            return this.clearPendingRectangleResult(context, session);
+        }
+
+        const oppositeCorner = event.altKey
+            ? constrainOppositeCornerToSquare(session.pendingRectangleStart, point)
+            : point;
+
+        if (!isValidRectangle(session.pendingRectangleStart, oppositeCorner)) {
+            return this.clearPendingRectangleResult(context, session);
         }
 
         return this.createRectangleResult(context, activeSketch.sketch, session, point, event);
@@ -261,6 +269,27 @@ export class SketchRectangleCommand extends CadCommand {
                 partStudioId: state.document.getActivePartStudio().id,
                 sketchFeatureId: session.sketchFeatureId,
             }),
+            draft: null,
+        });
+    }
+
+    private clearPendingRectangleResult(
+        context: CommandContext,
+        session: SketchEditSession,
+    ): CommandResult {
+        const state = context.getState();
+
+        return createHandledCommandResult({
+            activeSketchSession: {
+                ...session,
+                pendingRectangleStart: null,
+            },
+            commandSession: {
+                id: 'sketch-rectangle',
+                message: 'Sketch command updated.',
+                selectionContext: state.commandSession.selectionContext,
+                status: 'running',
+            },
             draft: null,
         });
     }

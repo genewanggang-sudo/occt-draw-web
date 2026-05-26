@@ -218,10 +218,14 @@ export class SketchMidpointLineCommand extends CadCommand {
 
         const point = projectPointerToSketch(state, activeSketch.sketch, event);
 
-        if (!point) {
-            return createHandledCommandResult({
-                message: 'Sketch command updated.',
-            });
+        if (!point || session.pendingLineStart.kind !== 'point') {
+            return this.clearPendingLineResult(context, session);
+        }
+
+        const segment = getMidpointLineSegment(session.pendingLineStart.point, point);
+
+        if (!segment) {
+            return this.clearPendingLineResult(context, session);
         }
 
         return this.createMidpointLineResult(context, session, point);
@@ -262,6 +266,27 @@ export class SketchMidpointLineCommand extends CadCommand {
                 sketchFeatureId: session.sketchFeatureId,
                 startPosition: segment.start,
             }),
+            draft: null,
+        });
+    }
+
+    private clearPendingLineResult(
+        context: CommandContext,
+        session: SketchEditSession,
+    ): CommandResult {
+        const state = context.getState();
+
+        return createHandledCommandResult({
+            activeSketchSession: {
+                ...session,
+                pendingLineStart: null,
+            },
+            commandSession: {
+                id: 'sketch-midpoint-line',
+                message: 'Sketch command updated.',
+                selectionContext: state.commandSession.selectionContext,
+                status: 'running',
+            },
             draft: null,
         });
     }
