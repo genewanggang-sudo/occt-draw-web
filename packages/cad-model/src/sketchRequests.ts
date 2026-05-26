@@ -1,30 +1,15 @@
-import {
-    createRequestExecution,
-    type DocumentEditLabels,
-    type Request,
-    type RequestContext,
-    type RequestExecution,
-    type TransactionId,
-} from '@occt-draw/core';
+import type { Request, RequestContext, RequestExecution, TransactionId } from '@occt-draw/core';
 import type { Vector2 } from '@occt-draw/math';
-import {
-    AddCircleEdit,
-    AddClosedLineSegmentsEdit,
-    AddCornerRectangleEdit,
-    AddLineSegmentEdit,
-    DeleteSketchEntityEdit,
-    MoveVertexEdit,
+import { SketchEntityKind } from '@occt-draw/sketch';
+import type {
     Sketch,
-    SketchEntityKind,
-    createSketchEditTransaction,
-    type SketchEdgeId,
-    type SketchEntityRef,
-    type SketchEdit,
-    type SketchVertexId,
+    SketchEdgeId,
+    SketchEntityRef,
+    SketchLineSegmentInput,
+    SketchVertexId,
 } from '@occt-draw/sketch';
-import type { CadDocument, PartStudio } from './document';
-import { withPartStudio } from './documentChanges';
-import type { Feature } from './features';
+import type { CadDocument } from './document';
+import { CadDocumentEditContext, type SketchEditTarget } from './documentEditContext';
 import type { FeatureId, FeaturePayloadId, PartStudioId } from './ids';
 
 export interface SketchDocumentRequestContext {
@@ -32,14 +17,10 @@ export interface SketchDocumentRequestContext {
     readonly sketchFeatureId: FeatureId;
 }
 
-abstract class SketchDocumentRequest<TResult, TEdit extends SketchEdit> implements Request<
-    CadDocument,
-    TResult
-> {
+abstract class SketchDocumentRequest<TResult> implements Request<CadDocument, TResult> {
     public readonly label: string;
     protected readonly partStudioId: PartStudioId;
     protected readonly sketchFeatureId: FeatureId;
-    private readonly history: DocumentEditLabels;
     private readonly transactionId: TransactionId;
 
     protected constructor(input: {
@@ -48,7 +29,6 @@ abstract class SketchDocumentRequest<TResult, TEdit extends SketchEdit> implemen
         readonly sketchFeatureId: FeatureId;
         readonly transactionId: TransactionId;
     }) {
-        this.history = { label: input.label };
         this.label = input.label;
         this.partStudioId = input.partStudioId;
         this.sketchFeatureId = input.sketchFeatureId;
@@ -56,44 +36,19 @@ abstract class SketchDocumentRequest<TResult, TEdit extends SketchEdit> implemen
     }
 
     public execute(context: RequestContext<CadDocument>): RequestExecution<CadDocument, TResult> {
-        const partStudio = findPartStudioOrThrow(context.document, this.partStudioId);
-        const { payloadId, sketch } = findSketchPayloadOrThrow(partStudio, this.sketchFeatureId);
-        const edit = this.createEdit();
-        const sketchEdit = createSketchEditTransaction({
-            edit,
+        const edit = CadDocumentEditContext.begin(context.document, {
             id: this.transactionId,
             label: this.label,
-            readResult: (appliedEdit) => this.readResult(sketch, appliedEdit),
-            sketch,
         });
-        const transaction = sketchEdit.transaction.map<CadDocument>({
-            get: (document) =>
-                findSketchPayloadOrThrow(
-                    findPartStudioOrThrow(document, this.partStudioId),
-                    this.sketchFeatureId,
-                ).sketch,
-            id: this.transactionId,
-            label: this.label,
-            replace: (document, nextSketch) => {
-                const nextPartStudio = findPartStudioOrThrow(
-                    document,
-                    this.partStudioId,
-                ).setFeaturePayload(payloadId, nextSketch);
-
-                return withPartStudio(document, nextPartStudio);
-            },
+        const target = edit.requireSketchTarget({
+            partStudioId: this.partStudioId,
+            sketchFeatureId: this.sketchFeatureId,
         });
 
-        return createRequestExecution({
-            history: this.history,
-            result: sketchEdit.result,
-            transaction,
-        });
+        return edit.finish(this.apply(target));
     }
 
-    protected abstract createEdit(): TEdit;
-
-    protected abstract readResult(sketch: Sketch, edit: TEdit): TResult;
+    protected abstract apply(target: SketchEditTarget): TResult;
 }
 
 export interface AddLineSegmentRequestResult extends SketchDocumentRequestContext {
@@ -103,7 +58,7 @@ export interface AddLineSegmentRequestResult extends SketchDocumentRequestContex
 }
 
 export class AddLineSegmentRequest
-    extends SketchDocumentRequest<AddLineSegmentRequestResult, AddLineSegmentEdit>
+    extends SketchDocumentRequest<AddLineSegmentRequestResult>
     implements Request<CadDocument, AddLineSegmentRequestResult>
 {
     private readonly input: LineSegmentEditInput;
@@ -118,16 +73,14 @@ export class AddLineSegmentRequest
         this.input = input;
     }
 
-    protected createEdit(): AddLineSegmentEdit {
-        return new AddLineSegmentEdit(this.input);
-    }
+    protected apply(target: SketchEditTarget): AddLineSegmentRequestResult {
+        const result = target.primitives.addLineSegment(this.input);
 
-    protected readResult(sketch: Sketch, edit: AddLineSegmentEdit): AddLineSegmentRequestResult {
         return {
-            createdEdgeId: edit.createdEdgeId,
-            createdEndVertexId: edit.createdEndVertexId,
+            createdEdgeId: result?.createdEdgeId ?? null,
+            createdEndVertexId: result?.createdVertexId ?? null,
             partStudioId: this.partStudioId,
-            payloadId: sketch.id,
+            payloadId: target.payloadId,
             sketchFeatureId: this.sketchFeatureId,
         };
     }
@@ -139,7 +92,7 @@ export interface AddClosedLineSegmentsRequestResult extends SketchDocumentReques
 }
 
 export class AddClosedLineSegmentsRequest
-    extends SketchDocumentRequest<AddClosedLineSegmentsRequestResult, AddClosedLineSegmentsEdit>
+    extends SketchDocumentRequest<AddClosedLineSegmentsRequestResult>
     implements Request<CadDocument, AddClosedLineSegmentsRequestResult>
 {
     private readonly points: readonly Vector2[];
@@ -154,20 +107,13 @@ export class AddClosedLineSegmentsRequest
         this.points = input.points;
     }
 
-    protected createEdit(): AddClosedLineSegmentsEdit {
-        return new AddClosedLineSegmentsEdit({
-            points: this.points,
-        });
-    }
+    protected apply(target: SketchEditTarget): AddClosedLineSegmentsRequestResult {
+        const result = target.primitives.addClosedPolyline(this.points);
 
-    protected readResult(
-        sketch: Sketch,
-        edit: AddClosedLineSegmentsEdit,
-    ): AddClosedLineSegmentsRequestResult {
         return {
-            createdEdgeIds: edit.createdEdgeIds,
+            createdEdgeIds: result?.createdEdgeIds ?? [],
             partStudioId: this.partStudioId,
-            payloadId: sketch.id,
+            payloadId: target.payloadId,
             sketchFeatureId: this.sketchFeatureId,
         };
     }
@@ -179,7 +125,7 @@ export interface AddCornerRectangleRequestResult extends SketchDocumentRequestCo
 }
 
 export class AddCornerRectangleRequest
-    extends SketchDocumentRequest<AddCornerRectangleRequestResult, AddCornerRectangleEdit>
+    extends SketchDocumentRequest<AddCornerRectangleRequestResult>
     implements Request<CadDocument, AddCornerRectangleRequestResult>
 {
     private readonly firstCorner: Vector2;
@@ -201,21 +147,16 @@ export class AddCornerRectangleRequest
         this.oppositeCorner = input.oppositeCorner;
     }
 
-    protected createEdit(): AddCornerRectangleEdit {
-        return new AddCornerRectangleEdit({
-            firstCorner: this.firstCorner,
-            oppositeCorner: this.oppositeCorner,
-        });
-    }
+    protected apply(target: SketchEditTarget): AddCornerRectangleRequestResult {
+        const result = target.primitives.addRectangleFromCorners(
+            this.firstCorner,
+            this.oppositeCorner,
+        );
 
-    protected readResult(
-        sketch: Sketch,
-        edit: AddCornerRectangleEdit,
-    ): AddCornerRectangleRequestResult {
         return {
-            createdEdgeIds: edit.createdEdgeIds,
+            createdEdgeIds: result?.createdEdgeIds ?? [],
             partStudioId: this.partStudioId,
-            payloadId: sketch.id,
+            payloadId: target.payloadId,
             sketchFeatureId: this.sketchFeatureId,
         };
     }
@@ -227,7 +168,7 @@ export interface AddCircleRequestResult extends SketchDocumentRequestContext {
 }
 
 export class AddCircleRequest
-    extends SketchDocumentRequest<AddCircleRequestResult, AddCircleEdit>
+    extends SketchDocumentRequest<AddCircleRequestResult>
     implements Request<CadDocument, AddCircleRequestResult>
 {
     private readonly center: Vector2;
@@ -249,18 +190,13 @@ export class AddCircleRequest
         this.radius = input.radius;
     }
 
-    protected createEdit(): AddCircleEdit {
-        return new AddCircleEdit({
-            center: this.center,
-            radius: this.radius,
-        });
-    }
+    protected apply(target: SketchEditTarget): AddCircleRequestResult {
+        const result = target.primitives.addCircle(this.center, this.radius);
 
-    protected readResult(sketch: Sketch, edit: AddCircleEdit): AddCircleRequestResult {
         return {
-            createdCurveId: edit.createdCurveId,
+            createdCurveId: result?.createdCurveId ?? null,
             partStudioId: this.partStudioId,
-            payloadId: sketch.id,
+            payloadId: target.payloadId,
             sketchFeatureId: this.sketchFeatureId,
         };
     }
@@ -272,7 +208,7 @@ export interface DeleteSketchEntityRequestResult extends SketchDocumentRequestCo
 }
 
 export class DeleteSketchEntityRequest
-    extends SketchDocumentRequest<DeleteSketchEntityRequestResult, DeleteSketchEntityEdit>
+    extends SketchDocumentRequest<DeleteSketchEntityRequestResult>
     implements Request<CadDocument, DeleteSketchEntityRequestResult>
 {
     private readonly entityRef: SketchEntityRef;
@@ -287,15 +223,13 @@ export class DeleteSketchEntityRequest
         this.entityRef = input.entityRef;
     }
 
-    protected createEdit(): DeleteSketchEntityEdit {
-        return new DeleteSketchEntityEdit({ entityRef: this.entityRef });
-    }
+    protected apply(target: SketchEditTarget): DeleteSketchEntityRequestResult {
+        target.primitives.deleteEntity(this.entityRef);
 
-    protected readResult(sketch: Sketch): DeleteSketchEntityRequestResult {
         return {
             deletedEntityRef: this.entityRef,
             partStudioId: this.partStudioId,
-            payloadId: sketch.id,
+            payloadId: target.payloadId,
             sketchFeatureId: this.sketchFeatureId,
         };
     }
@@ -308,7 +242,7 @@ export interface MoveVertexRequestResult extends SketchDocumentRequestContext {
 }
 
 export class MoveVertexRequest
-    extends SketchDocumentRequest<MoveVertexRequestResult, MoveVertexEdit>
+    extends SketchDocumentRequest<MoveVertexRequestResult>
     implements Request<CadDocument, MoveVertexRequestResult>
 {
     private readonly target: Vector2;
@@ -330,17 +264,12 @@ export class MoveVertexRequest
         this.vertexId = input.vertexId;
     }
 
-    protected createEdit(): MoveVertexEdit {
-        return new MoveVertexEdit({
-            target: this.target,
-            vertexId: this.vertexId,
-        });
-    }
+    protected apply(target: SketchEditTarget): MoveVertexRequestResult {
+        target.primitives.moveVertex(this.vertexId, this.target);
 
-    protected readResult(sketch: Sketch): MoveVertexRequestResult {
         return {
             partStudioId: this.partStudioId,
-            payloadId: sketch.id,
+            payloadId: target.payloadId,
             sketchFeatureId: this.sketchFeatureId,
             target: this.target,
             vertexId: this.vertexId,
@@ -362,54 +291,7 @@ export function predictLineSegmentEndVertexId(
     return `${sketch.id}:vertex:${String(snapshot.nextVertexIndex + allocatedBeforeEnd)}`;
 }
 
-export type LineSegmentEditInput =
-    | { readonly endPosition: Vector2; readonly startPosition: Vector2 }
-    | { readonly endPosition: Vector2; readonly startVertexId: SketchVertexId }
-    | { readonly endVertexId: SketchVertexId; readonly startPosition: Vector2 }
-    | { readonly endVertexId: SketchVertexId; readonly startVertexId: SketchVertexId };
-
-function findPartStudioOrThrow(document: CadDocument, partStudioId: PartStudioId): PartStudio {
-    const partStudio = document.partStudioStore.find(partStudioId);
-
-    if (!partStudio) {
-        throw new Error(`Sketch request failed: PartStudio ${partStudioId} was not found.`);
-    }
-
-    return partStudio;
-}
-
-function findSketchPayloadOrThrow(
-    partStudio: PartStudio,
-    sketchFeatureId: FeatureId,
-): {
-    readonly feature: Feature;
-    readonly payloadId: FeaturePayloadId;
-    readonly sketch: Sketch;
-} {
-    const feature = partStudio.findFeatureById(sketchFeatureId);
-
-    if (!feature) {
-        throw new Error(`Sketch request failed: Feature ${sketchFeatureId} was not found.`);
-    }
-
-    if (feature.type !== 'sketch' || !feature.payloadRef) {
-        throw new Error(`Sketch request failed: Feature ${sketchFeatureId} is not a sketch.`);
-    }
-
-    const payload = partStudio.findFeaturePayload(feature.payloadRef.id);
-
-    if (!(payload instanceof Sketch)) {
-        throw new Error(
-            `Sketch request failed: Sketch payload ${feature.payloadRef.id} was not found.`,
-        );
-    }
-
-    return {
-        feature,
-        payloadId: feature.payloadRef.id,
-        sketch: payload,
-    };
-}
+export type LineSegmentEditInput = SketchLineSegmentInput;
 
 export function isEditableSketchEntityRef(ref: SketchEntityRef): boolean {
     return ref.kind === SketchEntityKind.Edge || ref.kind === SketchEntityKind.Vertex;

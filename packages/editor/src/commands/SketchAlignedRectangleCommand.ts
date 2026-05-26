@@ -1,12 +1,7 @@
 import { createEditDraft } from '@occt-draw/core';
-import {
-    AddClosedLineSegmentsRequest,
-    findSketchByFeatureId,
-    referencePlaneToPlane,
-    type CadDocument,
-} from '@occt-draw/cad-model';
+import { AddClosedLineSegmentsRequest, type CadDocument } from '@occt-draw/cad-model';
 import { LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
-import { sketchPointToWorldOnPlane, type Sketch } from '@occt-draw/sketch';
+import { sketchPointToWorldOnPlane } from '@occt-draw/sketch';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
     CadCommand,
@@ -17,6 +12,7 @@ import {
     type CommandResult,
 } from './CadCommand';
 import { projectScreenPointToSketch2 } from './sketchProjection';
+import { resolveActiveSketchTarget } from './sketchTargetContext';
 
 const ALIGNED_RECTANGLE_DRAG_THRESHOLD_PIXELS = 3;
 const MIN_RECTANGLE_SIDE = 1e-6;
@@ -49,11 +45,7 @@ export class SketchAlignedRectangleCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...state.activeSketchSession,
-                activeTool: 'aligned-rectangle',
-                pendingAlignedRectangleEdge: null,
-                pendingCircleCenter: null,
-                pendingLineStart: null,
-                pendingRectangleStart: null,
+                tool: { kind: 'aligned-rectangle', firstEdge: null },
             },
             commandSession: {
                 id: 'sketch-aligned-rectangle',
@@ -70,12 +62,11 @@ export class SketchAlignedRectangleCommand extends CadCommand {
         const session = state.activeSketchSession;
         this.pendingDrag = null;
 
-        if (session?.pendingAlignedRectangleEdge || session?.pendingRectangleStart) {
+        if (session?.tool.kind === 'aligned-rectangle' && session.tool.firstEdge) {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingAlignedRectangleEdge: null,
-                    pendingRectangleStart: null,
+                    tool: { kind: 'aligned-rectangle', firstEdge: null },
                 },
                 commandSession: {
                     id: 'sketch-aligned-rectangle',
@@ -123,13 +114,14 @@ export class SketchAlignedRectangleCommand extends CadCommand {
 
         const state = context.getState();
         const session = state.activeSketchSession;
-        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const tool = session?.tool.kind === 'aligned-rectangle' ? session.tool : null;
+        const target = session ? resolveActiveSketchTarget(state, session) : null;
 
-        if (!session || !activeSketch) {
+        if (!session || !tool || !target) {
             return createUnhandledCommandResult();
         }
 
-        const point = projectPointerToSketch(state, activeSketch.sketch, event);
+        const point = projectPointerToSketch(state, target.plane, event);
 
         if (!point) {
             return createHandledCommandResult({
@@ -137,7 +129,7 @@ export class SketchAlignedRectangleCommand extends CadCommand {
             });
         }
 
-        if (!session.pendingRectangleStart && !session.pendingAlignedRectangleEdge) {
+        if (!tool.firstEdge) {
             this.pendingDrag = {
                 moved: false,
                 pointerId: event.pointerId,
@@ -147,7 +139,10 @@ export class SketchAlignedRectangleCommand extends CadCommand {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingRectangleStart: point,
+                    tool: {
+                        kind: 'aligned-rectangle',
+                        firstEdge: { end: point, start: point },
+                    },
                 },
                 commandSession: {
                     id: 'sketch-aligned-rectangle',
@@ -159,7 +154,7 @@ export class SketchAlignedRectangleCommand extends CadCommand {
             });
         }
 
-        if (session.pendingRectangleStart && !session.pendingAlignedRectangleEdge) {
+        if (isAlignedRectangleFirstPoint(tool.firstEdge)) {
             return this.createFirstEdgeResult(context, session, point);
         }
 
@@ -181,38 +176,34 @@ export class SketchAlignedRectangleCommand extends CadCommand {
 
         const state = context.getState();
         const session = state.activeSketchSession;
-        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const tool = session?.tool.kind === 'aligned-rectangle' ? session.tool : null;
+        const target = session ? resolveActiveSketchTarget(state, session) : null;
 
-        if (!session || !activeSketch) {
+        if (!tool?.firstEdge || !target) {
             return createUnhandledCommandResult();
         }
 
-        const plane = findSketchPlane(state, activeSketch.sketch);
-        const point = projectPointerToSketch(state, activeSketch.sketch, event);
+        const point = projectPointerToSketch(state, target.plane, event);
 
-        if (!plane || !point) {
+        if (!point) {
             return createUnhandledCommandResult();
         }
 
-        if (session.pendingRectangleStart && !session.pendingAlignedRectangleEdge) {
+        if (isAlignedRectangleFirstPoint(tool.firstEdge)) {
             return createHandledCommandResult({
-                draft: createLineDraft(plane, session.pendingRectangleStart, point),
+                draft: createLineDraft(target.plane, tool.firstEdge.start, point),
             });
         }
 
-        if (session.pendingAlignedRectangleEdge) {
-            const corners = getAlignedRectangleCorners(session.pendingAlignedRectangleEdge, point);
+        const corners = getAlignedRectangleCorners(tool.firstEdge, point);
 
-            if (!corners) {
-                return createUnhandledCommandResult();
-            }
-
-            return createHandledCommandResult({
-                draft: createRectangleDraft(plane, corners),
-            });
+        if (!corners) {
+            return createUnhandledCommandResult();
         }
 
-        return createUnhandledCommandResult();
+        return createHandledCommandResult({
+            draft: createRectangleDraft(target.plane, corners),
+        });
     }
 
     protected override onPointerUp(
@@ -221,17 +212,24 @@ export class SketchAlignedRectangleCommand extends CadCommand {
     ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
-        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const tool = session?.tool.kind === 'aligned-rectangle' ? session.tool : null;
+        const target = session ? resolveActiveSketchTarget(state, session) : null;
         const drag = this.pendingDrag?.pointerId === event.pointerId ? this.pendingDrag : null;
         this.pendingDrag = null;
 
-        if (!session?.pendingRectangleStart || !activeSketch || !drag?.moved) {
+        if (
+            !session ||
+            !tool?.firstEdge ||
+            !isAlignedRectangleFirstPoint(tool.firstEdge) ||
+            !target ||
+            !drag?.moved
+        ) {
             return createHandledCommandResult({
                 message: 'Sketch command updated.',
             });
         }
 
-        const point = projectPointerToSketch(state, activeSketch.sketch, event);
+        const point = projectPointerToSketch(state, target.plane, event);
 
         if (!point) {
             return this.clearPendingAlignedRectangleResult(context, session);
@@ -247,7 +245,8 @@ export class SketchAlignedRectangleCommand extends CadCommand {
         options: { readonly clearOnInvalid: boolean } = { clearOnInvalid: false },
     ): CommandResult {
         const state = context.getState();
-        const start = session.pendingRectangleStart;
+        const firstEdge = session.tool.kind === 'aligned-rectangle' ? session.tool.firstEdge : null;
+        const start = firstEdge && isAlignedRectangleFirstPoint(firstEdge) ? firstEdge.start : null;
 
         if (!start || Vec2.distance(start, point) <= MIN_RECTANGLE_SIDE) {
             if (options.clearOnInvalid) {
@@ -260,11 +259,7 @@ export class SketchAlignedRectangleCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingAlignedRectangleEdge: {
-                    end: point,
-                    start,
-                },
-                pendingRectangleStart: null,
+                tool: { kind: 'aligned-rectangle', firstEdge: { end: point, start } },
             },
             commandSession: {
                 id: 'sketch-aligned-rectangle',
@@ -282,9 +277,12 @@ export class SketchAlignedRectangleCommand extends CadCommand {
         point: Vector2,
     ): CommandResult {
         const state = context.getState();
-        const firstEdge = session.pendingAlignedRectangleEdge;
+        const firstEdge =
+            session.tool.kind === 'aligned-rectangle' && session.tool.firstEdge
+                ? session.tool.firstEdge
+                : null;
 
-        if (!firstEdge) {
+        if (!firstEdge || isAlignedRectangleFirstPoint(firstEdge)) {
             return createUnhandledCommandResult();
         }
 
@@ -297,8 +295,7 @@ export class SketchAlignedRectangleCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingAlignedRectangleEdge: null,
-                pendingRectangleStart: null,
+                tool: { kind: 'aligned-rectangle', firstEdge: null },
             },
             commandSession: {
                 id: 'sketch-aligned-rectangle',
@@ -324,8 +321,7 @@ export class SketchAlignedRectangleCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingAlignedRectangleEdge: null,
-                pendingRectangleStart: null,
+                tool: { kind: 'aligned-rectangle', firstEdge: null },
             },
             commandSession: {
                 id: 'sketch-aligned-rectangle',
@@ -406,36 +402,24 @@ function getAlignedRectangleCorners(
     ];
 }
 
+function isAlignedRectangleFirstPoint(edge: {
+    readonly end: Vector2;
+    readonly start: Vector2;
+}): boolean {
+    return edge.start.x === edge.end.x && edge.start.y === edge.end.y;
+}
+
 function projectPointerToSketch(
     state: EditorState,
-    sketch: Sketch,
+    plane: Plane3,
     event: CommandPointerEvent,
 ): Vector2 | null {
     return projectScreenPointToSketch2({
         camera: state.navigation.camera,
-        partStudio: state.document.getActivePartStudio(),
-        planeObjectRef: sketch.plane.planeObjectRef,
+        plane,
         point: event.point,
         viewportSize: state.navigation.viewportSize,
     });
-}
-
-function findActiveSketch(
-    state: EditorState,
-    session: SketchEditSession,
-): { readonly sketch: Sketch } | null {
-    const partStudio = state.document.getActivePartStudio();
-    const sketch = findSketchByFeatureId(partStudio, session.sketchFeatureId);
-
-    return sketch ? { sketch } : null;
-}
-
-function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
-    const object = state.document
-        .getActivePartStudio()
-        .findObjectById(sketch.plane.planeObjectRef.id);
-
-    return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
 }
 
 function distanceScreenPoints(

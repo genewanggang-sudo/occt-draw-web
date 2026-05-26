@@ -1,10 +1,8 @@
-import {
-    findSketchByFeatureId,
-    getActivePartStudio,
-    getSketchForFeature,
-} from '@occt-draw/cad-model';
+import { CadDocumentEditContext, getActivePartStudio } from '@occt-draw/cad-model';
 import type {
     CadObject,
+    CadDocument,
+    Feature,
     PartStudio,
     ReferenceOriginObject,
     ReferencePlaneKind,
@@ -14,7 +12,7 @@ import type { SelectionTarget, SelectionTargetKind } from '@occt-draw/core';
 import { SketchEntityKind, type Sketch, type SketchEntityRef } from '@occt-draw/sketch';
 import { evaluateCommandAvailabilityMap } from '../commands/commandRegistry';
 import type { CommandAvailabilityMap } from '../commands/commandTypes';
-import type { EditorState, SketchEditSession } from '../state/editorState';
+import type { EditorState, SketchEditSession, SketchToolKind } from '../state/editorState';
 import { getSketchEntityRefFromSelectionTarget } from '../selection/sketchSelection';
 
 export interface EditorWorkbenchViewModel {
@@ -88,7 +86,7 @@ export function createEditorWorkbenchViewModel(state: EditorState): EditorWorkbe
 
     return {
         commandAvailability: evaluateCommandAvailabilityMap({
-            activeSketchTool: state.activeSketchSession?.activeTool ?? null,
+            activeSketchTool: state.activeSketchSession?.tool.kind ?? null,
             hasSketchProfile: false,
             isEditingSketch: state.activeSketchSession !== null,
             selectionObjectIds: selectedObjectIds,
@@ -96,16 +94,18 @@ export function createEditorWorkbenchViewModel(state: EditorState): EditorWorkbe
         }),
         inspector: createInspectorViewModel({
             activeSketchSession: state.activeSketchSession,
+            document: state.document,
             partStudio,
             selectedObjects,
             selectedTarget: state.selection.selection.primaryTarget,
         }),
-        modelTree: createModelTreeViewModel(partStudio, selectedObjectIds),
+        modelTree: createModelTreeViewModel(state.document, partStudio, selectedObjectIds),
         selectedObjectIds,
     };
 }
 
 function createModelTreeViewModel(
+    document: CadDocument,
     partStudio: PartStudio,
     selectedObjectIds: readonly string[],
 ): ModelTreeViewModel {
@@ -114,7 +114,7 @@ function createModelTreeViewModel(
         selected: item.objectId ? selectedObjectIds.includes(item.objectId) : false,
     }));
     const features = partStudio.features.map((feature) => {
-        const sketch = getSketchForFeature(partStudio, feature);
+        const sketch = resolveSketchForFeature(document, partStudio.id, feature);
 
         return {
             id: feature.id,
@@ -132,18 +132,20 @@ function createModelTreeViewModel(
 
 function createInspectorViewModel({
     activeSketchSession,
+    document,
     partStudio,
     selectedObjects,
     selectedTarget,
 }: {
     readonly activeSketchSession: SketchEditSession | null;
+    readonly document: CadDocument;
     readonly partStudio: PartStudio;
     readonly selectedObjects: readonly CadObject[];
     readonly selectedTarget: SelectionTarget | null;
 }): InspectorViewModel {
     const selectedObject = selectedObjects[0] ?? null;
     const activeSketch = activeSketchSession
-        ? findSketchByFeatureId(partStudio, activeSketchSession.sketchFeatureId)
+        ? resolveSketchByFeatureId(document, partStudio.id, activeSketchSession.sketchFeatureId)
         : null;
     const selectedSketchEntityRef = getSketchEntityRefFromSelectionTarget(selectedTarget);
     const selectedSketchEntity = selectedSketchEntityRef
@@ -232,7 +234,7 @@ function createInspectorSketchSession(
     session: SketchEditSession,
 ): InspectorSketchSession {
     return {
-        activeToolLabel: getSketchToolLabel(session.activeTool),
+        activeToolLabel: getSketchToolLabel(session.tool.kind),
         entityCount:
             sketch.entities.geometry.points.list().length +
             sketch.entities.geometry.curves.list().length +
@@ -242,7 +244,35 @@ function createInspectorSketchSession(
     };
 }
 
-function getSketchToolLabel(tool: SketchEditSession['activeTool']): string {
+function resolveSketchForFeature(
+    document: CadDocument,
+    partStudioId: PartStudio['id'],
+    feature: Feature,
+): Sketch | null {
+    return feature.type === 'sketch'
+        ? resolveSketchByFeatureId(document, partStudioId, feature.id)
+        : null;
+}
+
+function resolveSketchByFeatureId(
+    document: CadDocument,
+    partStudioId: PartStudio['id'],
+    sketchFeatureId: SketchEditSession['sketchFeatureId'],
+): Sketch | null {
+    try {
+        return CadDocumentEditContext.begin(document, {
+            id: `resolve-sketch:${sketchFeatureId}`,
+            label: `Resolve ${sketchFeatureId}`,
+        }).requireSketchTarget({
+            partStudioId,
+            sketchFeatureId,
+        }).sketch;
+    } catch {
+        return null;
+    }
+}
+
+function getSketchToolLabel(tool: SketchToolKind): string {
     if (tool === 'line') {
         return 'Line';
     }

@@ -1,6 +1,11 @@
 export { DocumentSession, type DocumentSessionSnapshot } from './document/session';
 
 export {
+    ModelChangeApplierRegistry,
+    type ModelElementChangeApplier,
+    type ModelPropertyChangeApplier,
+} from './editing/changeApplierRegistry';
+export {
     ModelChangeSet,
     ModelChangeSetBuilder,
     createModelChangeId,
@@ -9,12 +14,19 @@ export {
     type ModelAddedChange,
     type ModelChangeId,
     type ModelChangeKey,
+    type ModelChangeTargetKind,
     type ModelDeletedChange,
     type ModelElementChangeTarget,
     type ModelPropertyChangeKey,
     type ModelPropertyChangeTarget,
     type ModelPropertyValueChange,
     type ModelUpdatedChange,
+    type SerializableModelAddedChange,
+    type SerializableModelChange,
+    type SerializableModelChangeSet,
+    type SerializableModelPropertyValueChange,
+    type SerializableModelRemovedChange,
+    type SerializableModelUpdatedChange,
 } from './editing/changeSet';
 export { ChangeRecorder, ChangeRecordingScope } from './editing/changeRecorder';
 export {
@@ -32,6 +44,7 @@ export type {
 export {
     Transaction,
     createTransactionId,
+    type SerializableTransaction,
     type TransactionId,
     type TransactionMergeKey,
 } from './editing/transaction';

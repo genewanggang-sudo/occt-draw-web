@@ -1,4 +1,10 @@
 export { Arc2D, Circle2D, Curve2D, Line2D, Point2D, curveFromSnapshot } from './geometry/geometry';
+export {
+    sampleSketchCurveSegments,
+    type SketchCircleSamplingInput,
+    type SketchCurveSamplingInput,
+    type SketchCurveSegmentSamplingOptions,
+} from './geometry/curveSampling';
 export { Edge, Vertex } from './topology/topology';
 export {
     GeometrySet,
@@ -18,18 +24,12 @@ export {
     sketchPointToWorldOnPlane,
     worldPointToSketchPointOnPlane,
 } from './model/sketch';
-export { SketchChangeRecorder } from './changes/changeTracking';
 export {
-    AddCornerRectangleEdit,
-    AddClosedLineSegmentsEdit,
-    AddCircleEdit,
-    AddLineSegmentEdit,
-    AddPointEdit,
-    DeleteSketchEntityEdit,
-    MoveVertexEdit,
-    SketchEdit,
-} from './request/requests';
-export { createSketchEditTransaction } from './transaction/transaction';
+    SketchPrimitiveBuilder,
+    type SketchLineSegmentInput,
+    type SketchPrimitiveResult,
+} from './model/SketchPrimitiveBuilder';
+export { SketchChangeRecorder } from './changes/changeTracking';
 export { SketchEntityKind } from './types';
 export {
     SketchDisplayBuilder,

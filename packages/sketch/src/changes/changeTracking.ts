@@ -140,6 +140,7 @@ function removeSketchEntity(sketch: Sketch, entityRef: SketchEntityRef): Sketch 
 
 const sketchEntityTarget: ModelElementChangeTarget<Sketch, SketchEntityRef, SketchEntitySnapshot> =
     {
+        targetKind: 'sketch.entity',
         add: (sketch, _entityRef, snapshot) => restoreSketchEntity(sketch, snapshot),
         remove: removeSketchEntity,
     };
@@ -149,6 +150,7 @@ const sketchPropertyTarget: ModelPropertyChangeTarget<
     SketchEntityRef,
     SketchPropertyValue
 > = {
+    targetKind: 'sketch.entity.property',
     set: applySketchPropertyChange,
 };
 

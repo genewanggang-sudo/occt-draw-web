@@ -12,6 +12,14 @@ export interface RequestExecution<TDocument = unknown, TResult = void> {
     readonly transaction: Transaction<TDocument>;
 }
 
+/**
+ * Formal document mutation entrypoint.
+ *
+ * UI commands and application services should express edits as Requests. A Request
+ * reads the current document context and returns a Transaction that records the
+ * resulting model changes; DocumentSession is responsible for applying and
+ * recording that Transaction.
+ */
 export interface Request<TDocument = unknown, TResult = void> {
     readonly label: string;
     execute(context: RequestContext<TDocument>): RequestExecution<TDocument, TResult>;

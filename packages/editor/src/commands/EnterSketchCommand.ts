@@ -2,12 +2,11 @@ import {
     CreateFeaturePayloadRequest,
     Feature,
     createFeaturePayloadRef,
-    referencePlaneToPlane,
     type ReferencePlaneObject,
 } from '@occt-draw/cad-model';
 import type { CameraState } from '@occt-draw/canvas';
 import { createModelRef } from '@occt-draw/core';
-import { Vec3 } from '@occt-draw/math';
+import { Plane3, Vec3 } from '@occt-draw/math';
 import { clearSelection } from '@occt-draw/platform';
 import { createSketchOnReferencePlane } from '@occt-draw/sketch';
 import {
@@ -63,12 +62,8 @@ export class EnterSketchCommand extends CadCommand {
 
         return createHandledCommandResult({
             activeSketchSession: {
-                activeTool: 'select',
-                pendingCircleCenter: null,
-                pendingAlignedRectangleEdge: null,
-                pendingLineStart: null,
-                pendingRectangleStart: null,
                 sketchFeatureId: feature.id,
+                tool: { kind: 'select' },
             },
             commandSession: {
                 id: 'sketch',
@@ -137,7 +132,7 @@ function createSketchPlaneCamera(
     plane: ReferencePlaneObject,
     currentCamera: CameraState,
 ): CameraState {
-    const workPlane = referencePlaneToPlane(plane);
+    const workPlane = new Plane3(plane.origin, plane.normal, plane.xAxis);
     const distance = Math.max(plane.size * 2, 1);
 
     return {

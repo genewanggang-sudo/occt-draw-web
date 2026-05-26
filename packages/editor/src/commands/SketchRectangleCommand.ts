@@ -1,12 +1,7 @@
 import { createEditDraft } from '@occt-draw/core';
-import {
-    AddCornerRectangleRequest,
-    findSketchByFeatureId,
-    referencePlaneToPlane,
-    type CadDocument,
-} from '@occt-draw/cad-model';
+import { AddCornerRectangleRequest, type CadDocument } from '@occt-draw/cad-model';
 import { LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
-import { sketchPointToWorldOnPlane, type Sketch } from '@occt-draw/sketch';
+import { sketchPointToWorldOnPlane } from '@occt-draw/sketch';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
     CadCommand,
@@ -17,6 +12,7 @@ import {
     type CommandResult,
 } from './CadCommand';
 import { projectScreenPointToSketch2 } from './sketchProjection';
+import { resolveActiveSketchTarget } from './sketchTargetContext';
 
 const MIN_RECTANGLE_SIDE = 1e-6;
 const RECTANGLE_DRAG_THRESHOLD_PIXELS = 3;
@@ -49,11 +45,7 @@ export class SketchRectangleCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...state.activeSketchSession,
-                activeTool: 'rectangle',
-                pendingCircleCenter: null,
-                pendingAlignedRectangleEdge: null,
-                pendingLineStart: null,
-                pendingRectangleStart: null,
+                tool: { kind: 'rectangle', firstCorner: null },
             },
             commandSession: {
                 id: 'sketch-rectangle',
@@ -70,11 +62,11 @@ export class SketchRectangleCommand extends CadCommand {
         const session = state.activeSketchSession;
         this.pendingDrag = null;
 
-        if (session?.pendingRectangleStart) {
+        if (session?.tool.kind === 'rectangle' && session.tool.firstCorner) {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingRectangleStart: null,
+                    tool: { kind: 'rectangle', firstCorner: null },
                 },
                 commandSession: {
                     id: 'sketch-rectangle',
@@ -122,13 +114,14 @@ export class SketchRectangleCommand extends CadCommand {
 
         const state = context.getState();
         const session = state.activeSketchSession;
-        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const tool = session?.tool.kind === 'rectangle' ? session.tool : null;
+        const target = session ? resolveActiveSketchTarget(state, session) : null;
 
-        if (!session || !activeSketch) {
+        if (!session || !tool || !target) {
             return createUnhandledCommandResult();
         }
 
-        const point = projectPointerToSketch(state, activeSketch.sketch, event);
+        const point = projectPointerToSketch(state, target.plane, event);
 
         if (!point) {
             return createHandledCommandResult({
@@ -136,7 +129,7 @@ export class SketchRectangleCommand extends CadCommand {
             });
         }
 
-        if (!session.pendingRectangleStart) {
+        if (!tool.firstCorner) {
             this.pendingDrag = {
                 moved: false,
                 pointerId: event.pointerId,
@@ -146,7 +139,7 @@ export class SketchRectangleCommand extends CadCommand {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingRectangleStart: point,
+                    tool: { kind: 'rectangle', firstCorner: point },
                 },
                 commandSession: {
                     id: 'sketch-rectangle',
@@ -158,7 +151,7 @@ export class SketchRectangleCommand extends CadCommand {
             });
         }
 
-        return this.createRectangleResult(context, activeSketch.sketch, session, point, event);
+        return this.createRectangleResult(context, session, point, event);
     }
 
     protected override onPointerMove(
@@ -176,25 +169,25 @@ export class SketchRectangleCommand extends CadCommand {
 
         const state = context.getState();
         const session = state.activeSketchSession;
-        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const tool = session?.tool.kind === 'rectangle' ? session.tool : null;
+        const target = session ? resolveActiveSketchTarget(state, session) : null;
 
-        if (!session?.pendingRectangleStart || !activeSketch) {
+        if (!tool?.firstCorner || !target) {
             return createUnhandledCommandResult();
         }
 
-        const plane = findSketchPlane(state, activeSketch.sketch);
-        const point = projectPointerToSketch(state, activeSketch.sketch, event);
+        const point = projectPointerToSketch(state, target.plane, event);
 
-        if (!plane || !point) {
+        if (!point) {
             return createUnhandledCommandResult();
         }
 
         return createHandledCommandResult({
             draft: createRectangleDraft(
-                plane,
-                session.pendingRectangleStart,
+                target.plane,
+                tool.firstCorner,
                 event.modifiers.alt
-                    ? constrainOppositeCornerToSquare(session.pendingRectangleStart, point)
+                    ? constrainOppositeCornerToSquare(tool.firstCorner, point)
                     : point,
             ),
         });
@@ -206,42 +199,42 @@ export class SketchRectangleCommand extends CadCommand {
     ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
-        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const tool = session?.tool.kind === 'rectangle' ? session.tool : null;
+        const target = session ? resolveActiveSketchTarget(state, session) : null;
         const drag = this.pendingDrag?.pointerId === event.pointerId ? this.pendingDrag : null;
         this.pendingDrag = null;
 
-        if (!session?.pendingRectangleStart || !activeSketch || !drag?.moved) {
+        if (!session || !tool?.firstCorner || !target || !drag?.moved) {
             return createHandledCommandResult({
                 message: 'Sketch command updated.',
             });
         }
 
-        const point = projectPointerToSketch(state, activeSketch.sketch, event);
+        const point = projectPointerToSketch(state, target.plane, event);
 
         if (!point) {
             return this.clearPendingRectangleResult(context, session);
         }
 
         const oppositeCorner = event.modifiers.alt
-            ? constrainOppositeCornerToSquare(session.pendingRectangleStart, point)
+            ? constrainOppositeCornerToSquare(tool.firstCorner, point)
             : point;
 
-        if (!isValidRectangle(session.pendingRectangleStart, oppositeCorner)) {
+        if (!isValidRectangle(tool.firstCorner, oppositeCorner)) {
             return this.clearPendingRectangleResult(context, session);
         }
 
-        return this.createRectangleResult(context, activeSketch.sketch, session, point, event);
+        return this.createRectangleResult(context, session, point, event);
     }
 
     private createRectangleResult(
         context: CommandContext,
-        _sourceSketch: Sketch,
         session: SketchEditSession,
         point: Vector2,
         event: CommandPointerEvent,
     ): CommandResult {
         const state = context.getState();
-        const firstCorner = session.pendingRectangleStart;
+        const firstCorner = session.tool.kind === 'rectangle' ? session.tool.firstCorner : null;
 
         if (!firstCorner) {
             return createUnhandledCommandResult();
@@ -258,7 +251,7 @@ export class SketchRectangleCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingRectangleStart: null,
+                tool: { kind: 'rectangle', firstCorner: null },
             },
             commandSession: {
                 id: 'sketch-rectangle',
@@ -285,7 +278,7 @@ export class SketchRectangleCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingRectangleStart: null,
+                tool: { kind: 'rectangle', firstCorner: null },
             },
             commandSession: {
                 id: 'sketch-rectangle',
@@ -361,34 +354,15 @@ function isValidRectangle(firstCorner: Vector2, oppositeCorner: Vector2): boolea
 
 function projectPointerToSketch(
     state: EditorState,
-    sketch: Sketch,
+    plane: Plane3,
     event: CommandPointerEvent,
 ): Vector2 | null {
     return projectScreenPointToSketch2({
         camera: state.navigation.camera,
-        partStudio: state.document.getActivePartStudio(),
-        planeObjectRef: sketch.plane.planeObjectRef,
+        plane,
         point: event.point,
         viewportSize: state.navigation.viewportSize,
     });
-}
-
-function findActiveSketch(
-    state: EditorState,
-    session: SketchEditSession,
-): { readonly sketch: Sketch } | null {
-    const partStudio = state.document.getActivePartStudio();
-    const sketch = findSketchByFeatureId(partStudio, session.sketchFeatureId);
-
-    return sketch ? { sketch } : null;
-}
-
-function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
-    const object = state.document
-        .getActivePartStudio()
-        .findObjectById(sketch.plane.planeObjectRef.id);
-
-    return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
 }
 
 function distanceScreenPoints(

@@ -1,13 +1,12 @@
 import { createEditDraft, type SelectionTarget } from '@occt-draw/core';
 import {
     DeleteSketchEntityRequest,
-    findSketchByFeatureId,
     isEditableSketchEntityRef,
     MoveVertexRequest,
     type CadDocument,
 } from '@occt-draw/cad-model';
 import { Measurement } from '@occt-draw/math';
-import { SketchEntityKind, type Sketch, type SketchEntityRef } from '@occt-draw/sketch';
+import { SketchEntityKind, type SketchEntityRef } from '@occt-draw/sketch';
 import {
     clearSelection,
     replaceSelection,
@@ -27,6 +26,7 @@ import {
 } from './CadCommand';
 import { consumeSelectionForCommandSession } from './commandReducer';
 import { projectScreenPointToSketch2 } from './sketchProjection';
+import { resolveActiveSketchTarget } from './sketchTargetContext';
 
 type PendingSelectionPointer =
     | {
@@ -61,11 +61,7 @@ export class SelectCommand extends CadCommand {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...state.activeSketchSession,
-                    activeTool: 'select',
-                    pendingCircleCenter: null,
-                    pendingAlignedRectangleEdge: null,
-                    pendingLineStart: null,
-                    pendingRectangleStart: null,
+                    tool: { kind: 'select' },
                 },
                 draft: null,
             });
@@ -94,12 +90,15 @@ export class SelectCommand extends CadCommand {
 
         const target = context.pick(event.point);
         const entityRef = getSketchEntityRefFromSelectionTarget(target);
-        const activeSketch = findActiveSketch(context.getState());
+        const state = context.getState();
+        const activeSketchTarget = state.activeSketchSession
+            ? resolveActiveSketchTarget(state, state.activeSketchSession)
+            : null;
 
         if (
             target &&
             entityRef?.kind === SketchEntityKind.Vertex &&
-            activeSketch?.sketch.id === entityRef.sketchId
+            activeSketchTarget?.sketch.id === entityRef.sketchId
         ) {
             this.pendingSelectionPointer = {
                 entityRef,
@@ -262,10 +261,12 @@ export class SelectCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const activeSketch = findActiveSketch(state);
         const activeSketchSession = state.activeSketchSession;
+        const activeSketchTarget = activeSketchSession
+            ? resolveActiveSketchTarget(state, activeSketchSession)
+            : null;
 
-        if (!activeSketchSession || activeSketch?.sketch.id !== entityRef.sketchId) {
+        if (!activeSketchSession || activeSketchTarget?.sketch.id !== entityRef.sketchId) {
             return createUnhandledCommandResult();
         }
 
@@ -283,19 +284,6 @@ export class SelectCommand extends CadCommand {
             selection: clearSelection(state.selection),
         });
     }
-}
-
-function findActiveSketch(state: EditorState): { readonly sketch: Sketch } | null {
-    const session = state.activeSketchSession;
-
-    if (!session) {
-        return null;
-    }
-
-    const partStudio = state.document.getActivePartStudio();
-    const sketch = findSketchByFeatureId(partStudio, session.sketchFeatureId);
-
-    return sketch ? { sketch } : null;
 }
 
 function createVertexMoveDraft(
@@ -324,16 +312,17 @@ function createMoveVertexRequestFromPointer(
     entityRef: Extract<SketchEntityRef, { readonly kind: SketchEntityKind.Vertex }>,
     event: CommandPointerEvent,
 ): MoveVertexRequest | null {
-    const activeSketch = findActiveSketch(state);
+    const activeSketchTarget = state.activeSketchSession
+        ? resolveActiveSketchTarget(state, state.activeSketchSession)
+        : null;
 
-    if (!state.activeSketchSession || activeSketch?.sketch.id !== entityRef.sketchId) {
+    if (!state.activeSketchSession || activeSketchTarget?.sketch.id !== entityRef.sketchId) {
         return null;
     }
 
     const target = projectScreenPointToSketch2({
         camera: state.navigation.camera,
-        partStudio: state.document.getActivePartStudio(),
-        planeObjectRef: activeSketch.sketch.plane.planeObjectRef,
+        plane: activeSketchTarget.plane,
         point: event.point,
         viewportSize: state.navigation.viewportSize,
     });

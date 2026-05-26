@@ -1,7 +1,7 @@
 import type { ModelChangeId, Transaction } from '@occt-draw/core';
 import { SketchChangeRecorder, withActiveSketchChangeRecorder } from '../changes/changeTracking';
 import type { Sketch } from '../model/sketch';
-import type { SketchEdit } from '../request/requests';
+import type { SketchEdit } from './requests';
 
 export function createSketchEditTransaction<TEdit extends SketchEdit, TResult>(input: {
     readonly edit: TEdit;

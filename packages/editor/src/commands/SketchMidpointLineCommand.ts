@@ -1,12 +1,7 @@
 import { createEditDraft } from '@occt-draw/core';
-import {
-    AddLineSegmentRequest,
-    findSketchByFeatureId,
-    referencePlaneToPlane,
-    type CadDocument,
-} from '@occt-draw/cad-model';
+import { AddLineSegmentRequest, type CadDocument } from '@occt-draw/cad-model';
 import { LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
-import { sketchPointToWorldOnPlane, type Sketch } from '@occt-draw/sketch';
+import { sketchPointToWorldOnPlane } from '@occt-draw/sketch';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
     CadCommand,
@@ -17,6 +12,7 @@ import {
     type CommandResult,
 } from './CadCommand';
 import { projectScreenPointToSketch2 } from './sketchProjection';
+import { resolveActiveSketchTarget } from './sketchTargetContext';
 
 const MIDPOINT_LINE_DRAG_THRESHOLD_PIXELS = 3;
 const MIN_LINE_LENGTH = 1e-6;
@@ -49,11 +45,7 @@ export class SketchMidpointLineCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...state.activeSketchSession,
-                activeTool: 'midpoint-line',
-                pendingCircleCenter: null,
-                pendingAlignedRectangleEdge: null,
-                pendingLineStart: null,
-                pendingRectangleStart: null,
+                tool: { kind: 'midpoint-line', midpoint: null },
             },
             commandSession: {
                 id: 'sketch-midpoint-line',
@@ -70,11 +62,11 @@ export class SketchMidpointLineCommand extends CadCommand {
         const session = state.activeSketchSession;
         this.pendingDrag = null;
 
-        if (session?.pendingLineStart) {
+        if (session?.tool.kind === 'midpoint-line' && session.tool.midpoint) {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingLineStart: null,
+                    tool: { kind: 'midpoint-line', midpoint: null },
                 },
                 commandSession: {
                     id: 'sketch-midpoint-line',
@@ -122,13 +114,14 @@ export class SketchMidpointLineCommand extends CadCommand {
 
         const state = context.getState();
         const session = state.activeSketchSession;
-        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const tool = session?.tool.kind === 'midpoint-line' ? session.tool : null;
+        const target = session ? resolveActiveSketchTarget(state, session) : null;
 
-        if (!session || !activeSketch) {
+        if (!session || !tool || !target) {
             return createUnhandledCommandResult();
         }
 
-        const point = projectPointerToSketch(state, activeSketch.sketch, event);
+        const point = projectPointerToSketch(state, target.plane, event);
 
         if (!point) {
             return createHandledCommandResult({
@@ -136,7 +129,7 @@ export class SketchMidpointLineCommand extends CadCommand {
             });
         }
 
-        if (!session.pendingLineStart) {
+        if (!tool.midpoint) {
             this.pendingDrag = {
                 moved: false,
                 pointerId: event.pointerId,
@@ -146,10 +139,7 @@ export class SketchMidpointLineCommand extends CadCommand {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingLineStart: {
-                        kind: 'point',
-                        point,
-                    },
+                    tool: { kind: 'midpoint-line', midpoint: point },
                 },
                 commandSession: {
                     id: 'sketch-midpoint-line',
@@ -179,27 +169,27 @@ export class SketchMidpointLineCommand extends CadCommand {
 
         const state = context.getState();
         const session = state.activeSketchSession;
-        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const tool = session?.tool.kind === 'midpoint-line' ? session.tool : null;
+        const target = session ? resolveActiveSketchTarget(state, session) : null;
 
-        if (!session?.pendingLineStart || !activeSketch) {
+        if (!tool?.midpoint || !target) {
             return createUnhandledCommandResult();
         }
 
-        const plane = findSketchPlane(state, activeSketch.sketch);
-        const point = projectPointerToSketch(state, activeSketch.sketch, event);
+        const point = projectPointerToSketch(state, target.plane, event);
 
-        if (!plane || !point || session.pendingLineStart.kind !== 'point') {
+        if (!point) {
             return createUnhandledCommandResult();
         }
 
-        const segment = getMidpointLineSegment(session.pendingLineStart.point, point);
+        const segment = getMidpointLineSegment(tool.midpoint, point);
 
         if (!segment) {
             return createUnhandledCommandResult();
         }
 
         return createHandledCommandResult({
-            draft: createMidpointLineDraft(plane, segment.start, segment.end),
+            draft: createMidpointLineDraft(target.plane, segment.start, segment.end),
         });
     }
 
@@ -209,23 +199,24 @@ export class SketchMidpointLineCommand extends CadCommand {
     ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
-        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const tool = session?.tool.kind === 'midpoint-line' ? session.tool : null;
+        const target = session ? resolveActiveSketchTarget(state, session) : null;
         const drag = this.pendingDrag?.pointerId === event.pointerId ? this.pendingDrag : null;
         this.pendingDrag = null;
 
-        if (!session?.pendingLineStart || !activeSketch || !drag?.moved) {
+        if (!session || !tool?.midpoint || !target || !drag?.moved) {
             return createHandledCommandResult({
                 message: 'Sketch command updated.',
             });
         }
 
-        const point = projectPointerToSketch(state, activeSketch.sketch, event);
+        const point = projectPointerToSketch(state, target.plane, event);
 
-        if (!point || session.pendingLineStart.kind !== 'point') {
+        if (!point) {
             return this.clearPendingLineResult(context, session);
         }
 
-        const segment = getMidpointLineSegment(session.pendingLineStart.point, point);
+        const segment = getMidpointLineSegment(tool.midpoint, point);
 
         if (!segment) {
             return this.clearPendingLineResult(context, session);
@@ -240,13 +231,13 @@ export class SketchMidpointLineCommand extends CadCommand {
         point: Vector2,
     ): CommandResult {
         const state = context.getState();
-        const midpoint = session.pendingLineStart;
+        const midpoint = session.tool.kind === 'midpoint-line' ? session.tool.midpoint : null;
 
-        if (midpoint?.kind !== 'point') {
+        if (!midpoint) {
             return createUnhandledCommandResult();
         }
 
-        const segment = getMidpointLineSegment(midpoint.point, point);
+        const segment = getMidpointLineSegment(midpoint, point);
 
         if (!segment) {
             return createHandledCommandResult();
@@ -255,7 +246,7 @@ export class SketchMidpointLineCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingLineStart: null,
+                tool: { kind: 'midpoint-line', midpoint: null },
             },
             commandSession: {
                 id: 'sketch-midpoint-line',
@@ -282,7 +273,7 @@ export class SketchMidpointLineCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingLineStart: null,
+                tool: { kind: 'midpoint-line', midpoint: null },
             },
             commandSession: {
                 id: 'sketch-midpoint-line',
@@ -331,34 +322,15 @@ function getMidpointLineSegment(
 
 function projectPointerToSketch(
     state: EditorState,
-    sketch: Sketch,
+    plane: Plane3,
     event: CommandPointerEvent,
 ): Vector2 | null {
     return projectScreenPointToSketch2({
         camera: state.navigation.camera,
-        partStudio: state.document.getActivePartStudio(),
-        planeObjectRef: sketch.plane.planeObjectRef,
+        plane,
         point: event.point,
         viewportSize: state.navigation.viewportSize,
     });
-}
-
-function findActiveSketch(
-    state: EditorState,
-    session: SketchEditSession,
-): { readonly sketch: Sketch } | null {
-    const partStudio = state.document.getActivePartStudio();
-    const sketch = findSketchByFeatureId(partStudio, session.sketchFeatureId);
-
-    return sketch ? { sketch } : null;
-}
-
-function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
-    const object = state.document
-        .getActivePartStudio()
-        .findObjectById(sketch.plane.planeObjectRef.id);
-
-    return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
 }
 
 function distanceScreenPoints(

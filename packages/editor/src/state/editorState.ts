@@ -20,20 +20,20 @@ export interface SketchAlignedRectangleEdge {
     readonly start: Vector2;
 }
 
+export type SketchToolState =
+    | { readonly kind: 'aligned-rectangle'; readonly firstEdge: SketchAlignedRectangleEdge | null }
+    | { readonly center: Vector2 | null; readonly kind: 'circle' }
+    | { readonly center: Vector2 | null; readonly kind: 'center-rectangle' }
+    | { readonly firstCorner: Vector2 | null; readonly kind: 'rectangle' }
+    | { readonly kind: 'line'; readonly start: SketchLineStart | null }
+    | { readonly kind: 'midpoint-line'; readonly midpoint: Vector2 | null }
+    | { readonly kind: 'select' };
+
+export type SketchToolKind = SketchToolState['kind'];
+
 export interface SketchEditSession {
-    readonly activeTool:
-        | 'aligned-rectangle'
-        | 'center-rectangle'
-        | 'circle'
-        | 'line'
-        | 'midpoint-line'
-        | 'rectangle'
-        | 'select';
-    readonly pendingCircleCenter: Vector2 | null;
-    readonly pendingAlignedRectangleEdge: SketchAlignedRectangleEdge | null;
-    readonly pendingLineStart: SketchLineStart | null;
-    readonly pendingRectangleStart: Vector2 | null;
     readonly sketchFeatureId: string;
+    readonly tool: SketchToolState;
 }
 
 export interface EditorState {

@@ -4,6 +4,7 @@ import type { ModelRef } from '../model/refs';
 export type ModelChangeId = string;
 export type ModelChangeKey = string;
 export type ModelPropertyChangeKey = string;
+export type ModelChangeTargetKind = string;
 
 export function createModelChangeId(prefix: string, entityId: string): ModelChangeId {
     return `${prefix}:${entityId}`;
@@ -14,6 +15,7 @@ export interface ModelElementChangeTarget<
     TRef extends ModelRef = ModelRef,
     TValue = unknown,
 > {
+    readonly targetKind: ModelChangeTargetKind;
     add(document: TDocument, ref: TRef, value: TValue): TDocument;
     remove(document: TDocument, ref: TRef): TDocument;
 }
@@ -23,6 +25,7 @@ export interface ModelPropertyChangeTarget<
     TRef extends ModelRef = ModelRef,
     TValue = unknown,
 > {
+    readonly targetKind: ModelChangeTargetKind;
     set(document: TDocument, ref: TRef, propertyPath: ModelPropertyPath, value: TValue): TDocument;
 }
 
@@ -66,6 +69,54 @@ export interface ModelUpdatedChange<
     readonly properties: ReadonlyMap<ModelPropertyChangeKey, ModelPropertyValueChange<TValue>>;
     readonly ref: TRef;
     readonly target: ModelPropertyChangeTarget<TDocument, TRef, TValue>;
+}
+
+export interface SerializableModelAddedChange<TRef extends ModelRef = ModelRef, TValue = unknown> {
+    readonly changeId: ModelChangeId;
+    readonly kind: 'add';
+    readonly label: string;
+    readonly ref: TRef;
+    readonly targetKind: ModelChangeTargetKind;
+    readonly value: TValue;
+}
+
+export interface SerializableModelRemovedChange<
+    TRef extends ModelRef = ModelRef,
+    TValue = unknown,
+> {
+    readonly changeId: ModelChangeId;
+    readonly kind: 'remove';
+    readonly label: string;
+    readonly ref: TRef;
+    readonly targetKind: ModelChangeTargetKind;
+    readonly value: TValue;
+}
+
+export interface SerializableModelPropertyValueChange<TValue = unknown> {
+    readonly after: TValue;
+    readonly before: TValue;
+    readonly propertyPath: ModelPropertyPath;
+}
+
+export interface SerializableModelUpdatedChange<
+    TRef extends ModelRef = ModelRef,
+    TValue = unknown,
+> {
+    readonly changeId: ModelChangeId;
+    readonly kind: 'update';
+    readonly label: string;
+    readonly properties: readonly SerializableModelPropertyValueChange<TValue>[];
+    readonly ref: TRef;
+    readonly targetKind: ModelChangeTargetKind;
+}
+
+export type SerializableModelChange<TRef extends ModelRef = ModelRef, TValue = unknown> =
+    | SerializableModelAddedChange<TRef, TValue>
+    | SerializableModelRemovedChange<TRef, TValue>
+    | SerializableModelUpdatedChange<TRef, TValue>;
+
+export interface SerializableModelChangeSet {
+    readonly changes: readonly SerializableModelChange[];
 }
 
 export class ModelChangeSet<TDocument = unknown> {
@@ -137,6 +188,54 @@ export class ModelChangeSet<TDocument = unknown> {
 
     public isEmpty(): boolean {
         return this.added.size === 0 && this.updated.size === 0 && this.deleted.size === 0;
+    }
+
+    public snapshot(): SerializableModelChangeSet {
+        return {
+            changes: [
+                ...Array.from(
+                    this.added.values(),
+                    (change): SerializableModelAddedChange => ({
+                        changeId: change.id,
+                        kind: 'add',
+                        label: change.label,
+                        ref: change.ref,
+                        targetKind: change.target.targetKind,
+                        value: change.value,
+                    }),
+                ),
+                ...Array.from(
+                    this.updated.values(),
+                    (change): SerializableModelUpdatedChange => ({
+                        changeId: change.id,
+                        kind: 'update',
+                        label: change.label,
+                        properties: Array.from(change.properties.values(), (propertyChange) => ({
+                            after: propertyChange.after,
+                            before: propertyChange.before,
+                            propertyPath: [...propertyChange.propertyPath],
+                        })),
+                        ref: change.ref,
+                        targetKind: change.target.targetKind,
+                    }),
+                ),
+                ...Array.from(
+                    this.deleted.values(),
+                    (change): SerializableModelRemovedChange => ({
+                        changeId: change.id,
+                        kind: 'remove',
+                        label: change.label,
+                        ref: change.ref,
+                        targetKind: change.target.targetKind,
+                        value: change.value,
+                    }),
+                ),
+            ],
+        };
+    }
+
+    public toSerializable(): SerializableModelChangeSet {
+        return this.snapshot();
     }
 
     public map<TOuter>(input: {
@@ -337,6 +436,7 @@ function mapElementTarget<TOuter, TInner, TRef extends ModelRef, TValue>(
     },
 ): ModelElementChangeTarget<TOuter, TRef, TValue> {
     return {
+        targetKind: target.targetKind,
         add: (outer, ref, value) => input.replace(outer, target.add(input.get(outer), ref, value)),
         remove: (outer, ref) => input.replace(outer, target.remove(input.get(outer), ref)),
     };
@@ -350,6 +450,7 @@ function mapPropertyTarget<TOuter, TInner, TRef extends ModelRef, TValue>(
     },
 ): ModelPropertyChangeTarget<TOuter, TRef, TValue> {
     return {
+        targetKind: target.targetKind,
         set: (outer, ref, propertyPath, value) =>
             input.replace(outer, target.set(input.get(outer), ref, propertyPath, value)),
     };

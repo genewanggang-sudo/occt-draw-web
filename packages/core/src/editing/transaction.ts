@@ -1,9 +1,23 @@
-import type { ModelChangeSet } from './changeSet';
+import type { ModelChangeSet, SerializableModelChangeSet } from './changeSet';
 import { getNextModelRevision } from '../model/base';
 
 export type TransactionId = string;
 export type TransactionMergeKey = string;
 
+export interface SerializableTransaction {
+    readonly changeSet: SerializableModelChangeSet;
+    readonly id: TransactionId;
+    readonly label: string;
+    readonly mergeKey: TransactionMergeKey | null;
+}
+
+/**
+ * Change result produced by a Request.
+ *
+ * Transaction still owns runtime apply/revert behavior for the current editor,
+ * while snapshot()/toSerializable() exposes the data patch shape that can later
+ * be persisted, sent to workers, or interpreted through an applier registry.
+ */
 export class Transaction<TDocument = unknown> {
     public readonly id: TransactionId;
     public readonly label: string;
@@ -59,6 +73,19 @@ export class Transaction<TDocument = unknown> {
 
     public isEmpty(): boolean {
         return this.changeSet.isEmpty();
+    }
+
+    public snapshot(): SerializableTransaction {
+        return {
+            changeSet: this.changeSet.snapshot(),
+            id: this.id,
+            label: this.label,
+            mergeKey: this.mergeKey,
+        };
+    }
+
+    public toSerializable(): SerializableTransaction {
+        return this.snapshot();
     }
 
     public map<TOuter>(input: {

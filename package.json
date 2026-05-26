@@ -14,7 +14,7 @@
     },
     "scripts": {
         "build": "pnpm -r build",
-        "check": "pnpm lint && pnpm typecheck && pnpm type-coverage && pnpm format:check && pnpm depcruise && pnpm build",
+        "check": "pnpm lint && pnpm test && pnpm typecheck && pnpm type-coverage && pnpm format:check && pnpm depcruise && pnpm build",
         "clean": "pnpm -r clean",
         "commitlint": "commitlint --from HEAD~1 --to HEAD --verbose",
         "depcruise": "depcruise --config dependency-cruiser.cjs \"apps/**/src/**/*.ts\" \"apps/**/src/**/*.tsx\" \"packages/**/src/**/*.ts\" \"packages/**/src/**/*.tsx\"",
@@ -24,6 +24,7 @@
         "lint": "eslint eslint.config.mjs \"apps/**/src/**/*.ts\" \"apps/**/src/**/*.tsx\" \"packages/**/src/**/*.ts\" \"packages/**/src/**/*.tsx\" --no-error-on-unmatched-pattern",
         "lint:fix": "eslint eslint.config.mjs \"apps/**/src/**/*.ts\" \"apps/**/src/**/*.tsx\" \"packages/**/src/**/*.ts\" \"packages/**/src/**/*.tsx\" --fix --no-error-on-unmatched-pattern",
         "prepare": "husky",
+        "test": "pnpm --filter @occt-draw/core test",
         "typecheck": "pnpm -r typecheck",
         "type-coverage": "type-coverage --project tsconfig.type-coverage.json --at-least 100 --detail --strict"
     },

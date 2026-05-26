@@ -147,6 +147,7 @@ const partStudioFeatureTarget: ModelElementChangeTarget<
     PartStudioFeatureChangeRef,
     Feature
 > = {
+    targetKind: 'cad.part-studio.feature',
     add: (document, ref, feature) =>
         withPartStudio(
             document,
@@ -164,6 +165,7 @@ const featurePayloadTarget: ModelElementChangeTarget<
     FeaturePayloadChangeRef,
     FeaturePayload
 > = {
+    targetKind: 'cad.feature-payload',
     add: (document, ref, payload) =>
         withPartStudio(
             document,
@@ -181,6 +183,7 @@ const featurePayloadValueTarget: ModelPropertyChangeTarget<
     FeaturePayloadChangeRef,
     FeaturePayload
 > = {
+    targetKind: 'cad.feature-payload',
     set: (document, ref, _propertyPath, payload) =>
         withPartStudio(
             document,

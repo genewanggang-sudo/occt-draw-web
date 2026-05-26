@@ -1,6 +1,7 @@
-import { findSketchByFeatureId, type CadDocument } from '@occt-draw/cad-model';
+import { CadDocumentEditContext, type CadDocument } from '@occt-draw/cad-model';
 import type { EditDraft, Request, SelectionTarget } from '@occt-draw/core';
 import { SelectionManager, type ViewNavigationState } from '@occt-draw/platform';
+import type { Sketch } from '@occt-draw/sketch';
 import type { CommandResult } from '../commands/CadCommand';
 import {
     activateCommandSession,
@@ -234,7 +235,7 @@ function createCommandAvailabilityContext(state: EditorState) {
     }).length;
 
     return {
-        activeSketchTool: state.activeSketchSession?.activeTool ?? null,
+        activeSketchTool: state.activeSketchSession?.tool.kind ?? null,
         hasSketchProfile: false,
         isEditingSketch: state.activeSketchSession !== null,
         selectionObjectIds: state.selection.selection.objectIds,
@@ -243,12 +244,33 @@ function createCommandAvailabilityContext(state: EditorState) {
 }
 
 function shouldExitSketchSession(state: EditorState): boolean {
-    return (
-        state.activeSketchSession?.pendingCircleCenter === null &&
-        state.activeSketchSession.pendingAlignedRectangleEdge === null &&
-        state.activeSketchSession.pendingLineStart === null &&
-        state.activeSketchSession.pendingRectangleStart === null
-    );
+    const tool = state.activeSketchSession?.tool;
+
+    if (!tool) {
+        return false;
+    }
+
+    if (tool.kind === 'circle' || tool.kind === 'center-rectangle') {
+        return tool.center === null;
+    }
+
+    if (tool.kind === 'aligned-rectangle') {
+        return tool.firstEdge === null;
+    }
+
+    if (tool.kind === 'line') {
+        return tool.start === null;
+    }
+
+    if (tool.kind === 'midpoint-line') {
+        return tool.midpoint === null;
+    }
+
+    if (tool.kind === 'rectangle') {
+        return tool.firstCorner === null;
+    }
+
+    return true;
 }
 
 function reconcileSketchEditScope(
@@ -302,27 +324,41 @@ function reconcileSketchSession(
         return null;
     }
 
-    const sketch = findSketchByFeatureId(document.getActivePartStudio(), session.sketchFeatureId);
+    const target = resolveSketchTarget(document, session.sketchFeatureId);
 
-    if (!sketch) {
+    if (!target) {
         return null;
     }
 
-    return reconcileSketchLineStart(session, sketch);
+    return reconcileSketchLineStart(session, target.sketch);
 }
 
-function reconcileSketchLineStart(
-    session: SketchEditSession,
-    sketch: NonNullable<ReturnType<typeof findSketchByFeatureId>>,
-): SketchEditSession {
-    if (session.pendingLineStart?.kind !== 'vertex') {
+function reconcileSketchLineStart(session: SketchEditSession, sketch: Sketch): SketchEditSession {
+    if (session.tool.kind !== 'line' || session.tool.start?.kind !== 'vertex') {
         return session;
     }
 
-    return sketch.entities.topology.vertices.get(session.pendingLineStart.vertexId)
+    return sketch.entities.topology.vertices.get(session.tool.start.vertexId)
         ? session
         : {
               ...session,
-              pendingLineStart: null,
+              tool: { kind: 'line', start: null },
           };
+}
+
+function resolveSketchTarget(
+    document: CadDocument,
+    sketchFeatureId: SketchEditSession['sketchFeatureId'],
+) {
+    try {
+        return CadDocumentEditContext.begin(document, {
+            id: `resolve-sketch:${sketchFeatureId}`,
+            label: `Resolve ${sketchFeatureId}`,
+        }).requireSketchTarget({
+            partStudioId: document.getActivePartStudio().id,
+            sketchFeatureId,
+        });
+    } catch {
+        return null;
+    }
 }

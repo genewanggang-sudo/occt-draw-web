@@ -1,5 +1,11 @@
 export { CadDocument, FeaturePayloadStore, PartStudio, type FeaturePayload } from './document';
 export {
+    CadDocumentEditContext,
+    type CadDocumentEditContextInput,
+    type SketchEditTarget,
+    type SketchTargetInput,
+} from './documentEditContext';
+export {
     CreateFeaturePayloadRequest,
     SetFeaturePayloadRequest,
     type CadDocumentRequestResult,

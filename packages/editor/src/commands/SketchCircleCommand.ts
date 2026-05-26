@@ -1,12 +1,7 @@
 import { createEditDraft } from '@occt-draw/core';
-import {
-    AddCircleRequest,
-    findSketchByFeatureId,
-    referencePlaneToPlane,
-    type CadDocument,
-} from '@occt-draw/cad-model';
+import { AddCircleRequest, type CadDocument } from '@occt-draw/cad-model';
 import { LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
-import { sketchPointToWorldOnPlane, type Sketch } from '@occt-draw/sketch';
+import { sampleSketchCurveSegments, sketchPointToWorldOnPlane } from '@occt-draw/sketch';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
     CadCommand,
@@ -17,10 +12,10 @@ import {
     type CommandResult,
 } from './CadCommand';
 import { projectScreenPointToSketch2 } from './sketchProjection';
+import { resolveActiveSketchTarget } from './sketchTargetContext';
 
 const MIN_CIRCLE_RADIUS = 1e-6;
 const CIRCLE_DRAG_THRESHOLD_PIXELS = 3;
-const CIRCLE_PREVIEW_SEGMENT_COUNT = 64;
 
 interface PendingCircleDrag {
     readonly moved: boolean;
@@ -50,11 +45,7 @@ export class SketchCircleCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...state.activeSketchSession,
-                activeTool: 'circle',
-                pendingCircleCenter: null,
-                pendingAlignedRectangleEdge: null,
-                pendingLineStart: null,
-                pendingRectangleStart: null,
+                tool: { kind: 'circle', center: null },
             },
             commandSession: {
                 id: 'sketch-circle',
@@ -71,11 +62,11 @@ export class SketchCircleCommand extends CadCommand {
         const session = state.activeSketchSession;
         this.pendingDrag = null;
 
-        if (session?.pendingCircleCenter) {
+        if (session?.tool.kind === 'circle' && session.tool.center) {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingCircleCenter: null,
+                    tool: { kind: 'circle', center: null },
                 },
                 commandSession: {
                     id: 'sketch-circle',
@@ -123,13 +114,14 @@ export class SketchCircleCommand extends CadCommand {
 
         const state = context.getState();
         const session = state.activeSketchSession;
-        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const tool = session?.tool.kind === 'circle' ? session.tool : null;
+        const target = session ? resolveActiveSketchTarget(state, session) : null;
 
-        if (!session || !activeSketch) {
+        if (!session || !tool || !target) {
             return createUnhandledCommandResult();
         }
 
-        const point = projectPointerToSketch(state, activeSketch.sketch, event);
+        const point = projectPointerToSketch(state, target.plane, event);
 
         if (!point) {
             return createHandledCommandResult({
@@ -137,7 +129,7 @@ export class SketchCircleCommand extends CadCommand {
             });
         }
 
-        if (!session.pendingCircleCenter) {
+        if (!tool.center) {
             this.pendingDrag = {
                 moved: false,
                 pointerId: event.pointerId,
@@ -147,7 +139,7 @@ export class SketchCircleCommand extends CadCommand {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    pendingCircleCenter: point,
+                    tool: { kind: 'circle', center: point },
                 },
                 commandSession: {
                     id: 'sketch-circle',
@@ -177,27 +169,27 @@ export class SketchCircleCommand extends CadCommand {
 
         const state = context.getState();
         const session = state.activeSketchSession;
-        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const tool = session?.tool.kind === 'circle' ? session.tool : null;
+        const target = session ? resolveActiveSketchTarget(state, session) : null;
 
-        if (!session?.pendingCircleCenter || !activeSketch) {
+        if (!tool?.center || !target) {
             return createUnhandledCommandResult();
         }
 
-        const plane = findSketchPlane(state, activeSketch.sketch);
-        const point = projectPointerToSketch(state, activeSketch.sketch, event);
+        const point = projectPointerToSketch(state, target.plane, event);
 
-        if (!plane || !point) {
+        if (!point) {
             return createUnhandledCommandResult();
         }
 
-        const radius = Vec2.distance(session.pendingCircleCenter, point);
+        const radius = Vec2.distance(tool.center, point);
 
         if (radius <= MIN_CIRCLE_RADIUS) {
             return createUnhandledCommandResult();
         }
 
         return createHandledCommandResult({
-            draft: createCircleDraft(plane, session.pendingCircleCenter, radius),
+            draft: createCircleDraft(target.plane, tool.center, radius),
         });
     }
 
@@ -207,17 +199,18 @@ export class SketchCircleCommand extends CadCommand {
     ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
-        const activeSketch = session ? findActiveSketch(state, session) : null;
+        const tool = session?.tool.kind === 'circle' ? session.tool : null;
+        const target = session ? resolveActiveSketchTarget(state, session) : null;
         const drag = this.pendingDrag?.pointerId === event.pointerId ? this.pendingDrag : null;
         this.pendingDrag = null;
 
-        if (!session?.pendingCircleCenter || !activeSketch || !drag?.moved) {
+        if (!session || !tool?.center || !target || !drag?.moved) {
             return createHandledCommandResult({
                 message: 'Sketch command updated.',
             });
         }
 
-        const point = projectPointerToSketch(state, activeSketch.sketch, event);
+        const point = projectPointerToSketch(state, target.plane, event);
 
         if (!point) {
             return createHandledCommandResult({
@@ -234,7 +227,7 @@ export class SketchCircleCommand extends CadCommand {
         point: Vector2,
     ): CommandResult {
         const state = context.getState();
-        const center = session.pendingCircleCenter;
+        const center = session.tool.kind === 'circle' ? session.tool.center : null;
 
         if (!center) {
             return createUnhandledCommandResult();
@@ -249,7 +242,7 @@ export class SketchCircleCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                pendingCircleCenter: null,
+                tool: { kind: 'circle', center: null },
             },
             commandSession: {
                 id: 'sketch-circle',
@@ -273,7 +266,7 @@ function createCircleDraft(plane: Plane3, center: Vector2, radius: number) {
         id: 'draft:sketch-circle',
         kind: 'temporary',
     }).withTemporaryObjects(
-        sampleCircleSegments(center, radius).map((segment, index) => ({
+        sampleSketchCurveSegments({ center, kind: 'circle', radius }).map((segment, index) => ({
             color: Vec3.of(0.1, 0.55, 1),
             id: `draft:sketch-circle:segment:${String(index)}`,
             kind: 'line-segment',
@@ -286,62 +279,17 @@ function createCircleDraft(plane: Plane3, center: Vector2, radius: number) {
     );
 }
 
-function sampleCircleSegments(
-    center: Vector2,
-    radius: number,
-): readonly { readonly end: Vector2; readonly start: Vector2 }[] {
-    const segments: { readonly end: Vector2; readonly start: Vector2 }[] = [];
-
-    for (let index = 0; index < CIRCLE_PREVIEW_SEGMENT_COUNT; index += 1) {
-        const startAngle = (index / CIRCLE_PREVIEW_SEGMENT_COUNT) * Math.PI * 2;
-        const endAngle = ((index + 1) / CIRCLE_PREVIEW_SEGMENT_COUNT) * Math.PI * 2;
-
-        segments.push({
-            start: pointOnCircle(center, radius, startAngle),
-            end: pointOnCircle(center, radius, endAngle),
-        });
-    }
-
-    return segments;
-}
-
-function pointOnCircle(center: Vector2, radius: number, angleRadians: number): Vector2 {
-    return Vec2.of(
-        center.x + Math.cos(angleRadians) * radius,
-        center.y + Math.sin(angleRadians) * radius,
-    );
-}
-
 function projectPointerToSketch(
     state: EditorState,
-    sketch: Sketch,
+    plane: Plane3,
     event: CommandPointerEvent,
 ): Vector2 | null {
     return projectScreenPointToSketch2({
         camera: state.navigation.camera,
-        partStudio: state.document.getActivePartStudio(),
-        planeObjectRef: sketch.plane.planeObjectRef,
+        plane,
         point: event.point,
         viewportSize: state.navigation.viewportSize,
     });
-}
-
-function findActiveSketch(
-    state: EditorState,
-    session: SketchEditSession,
-): { readonly sketch: Sketch } | null {
-    const partStudio = state.document.getActivePartStudio();
-    const sketch = findSketchByFeatureId(partStudio, session.sketchFeatureId);
-
-    return sketch ? { sketch } : null;
-}
-
-function findSketchPlane(state: EditorState, sketch: Sketch): Plane3 | null {
-    const object = state.document
-        .getActivePartStudio()
-        .findObjectById(sketch.plane.planeObjectRef.id);
-
-    return object?.kind === 'reference-plane' ? referencePlaneToPlane(object) : null;
 }
 
 function distanceScreenPoints(
