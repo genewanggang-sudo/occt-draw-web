@@ -1,25 +1,16 @@
-import type {
-    PlatformCommand,
-    PlatformCommandKeyEvent,
-    PlatformCommandResult,
-} from '../commands/PlatformCommand';
+import type { PlatformCommandResult } from '../commands/PlatformCommand';
+import type { ViewportInputEvent } from './ViewportInput';
 
 export class CommandManager<
     TCommandId extends string,
     TContext,
     TResult extends PlatformCommandResult,
-    TPointerEvent,
-    TKeyEvent extends PlatformCommandKeyEvent,
-    TCommand extends PlatformCommand & {
+    TCommand extends {
         readonly id: TCommandId;
         cancel(context: TContext): TResult;
         enter(context: TContext): TResult;
         exit(context: TContext): TResult;
-        keyDown(event: TKeyEvent, context: TContext): TResult;
-        pointerCancel(event: TPointerEvent, context: TContext): TResult;
-        pointerDown(event: TPointerEvent, context: TContext): TResult;
-        pointerMove(event: TPointerEvent, context: TContext): TResult;
-        pointerUp(event: TPointerEvent, context: TContext): TResult;
+        handleInput(event: ViewportInputEvent, context: TContext): TResult;
     },
 > {
     private readonly commands: ReadonlyMap<TCommandId, TCommand>;
@@ -56,26 +47,8 @@ export class CommandManager<
         return this.getActiveCommand()?.cancel(context) ?? this.createUnhandledResult();
     }
 
-    public pointerDown(event: TPointerEvent, context: TContext): TResult {
-        return this.getActiveCommand()?.pointerDown(event, context) ?? this.createUnhandledResult();
-    }
-
-    public pointerCancel(event: TPointerEvent, context: TContext): TResult {
-        return (
-            this.getActiveCommand()?.pointerCancel(event, context) ?? this.createUnhandledResult()
-        );
-    }
-
-    public pointerMove(event: TPointerEvent, context: TContext): TResult {
-        return this.getActiveCommand()?.pointerMove(event, context) ?? this.createUnhandledResult();
-    }
-
-    public pointerUp(event: TPointerEvent, context: TContext): TResult {
-        return this.getActiveCommand()?.pointerUp(event, context) ?? this.createUnhandledResult();
-    }
-
-    public keyDown(event: TKeyEvent, context: TContext): TResult {
-        return this.getActiveCommand()?.keyDown(event, context) ?? this.createUnhandledResult();
+    public handleInput(event: ViewportInputEvent, context: TContext): TResult {
+        return this.getActiveCommand()?.handleInput(event, context) ?? this.createUnhandledResult();
     }
 
     public setActiveCommandId(commandId: TCommandId): void {

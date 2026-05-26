@@ -16,21 +16,18 @@ import { createDefaultCadDocument } from '@occt-draw/cad-model';
 import {
     PickService,
     ViewNavigationController,
-    ViewportInputAdapter,
+    ViewportInput,
     createViewNavigationState,
     interpolateCameraState,
     rotateCameraByViewCubeArrow,
     type ScreenPoint,
+    type ViewportInputEvent,
+    type ViewportPointerInputEvent,
     type ViewCubeRotationStep,
 } from '@occt-draw/platform';
 import { ViewportInteractionController } from './ViewportInteractionController';
 import { createEditorRenderGraph, createEditorRenderHighlight } from './editorRendering';
 import { createInitialEditorState } from '../state/createInitialEditorState';
-import type {
-    EditorKeyInput,
-    EditorPointerInput,
-    EditorWheelInput,
-} from './ViewportInteractionController';
 import type { EditorState } from '../state/editorState';
 
 export interface EditorViewportRuntimeOptions {
@@ -122,7 +119,7 @@ function createEditorRenderGraphForDocument(document: EditorState['document']): 
 
 export class EditorViewportRuntime {
     private readonly canvas: HTMLCanvasElement;
-    private readonly inputAdapter: ViewportInputAdapter;
+    private readonly inputAdapter: ViewportInput;
     private readonly interactionController: ViewportInteractionController;
     private readonly options: EditorViewportRuntimeOptions;
     private readonly pickService = new PickService();
@@ -158,102 +155,9 @@ export class EditorViewportRuntime {
             sampleNavigationDepths: (input) => this.renderer?.sampleNavigationDepths(input) ?? [],
             updateState: this.options.updateState,
         });
-        this.inputAdapter = new ViewportInputAdapter({
-            onContextMenu: (event) => {
-                event.preventDefault();
-            },
-            onKeyDown: (event) => {
-                this.stopNavigationAnimation();
-                const handled = this.interactionController.handleKeyDown(toEditorKeyInput(event));
-
-                if (handled) {
-                    event.preventDefault();
-                }
-            },
-            onPointerCancel: (event) => {
-                if (this.handleViewCubePointerCancel(event.pointerId)) {
-                    releasePointerCaptureIfNeeded(this.canvas, event.pointerId);
-                    event.preventDefault();
-                    return;
-                }
-
-                this.stopNavigationAnimation();
-                const handled = this.interactionController.handlePointerCancel(
-                    toEditorPointerInput(this.canvas, event),
-                );
-                releasePointerCaptureIfNeeded(this.canvas, event.pointerId);
-
-                if (handled) {
-                    event.preventDefault();
-                }
-            },
-            onPointerDown: (event) => {
-                const point = getScreenPoint(this.canvas, event);
-
-                if (event.button === 0 && this.handleViewCubePointerDown(event.pointerId, point)) {
-                    this.canvas.setPointerCapture(event.pointerId);
-                    event.preventDefault();
-                    return;
-                }
-
-                this.stopNavigationAnimation();
-                const handled = this.interactionController.handlePointerDown(
-                    toEditorPointerInputFromPoint(event, point),
-                );
-
-                if (handled) {
-                    this.canvas.setPointerCapture(event.pointerId);
-                    event.preventDefault();
-                }
-            },
-            onPointerMove: (event) => {
-                const point = getScreenPoint(this.canvas, event);
-
-                if (this.handleViewCubePointerMove(point)) {
-                    event.preventDefault();
-                    return;
-                }
-
-                if (event.buttons !== 0) {
-                    this.stopNavigationAnimation();
-                }
-
-                const handled = this.interactionController.handlePointerMove(
-                    toEditorPointerInputFromPoint(event, point),
-                );
-
-                if (handled) {
-                    event.preventDefault();
-                }
-            },
-            onPointerUp: (event) => {
-                const point = getScreenPoint(this.canvas, event);
-
-                if (this.handleViewCubePointerUp(event, point)) {
-                    releasePointerCaptureIfNeeded(this.canvas, event.pointerId);
-                    event.preventDefault();
-                    return;
-                }
-
-                this.stopNavigationAnimation();
-                const handled = this.interactionController.handlePointerUp(
-                    toEditorPointerInputFromPoint(event, point),
-                );
-                releasePointerCaptureIfNeeded(this.canvas, event.pointerId);
-
-                if (handled) {
-                    event.preventDefault();
-                }
-            },
-            onWheel: (event) => {
-                this.stopNavigationAnimation();
-                const handled = this.interactionController.handleWheel(
-                    toEditorWheelInput(this.canvas, event),
-                );
-
-                if (handled) {
-                    event.preventDefault();
-                }
+        this.inputAdapter = new ViewportInput({
+            onInput: (event) => {
+                this.handleViewportInput(event);
             },
         });
 
@@ -262,6 +166,42 @@ export class EditorViewportRuntime {
         this.attachResizeObserver();
         this.initializeRenderer();
         this.sync();
+    }
+
+    private handleViewportInput(event: ViewportInputEvent): void {
+        if (event.kind === 'context-menu') {
+            event.preventDefault();
+            return;
+        }
+
+        if (event.kind === 'key' || event.kind === 'wheel') {
+            this.stopNavigationAnimation();
+
+            if (this.interactionController.handleInput(event)) {
+                event.preventDefault();
+            }
+            return;
+        }
+
+        if (this.handleViewCubePointerInput(event)) {
+            event.preventDefault();
+            return;
+        }
+
+        if (event.buttons !== 0) {
+            this.stopNavigationAnimation();
+        }
+
+        if (this.interactionController.handleInput(event)) {
+            if (event.phase === 'down') {
+                event.capturePointer();
+            }
+            event.preventDefault();
+        }
+
+        if (event.phase === 'up' || event.phase === 'cancel') {
+            event.releasePointer();
+        }
     }
 
     public activateCommand(
@@ -430,20 +370,41 @@ export class EditorViewportRuntime {
         });
     }
 
-    private handleViewCubePointerCancel(pointerId: number): boolean {
-        const handled = this.viewCubePointer?.pointerId === pointerId;
+    private handleViewCubePointerInput(event: ViewportPointerInputEvent): boolean {
+        if (event.phase === 'cancel') {
+            return this.handleViewCubePointerCancel(event);
+        }
+
+        if (event.phase === 'down') {
+            return this.handleViewCubePointerDown(event);
+        }
+
+        if (event.phase === 'move') {
+            return this.handleViewCubePointerMove(event);
+        }
+
+        return this.handleViewCubePointerUp(event);
+    }
+
+    private handleViewCubePointerCancel(event: ViewportPointerInputEvent): boolean {
+        const handled = this.viewCubePointer?.pointerId === event.pointerId;
 
         if (handled) {
             this.viewCubePointer = null;
             this.hoveredViewCubeTargetId = null;
+            event.releasePointer();
             this.sync();
         }
 
         return handled;
     }
 
-    private handleViewCubePointerDown(pointerId: number, point: ScreenPoint): boolean {
-        const targetId = this.hitTestCurrentViewCube(point);
+    private handleViewCubePointerDown(event: ViewportPointerInputEvent): boolean {
+        if (event.button !== 0) {
+            return false;
+        }
+
+        const targetId = this.hitTestCurrentViewCube(event.point);
 
         if (!targetId) {
             this.viewCubePointer = null;
@@ -453,19 +414,20 @@ export class EditorViewportRuntime {
         }
 
         this.viewCubePointer = {
-            pointerId,
-            point,
+            pointerId: event.pointerId,
+            point: event.point,
             targetId,
         };
         this.hoveredViewCubeTargetId = targetId;
         this.stopNavigationAnimation();
+        event.capturePointer();
         this.sync();
 
         return true;
     }
 
-    private handleViewCubePointerMove(point: ScreenPoint): boolean {
-        const targetId = this.hitTestCurrentViewCube(point);
+    private handleViewCubePointerMove(event: ViewportPointerInputEvent): boolean {
+        const targetId = this.hitTestCurrentViewCube(event.point);
 
         if (targetId !== this.hoveredViewCubeTargetId) {
             this.hoveredViewCubeTargetId = targetId;
@@ -475,7 +437,7 @@ export class EditorViewportRuntime {
         return targetId !== null || this.viewCubePointer !== null;
     }
 
-    private handleViewCubePointerUp(event: PointerEvent, point: ScreenPoint): boolean {
+    private handleViewCubePointerUp(event: ViewportPointerInputEvent): boolean {
         const down = this.viewCubePointer;
 
         if (down?.pointerId !== event.pointerId) {
@@ -485,7 +447,7 @@ export class EditorViewportRuntime {
         this.viewCubePointer = null;
         const targetId = down.targetId;
 
-        if (Measurement.distance2(point, down.point).value <= VIEW_CUBE_CLICK_DISTANCE) {
+        if (Measurement.distance2(event.point, down.point).value <= VIEW_CUBE_CLICK_DISTANCE) {
             if (isViewCubeArrowTarget(targetId)) {
                 this.animateViewCubeArrow(targetId, getViewCubeRotationStep(event));
             } else {
@@ -497,7 +459,8 @@ export class EditorViewportRuntime {
             }
         }
 
-        this.hoveredViewCubeTargetId = this.hitTestCurrentViewCube(point);
+        this.hoveredViewCubeTargetId = this.hitTestCurrentViewCube(event.point);
+        event.releasePointer();
         this.sync();
 
         return true;
@@ -542,15 +505,6 @@ function countSceneRenderObjects(graph: RenderGraph): number {
     }, 0);
 }
 
-function getScreenPoint(canvas: HTMLCanvasElement, event: MouseEvent): ScreenPoint {
-    const rect = canvas.getBoundingClientRect();
-
-    return {
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
-    };
-}
-
 function getContentRectViewportSize(rect: Pick<DOMRectReadOnly, 'height' | 'width'>) {
     return {
         height: Math.max(1, Math.round(rect.height)),
@@ -558,72 +512,16 @@ function getContentRectViewportSize(rect: Pick<DOMRectReadOnly, 'height' | 'widt
     };
 }
 
-function isTextInputTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) {
-        return false;
-    }
-
-    return (
-        target.isContentEditable ||
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLSelectElement ||
-        target instanceof HTMLTextAreaElement
-    );
-}
-
-function releasePointerCaptureIfNeeded(canvas: HTMLCanvasElement, pointerId: number): void {
-    if (canvas.hasPointerCapture(pointerId)) {
-        canvas.releasePointerCapture(pointerId);
-    }
-}
-
-function toEditorKeyInput(event: KeyboardEvent): EditorKeyInput {
-    return {
-        altKey: event.altKey,
-        ctrlKey: event.ctrlKey,
-        key: event.key,
-        metaKey: event.metaKey,
-        targetIsTextInput: isTextInputTarget(event.target),
-    };
-}
-
-function toEditorPointerInput(canvas: HTMLCanvasElement, event: PointerEvent): EditorPointerInput {
-    return toEditorPointerInputFromPoint(event, getScreenPoint(canvas, event));
-}
-
-function toEditorPointerInputFromPoint(
-    event: PointerEvent,
-    point: ScreenPoint,
-): EditorPointerInput {
-    return {
-        altKey: event.altKey,
-        button: event.button,
-        buttons: event.buttons,
-        clickCount: event.detail,
-        ctrlKey: event.ctrlKey,
-        pointerId: event.pointerId,
-        point,
-        shiftKey: event.shiftKey,
-    };
-}
-
-function toEditorWheelInput(canvas: HTMLCanvasElement, event: WheelEvent): EditorWheelInput {
-    return {
-        deltaY: event.deltaY,
-        point: getScreenPoint(canvas, event),
-    };
-}
-
 function isViewCubeArrowTarget(targetId: ViewCubeTargetId): targetId is ViewCubeArrowCommand {
     return VIEW_CUBE_ARROW_TARGETS.has(targetId);
 }
 
-function getViewCubeRotationStep(event: PointerEvent): ViewCubeRotationStep {
-    if (event.shiftKey) {
+function getViewCubeRotationStep(event: ViewportPointerInputEvent): ViewCubeRotationStep {
+    if (event.modifiers.shift) {
         return 'coarse';
     }
 
-    if (event.ctrlKey || event.metaKey) {
+    if (event.modifiers.ctrl || event.modifiers.meta) {
         return 'fine';
     }
 

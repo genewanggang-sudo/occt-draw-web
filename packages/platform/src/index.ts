@@ -2,15 +2,21 @@ export { CommandManager } from './application/CommandManager';
 export { PickService, type PickSelectionTargetInput } from './application/PickService';
 export { SelectionManager } from './application/SelectionManager';
 export {
+    ViewportInput,
     ViewportInputAdapter,
-    type ViewportInputAdapterHandlers,
-} from './application/ViewportInputAdapter';
+    ViewportInputHandler,
+    type ViewportContextMenuInputEvent,
+    type ViewportInputEvent,
+    type ViewportInputModifiers,
+    type ViewportInputOptions,
+    type ViewportKeyInputEvent,
+    type ViewportPointerInputEvent,
+    type ViewportWheelInputEvent,
+} from './application/ViewportInput';
 export {
     PlatformCommand,
     createHandledPlatformCommandResult,
     createUnhandledPlatformCommandResult,
-    type PlatformCommandKeyEvent,
-    type PlatformCommandPointerEvent,
     type PlatformCommandResult,
 } from './commands/PlatformCommand';
 export { clearSelection, replaceSelection, updatePreselection } from './selection/selectionReducer';

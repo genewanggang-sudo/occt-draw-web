@@ -105,14 +105,14 @@ export class SketchMidpointLineCommand extends CadCommand {
         });
     }
 
-    public override pointerCancel(): CommandResult {
+    protected override onPointerCancel(): CommandResult {
         this.pendingDrag = null;
         return createHandledCommandResult({
             draft: null,
         });
     }
 
-    public override pointerDown(
+    protected override onPointerDown(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -164,7 +164,7 @@ export class SketchMidpointLineCommand extends CadCommand {
         return this.createMidpointLineResult(context, session, point);
     }
 
-    public override pointerMove(
+    protected override onPointerMove(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -203,7 +203,10 @@ export class SketchMidpointLineCommand extends CadCommand {
         });
     }
 
-    public override pointerUp(event: CommandPointerEvent, context: CommandContext): CommandResult {
+    protected override onPointerUp(
+        event: CommandPointerEvent,
+        context: CommandContext,
+    ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
         const activeSketch = session ? findActiveSketch(state, session) : null;

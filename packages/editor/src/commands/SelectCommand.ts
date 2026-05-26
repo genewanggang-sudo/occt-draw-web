@@ -1,4 +1,4 @@
-﻿import { createEditDraft, type SelectionTarget } from '@occt-draw/core';
+import { createEditDraft, type SelectionTarget } from '@occt-draw/core';
 import {
     DeleteSketchEntityRequest,
     findSketchByFeatureId,
@@ -84,7 +84,7 @@ export class SelectCommand extends CadCommand {
         return createHandledCommandResult();
     }
 
-    public override pointerDown(
+    protected override onPointerDown(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -121,12 +121,12 @@ export class SelectCommand extends CadCommand {
         return createHandledCommandResult();
     }
 
-    public override pointerCancel(): CommandResult {
+    protected override onPointerCancel(): CommandResult {
         this.pendingSelectionPointer = null;
         return createHandledCommandResult({ draft: null });
     }
 
-    public override pointerMove(
+    protected override onPointerMove(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -146,7 +146,10 @@ export class SelectCommand extends CadCommand {
         });
     }
 
-    public override pointerUp(event: CommandPointerEvent, context: CommandContext): CommandResult {
+    protected override onPointerUp(
+        event: CommandPointerEvent,
+        context: CommandContext,
+    ): CommandResult {
         const pendingSelectionPointer = this.pendingSelectionPointer;
 
         if (pendingSelectionPointer?.pointerId !== event.pointerId) {
@@ -245,7 +248,7 @@ export class SelectCommand extends CadCommand {
         });
     }
 
-    public override keyDown(event: CommandKeyEvent, context: CommandContext): CommandResult {
+    protected override onKeyDown(event: CommandKeyEvent, context: CommandContext): CommandResult {
         if (event.key !== 'Delete' && event.key !== 'Backspace') {
             return createUnhandledCommandResult();
         }

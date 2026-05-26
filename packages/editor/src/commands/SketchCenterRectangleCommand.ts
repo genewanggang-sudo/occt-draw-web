@@ -105,14 +105,14 @@ export class SketchCenterRectangleCommand extends CadCommand {
         });
     }
 
-    public override pointerCancel(): CommandResult {
+    protected override onPointerCancel(): CommandResult {
         this.pendingDrag = null;
         return createHandledCommandResult({
             draft: null,
         });
     }
 
-    public override pointerDown(
+    protected override onPointerDown(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -161,7 +161,7 @@ export class SketchCenterRectangleCommand extends CadCommand {
         return this.createCenterRectangleResult(context, session, point, event);
     }
 
-    public override pointerMove(
+    protected override onPointerMove(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -191,7 +191,9 @@ export class SketchCenterRectangleCommand extends CadCommand {
 
         const rectangle = getCenterRectangleCorners(
             session.pendingRectangleStart,
-            event.altKey ? constrainCornerToSquare(session.pendingRectangleStart, point) : point,
+            event.modifiers.alt
+                ? constrainCornerToSquare(session.pendingRectangleStart, point)
+                : point,
         );
 
         if (!rectangle) {
@@ -203,7 +205,10 @@ export class SketchCenterRectangleCommand extends CadCommand {
         });
     }
 
-    public override pointerUp(event: CommandPointerEvent, context: CommandContext): CommandResult {
+    protected override onPointerUp(
+        event: CommandPointerEvent,
+        context: CommandContext,
+    ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
         const activeSketch = session ? findActiveSketch(state, session) : null;
@@ -224,7 +229,9 @@ export class SketchCenterRectangleCommand extends CadCommand {
 
         const rectangle = getCenterRectangleCorners(
             session.pendingRectangleStart,
-            event.altKey ? constrainCornerToSquare(session.pendingRectangleStart, point) : point,
+            event.modifiers.alt
+                ? constrainCornerToSquare(session.pendingRectangleStart, point)
+                : point,
         );
 
         if (!rectangle) {
@@ -249,7 +256,7 @@ export class SketchCenterRectangleCommand extends CadCommand {
 
         const rectangle = getCenterRectangleCorners(
             center,
-            event.altKey ? constrainCornerToSquare(center, point) : point,
+            event.modifiers.alt ? constrainCornerToSquare(center, point) : point,
         );
 
         if (!rectangle) {

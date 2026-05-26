@@ -117,14 +117,14 @@ export class SketchLineCommand extends CadCommand {
         });
     }
 
-    public override pointerCancel(): CommandResult {
+    protected override onPointerCancel(): CommandResult {
         this.pendingDrag = null;
         return createHandledCommandResult({
             draft: null,
         });
     }
 
-    public override pointerDown(
+    protected override onPointerDown(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -171,11 +171,11 @@ export class SketchLineCommand extends CadCommand {
             session.pendingLineStart,
             point2,
             snappedVertexId,
-            { continueFromEnd: (event.clickCount ?? 1) < 2 },
+            { continueFromEnd: event.clickCount < 2 },
         );
     }
 
-    public override pointerMove(
+    protected override onPointerMove(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -242,7 +242,10 @@ export class SketchLineCommand extends CadCommand {
         });
     }
 
-    public override pointerUp(event: CommandPointerEvent, context: CommandContext): CommandResult {
+    protected override onPointerUp(
+        event: CommandPointerEvent,
+        context: CommandContext,
+    ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
         const activeSketch = session ? findActiveSketch(state, session) : null;

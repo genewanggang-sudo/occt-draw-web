@@ -22,13 +22,15 @@ import {
     ViewNavigationController,
     type PickService,
     type ScreenPoint,
+    type ViewportInputEvent,
+    type ViewportKeyInputEvent,
+    type ViewportPointerInputEvent,
+    type ViewportWheelInputEvent,
 } from '@occt-draw/platform';
 import {
     mergeCommandResults,
     createUnhandledCommandResult,
     type CommandContext,
-    type CommandKeyEvent,
-    type CommandPointerEvent,
     type CommandResult,
 } from '../commands/CadCommand';
 import { SelectCommand } from '../commands/SelectCommand';
@@ -56,20 +58,11 @@ export interface ViewportInteractionContext {
     readonly updateState: (updater: (current: EditorState) => EditorState) => void;
 }
 
-export interface EditorKeyInput {
-    readonly altKey: boolean;
-    readonly ctrlKey: boolean;
-    readonly key: string;
-    readonly metaKey: boolean;
-    readonly targetIsTextInput: boolean;
-}
+export type EditorKeyInput = ViewportKeyInputEvent;
 
-export type EditorPointerInput = CommandPointerEvent;
+export type EditorPointerInput = ViewportPointerInputEvent;
 
-export interface EditorWheelInput {
-    readonly deltaY: number;
-    readonly point: ScreenPoint;
-}
+export type EditorWheelInput = ViewportWheelInputEvent;
 
 const PICK_THRESHOLD_PIXELS = 9;
 const ORBIT_UNDER_POINTER_RADIUS_PIXELS = 12;
@@ -82,8 +75,6 @@ export class ViewportInteractionController {
         CommandId,
         CommandContext,
         CommandResult,
-        CommandPointerEvent,
-        CommandKeyEvent,
         | SelectCommand
         | EnterSketchCommand
         | SketchLineCommand
@@ -145,9 +136,25 @@ export class ViewportInteractionController {
         });
     }
 
-    public handleKeyDown(event: EditorKeyInput): boolean {
+    public handleInput(event: ViewportInputEvent): boolean {
         this.commandManager.setActiveCommandId(this.context.getActiveCommandId());
 
+        if (event.kind === 'key') {
+            return this.handleKeyInput(event);
+        }
+
+        if (event.kind === 'wheel') {
+            return this.handleWheel(event);
+        }
+
+        if (event.kind === 'pointer') {
+            return this.handlePointerInput(event);
+        }
+
+        return false;
+    }
+
+    private handleKeyInput(event: EditorKeyInput): boolean {
         if (shouldIgnoreShortcut(event)) {
             return false;
         }
@@ -170,40 +177,31 @@ export class ViewportInteractionController {
             return true;
         }
 
-        const result = this.commandManager.keyDown({ key: event.key }, this.createCommandContext());
+        const result = this.commandManager.handleInput(event, this.createCommandContext());
         this.applyCommandResult(result);
         return result.handled;
     }
 
-    public handlePointerCancel(event: EditorPointerInput): boolean {
-        this.commandManager.setActiveCommandId(this.context.getActiveCommandId());
-        const commandResult = this.commandManager.pointerCancel(event, this.createCommandContext());
-        this.applyCommandResult(commandResult);
-
-        this.context.updateState((current) => {
-            const navigation = new ViewNavigationController(current.navigation).end(
-                event.pointerId,
-            );
-
-            if (navigation === current.navigation) {
-                return current;
-            }
-
-            return new EditorController(current).applyNavigation(navigation);
-        });
-        return commandResult.handled || this.context.getState().navigation.drag !== null;
-    }
-
-    public handlePointerDown(event: EditorPointerInput): boolean {
-        this.commandManager.setActiveCommandId(this.context.getActiveCommandId());
-
-        const commandResult = this.commandManager.pointerDown(event, this.createCommandContext());
+    private handlePointerInput(event: EditorPointerInput): boolean {
+        const commandResult = this.commandManager.handleInput(event, this.createCommandContext());
         this.applyCommandResult(commandResult);
 
         if (commandResult.handled) {
             return true;
         }
 
+        if (event.phase === 'down') {
+            return this.handleNavigationPointerDown(event);
+        }
+
+        if (event.phase === 'move') {
+            return this.handleNavigationPointerMove(event);
+        }
+
+        return this.handleNavigationPointerEnd(event);
+    }
+
+    private handleNavigationPointerDown(event: EditorPointerInput): boolean {
         if (!isViewNavigationPointer(event)) {
             return false;
         }
@@ -211,7 +209,7 @@ export class ViewportInteractionController {
         this.context.updateState((current) => {
             const navigation = new ViewNavigationController(current.navigation).begin({
                 button: event.button,
-                ctrlKey: event.ctrlKey,
+                ctrlKey: event.modifiers.ctrl,
                 orbitPivot: this.resolveNavigationCenter(current, event.point),
                 pointerId: event.pointerId,
                 point: event.point,
@@ -356,16 +354,12 @@ export class ViewportInteractionController {
         return ray.pointAt(distance);
     }
 
-    public handlePointerMove(event: EditorPointerInput): boolean {
-        this.commandManager.setActiveCommandId(this.context.getActiveCommandId());
-        const commandResult = this.commandManager.pointerMove(event, this.createCommandContext());
-        this.applyCommandResult(commandResult);
-
+    private handleNavigationPointerMove(event: EditorPointerInput): boolean {
         this.context.updateState((current) => {
             const navigation = new ViewNavigationController(current.navigation).update(
                 {
                     button: event.button,
-                    ctrlKey: event.ctrlKey,
+                    ctrlKey: event.modifiers.ctrl,
                     pointerId: event.pointerId,
                     point: event.point,
                 },
@@ -378,14 +372,10 @@ export class ViewportInteractionController {
 
             return new EditorController(current).applyNavigation(navigation);
         });
-        return commandResult.handled || this.context.getState().navigation.drag !== null;
+        return this.context.getState().navigation.drag !== null;
     }
 
-    public handlePointerUp(event: EditorPointerInput): boolean {
-        this.commandManager.setActiveCommandId(this.context.getActiveCommandId());
-        const commandResult = this.commandManager.pointerUp(event, this.createCommandContext());
-        this.applyCommandResult(commandResult);
-
+    private handleNavigationPointerEnd(event: EditorPointerInput): boolean {
         this.context.updateState((current) => {
             const navigation = new ViewNavigationController(current.navigation).end(
                 event.pointerId,
@@ -397,7 +387,7 @@ export class ViewportInteractionController {
 
             return new EditorController(current).applyNavigation(navigation);
         });
-        return commandResult.handled || this.context.getState().navigation.drag !== null;
+        return this.context.getState().navigation.drag !== null;
     }
 
     public handleStandardView(view: StandardCameraView): void {
@@ -412,7 +402,7 @@ export class ViewportInteractionController {
         });
     }
 
-    public handleWheel(event: EditorWheelInput): boolean {
+    private handleWheel(event: EditorWheelInput): boolean {
         this.context.updateState((current) => {
             const navigation = new ViewNavigationController(current.navigation).zoom(
                 {
@@ -462,7 +452,7 @@ function isViewNavigationPointer(event: EditorPointerInput): boolean {
 }
 
 function shouldIgnoreShortcut(event: EditorKeyInput): boolean {
-    if (event.altKey || event.ctrlKey || event.metaKey) {
+    if (event.modifiers.alt || event.modifiers.ctrl || event.modifiers.meta) {
         return true;
     }
 

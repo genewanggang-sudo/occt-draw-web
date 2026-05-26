@@ -1,4 +1,4 @@
-﻿import { createEditDraft } from '@occt-draw/core';
+import { createEditDraft } from '@occt-draw/core';
 import {
     AddCornerRectangleRequest,
     findSketchByFeatureId,
@@ -105,14 +105,14 @@ export class SketchRectangleCommand extends CadCommand {
         });
     }
 
-    public override pointerCancel(): CommandResult {
+    protected override onPointerCancel(): CommandResult {
         this.pendingDrag = null;
         return createHandledCommandResult({
             draft: null,
         });
     }
 
-    public override pointerDown(
+    protected override onPointerDown(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -161,7 +161,7 @@ export class SketchRectangleCommand extends CadCommand {
         return this.createRectangleResult(context, activeSketch.sketch, session, point, event);
     }
 
-    public override pointerMove(
+    protected override onPointerMove(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -193,14 +193,17 @@ export class SketchRectangleCommand extends CadCommand {
             draft: createRectangleDraft(
                 plane,
                 session.pendingRectangleStart,
-                event.altKey
+                event.modifiers.alt
                     ? constrainOppositeCornerToSquare(session.pendingRectangleStart, point)
                     : point,
             ),
         });
     }
 
-    public override pointerUp(event: CommandPointerEvent, context: CommandContext): CommandResult {
+    protected override onPointerUp(
+        event: CommandPointerEvent,
+        context: CommandContext,
+    ): CommandResult {
         const state = context.getState();
         const session = state.activeSketchSession;
         const activeSketch = session ? findActiveSketch(state, session) : null;
@@ -219,7 +222,7 @@ export class SketchRectangleCommand extends CadCommand {
             return this.clearPendingRectangleResult(context, session);
         }
 
-        const oppositeCorner = event.altKey
+        const oppositeCorner = event.modifiers.alt
             ? constrainOppositeCornerToSquare(session.pendingRectangleStart, point)
             : point;
 
@@ -244,7 +247,7 @@ export class SketchRectangleCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const oppositeCorner = event.altKey
+        const oppositeCorner = event.modifiers.alt
             ? constrainOppositeCornerToSquare(firstCorner, point)
             : point;
 

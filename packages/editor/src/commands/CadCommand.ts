@@ -1,22 +1,25 @@
 import type { EditDraft, Request, SelectionTarget } from '@occt-draw/core';
 import type { CadDocument } from '@occt-draw/cad-model';
 import {
-    PlatformCommand,
+    ViewportInputHandler,
     createHandledPlatformCommandResult,
     createUnhandledPlatformCommandResult,
-    type PlatformCommandKeyEvent,
-    type PlatformCommandPointerEvent,
     type PlatformCommandResult,
     type ScreenPoint,
     type SelectionState,
+    type ViewportKeyInputEvent,
+    type ViewportPointerInputEvent,
+    type ViewportWheelInputEvent,
     type ViewNavigationState,
 } from '@occt-draw/platform';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import type { CommandId, CommandSession } from './commandTypes';
 
-export type CommandPointerEvent = PlatformCommandPointerEvent<ScreenPoint>;
+export type CommandPointerEvent = ViewportPointerInputEvent;
 
-export type CommandKeyEvent = PlatformCommandKeyEvent;
+export type CommandKeyEvent = ViewportKeyInputEvent;
+
+export type CommandWheelEvent = ViewportWheelInputEvent;
 
 export interface CommandContext {
     getDraft(): EditDraft<CadDocument> | null;
@@ -36,8 +39,8 @@ export interface CommandResult extends PlatformCommandResult {
     readonly activeSketchSession?: SketchEditSession | null;
 }
 
-export abstract class CadCommand extends PlatformCommand {
-    public abstract override readonly id: CommandId;
+export abstract class CadCommand extends ViewportInputHandler<CommandContext, CommandResult> {
+    public abstract readonly id: CommandId;
 
     public enter(_context: CommandContext): CommandResult {
         return createUnhandledCommandResult();
@@ -51,23 +54,7 @@ export abstract class CadCommand extends PlatformCommand {
         return createUnhandledCommandResult();
     }
 
-    public pointerDown(_event: CommandPointerEvent, _context: CommandContext): CommandResult {
-        return createUnhandledCommandResult();
-    }
-
-    public pointerCancel(_event: CommandPointerEvent, _context: CommandContext): CommandResult {
-        return createUnhandledCommandResult();
-    }
-
-    public pointerMove(_event: CommandPointerEvent, _context: CommandContext): CommandResult {
-        return createUnhandledCommandResult();
-    }
-
-    public pointerUp(_event: CommandPointerEvent, _context: CommandContext): CommandResult {
-        return createUnhandledCommandResult();
-    }
-
-    public keyDown(_event: CommandKeyEvent, _context: CommandContext): CommandResult {
+    protected unhandled(): CommandResult {
         return createUnhandledCommandResult();
     }
 }
