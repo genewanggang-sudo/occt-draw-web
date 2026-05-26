@@ -1,4 +1,4 @@
-import type { Vector2 } from '@occt-draw/math';
+import { Vec2, type Vector2 } from '@occt-draw/math';
 import { Circle2D, Line2D, Point2D } from '../geometry/geometry';
 import type { Sketch } from '../model/sketch';
 import { Edge, Vertex } from '../topology/topology';
@@ -8,6 +8,8 @@ import {
     type SketchEntityRef,
     type SketchVertexId,
 } from '../types';
+
+const MIN_SKETCH_EDGE_LENGTH = 1e-6;
 
 export abstract class SketchEdit {
     public abstract readonly kind: string;
@@ -165,7 +167,7 @@ export class AddClosedLineSegmentsEdit extends SketchEdit {
     }
 
     public apply(sketch: Sketch): void {
-        if (this.points.length < 3) {
+        if (!isValidClosedLineSegmentsInput(this.points)) {
             return;
         }
 
@@ -234,6 +236,10 @@ export class AddCornerRectangleEdit extends SketchEdit {
     }
 
     public apply(sketch: Sketch): void {
+        if (!isValidCornerRectangleInput(this.firstCorner, this.oppositeCorner)) {
+            return;
+        }
+
         const corners = getCornerRectanglePoints(this.firstCorner, this.oppositeCorner);
         const vertices = corners.map((position) => {
             const pointId = sketch.state.allocatePointId();
@@ -383,6 +389,25 @@ function getCornerRectanglePoints(
         oppositeCorner,
         { x: firstCorner.x, y: oppositeCorner.y },
     ];
+}
+
+function isValidClosedLineSegmentsInput(points: readonly Vector2[]): boolean {
+    if (points.length < 3) {
+        return false;
+    }
+
+    return points.every((point, index) => {
+        const next = points[(index + 1) % points.length];
+
+        return Boolean(next && Vec2.distance(point, next) > MIN_SKETCH_EDGE_LENGTH);
+    });
+}
+
+function isValidCornerRectangleInput(firstCorner: Vector2, oppositeCorner: Vector2): boolean {
+    return (
+        Math.abs(oppositeCorner.x - firstCorner.x) > MIN_SKETCH_EDGE_LENGTH &&
+        Math.abs(oppositeCorner.y - firstCorner.y) > MIN_SKETCH_EDGE_LENGTH
+    );
 }
 
 function deleteVertex(sketch: Sketch, vertexId: SketchVertexId): void {
