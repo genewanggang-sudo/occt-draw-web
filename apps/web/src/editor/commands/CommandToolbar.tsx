@@ -224,8 +224,7 @@ function SketchToolGroup({
     const isSelectedToolDisabled = Boolean(
         selectedTool.commandId && selectedAvailability?.enabled === false,
     );
-    const isActive =
-        selectedTool.commandId === activeCommandId || selectedTool.label === selectedToolLabel;
+    const isActive = selectedTool.commandId === activeCommandId;
     const primaryTitle =
         selectedTool.commandId && selectedAvailability?.reason
             ? selectedAvailability.reason
