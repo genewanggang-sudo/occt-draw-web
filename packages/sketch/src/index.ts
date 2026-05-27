@@ -27,6 +27,7 @@ export {
 export {
     SketchPrimitiveBuilder,
     type SketchLineSegmentInput,
+    type SketchPrimitiveBuilderOptions,
     type SketchPrimitiveResult,
 } from './model/SketchPrimitiveBuilder';
 export { SketchChangeRecorder, withActiveSketchChangeRecorder } from './changes/changeTracking';

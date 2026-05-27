@@ -7,17 +7,8 @@ import {
     type ModelChangeSet,
     type MutationScope,
 } from '@occt-draw/core';
-import type { Plane3, Vector2 } from '@occt-draw/math';
-import {
-    Sketch,
-    SketchChangeRecorder,
-    SketchPrimitiveBuilder,
-    type SketchEntityRef,
-    type SketchLineSegmentInput,
-    type SketchPrimitiveResult,
-    type SketchVertexId,
-    withActiveSketchChangeRecorder,
-} from '@occt-draw/sketch';
+import type { Plane3 } from '@occt-draw/math';
+import { Sketch, SketchChangeRecorder, SketchPrimitiveBuilder } from '@occt-draw/sketch';
 import type { CadDocument, FeaturePayload, PartStudio } from './document';
 import {
     createFeaturePayloadChangeSet,
@@ -60,12 +51,18 @@ export interface SketchReadTarget {
     readonly sketchFeatureId: FeatureId;
 }
 
-export interface SketchWriteTarget extends SketchReadTarget {
+export interface SketchWriteTarget {
+    readonly partStudioId: PartStudioId;
+    readonly payloadId: FeaturePayloadId;
+    readonly plane: Plane3;
     readonly primitives: SketchPrimitiveBuilder;
+    readonly sketchFeatureId: FeatureId;
 }
 
-interface TrackedSketchTarget extends SketchWriteTarget {
+interface TrackedSketchTarget extends SketchReadTarget {
+    readonly primitives: SketchPrimitiveBuilder;
     readonly recorder: SketchChangeRecorder;
+    readonly writeTarget: SketchWriteTarget;
 }
 
 class CadDocumentWriteContextImpl implements CadDocumentWriteContext {
@@ -176,23 +173,32 @@ class CadDocumentMutationScope implements MutationScope<CadDocument, CadDocument
 
         const sketch = this.requireSketchPayload(partStudio, payloadId).clone();
         const planeObject = this.requireSketchPlaneObject(partStudio, sketch);
+        const plane = referencePlaneToPlane(planeObject);
         const recorder = new SketchChangeRecorder(this.label);
+        const primitives = new SketchPrimitiveBuilder(sketch, { recorder });
         const target: TrackedSketchTarget = {
             feature,
             partStudio,
             partStudioId: input.partStudioId,
             payloadId,
-            plane: referencePlaneToPlane(planeObject),
+            plane,
             planeObject,
-            primitives: new TrackedSketchPrimitiveBuilder(sketch, recorder),
+            primitives,
             recorder,
             sketch,
             sketchFeatureId: input.sketchFeatureId,
+            writeTarget: {
+                partStudioId: input.partStudioId,
+                payloadId,
+                plane,
+                primitives,
+                sketchFeatureId: input.sketchFeatureId,
+            },
         };
 
         this.sketchTargets.set(key, target);
 
-        return target;
+        return target.writeTarget;
     }
 
     private buildChangeSet(): ModelChangeSet<CadDocument> {
@@ -256,53 +262,6 @@ class CadDocumentMutationScope implements MutationScope<CadDocument, CadDocument
     }
 }
 
-class TrackedSketchPrimitiveBuilder extends SketchPrimitiveBuilder {
-    private readonly recorder: SketchChangeRecorder;
-
-    constructor(sketch: Sketch, recorder: SketchChangeRecorder) {
-        super(sketch);
-        this.recorder = recorder;
-    }
-
-    public override addPoint(position: Vector2): SketchPrimitiveResult {
-        return this.capture(() => super.addPoint(position));
-    }
-
-    public override addLineSegment(input: SketchLineSegmentInput): SketchPrimitiveResult | null {
-        return this.capture(() => super.addLineSegment(input));
-    }
-
-    public override addClosedPolyline(points: readonly Vector2[]): SketchPrimitiveResult | null {
-        return this.capture(() => super.addClosedPolyline(points));
-    }
-
-    public override addRectangleFromCorners(
-        firstCorner: Vector2,
-        oppositeCorner: Vector2,
-    ): SketchPrimitiveResult | null {
-        return this.capture(() => super.addRectangleFromCorners(firstCorner, oppositeCorner));
-    }
-
-    public override addCircle(center: Vector2, radius: number): SketchPrimitiveResult | null {
-        return this.capture(() => super.addCircle(center, radius));
-    }
-
-    public override deleteEntity(entityRef: SketchEntityRef): SketchPrimitiveResult | null {
-        return this.capture(() => super.deleteEntity(entityRef));
-    }
-
-    public override moveVertex(
-        vertexId: SketchVertexId,
-        target: Vector2,
-    ): SketchPrimitiveResult | null {
-        return this.capture(() => super.moveVertex(vertexId, target));
-    }
-
-    private capture<TResult>(action: () => TResult): TResult {
-        return withActiveSketchChangeRecorder(this.recorder, action);
-    }
-}
-
 function mapSketchChangeSetToDocument(target: TrackedSketchTarget): ModelChangeSet<CadDocument> {
     return target.recorder.toChangeSet().map<CadDocument>({
         get: (document) => {
@@ -316,7 +275,7 @@ function mapSketchChangeSetToDocument(target: TrackedSketchTarget): ModelChangeS
                 );
             }
 
-            return payload;
+            return payload.clone();
         },
         replace: (document, sketch) =>
             withPartStudio(

@@ -1,4 +1,6 @@
 import type { Vector2 } from '@occt-draw/math';
+import type { SketchChangeRecorder } from '../changes/changeTracking';
+import { withActiveSketchChangeRecorder } from '../changes/changeTracking';
 import { Circle2D, Line2D, Point2D } from '../geometry/geometry';
 import type { Sketch } from './sketch';
 import { Edge, Vertex } from '../topology/topology';
@@ -28,14 +30,78 @@ export interface SketchPrimitiveResult {
     readonly touchedEntityRefs: readonly SketchEntityRef[];
 }
 
+export interface SketchPrimitiveBuilderOptions {
+    readonly recorder?: SketchChangeRecorder | undefined;
+}
+
 export class SketchPrimitiveBuilder {
+    private readonly recorder: SketchChangeRecorder | null;
     private readonly sketch: Sketch;
 
-    constructor(sketch: Sketch) {
+    constructor(sketch: Sketch, options: SketchPrimitiveBuilderOptions = {}) {
+        this.recorder = options.recorder ?? null;
         this.sketch = sketch;
     }
 
     public addPoint(position: Vector2): SketchPrimitiveResult {
+        return this.capture(() => this.addPointCore(position));
+    }
+
+    public addLineSegment(input: SketchLineSegmentInput): SketchPrimitiveResult | null {
+        return this.capture(() => this.addLineSegmentCore(input));
+    }
+
+    public addClosedPolyline(points: readonly Vector2[]): SketchPrimitiveResult | null {
+        return this.capture(() => {
+            if (!isValidClosedPolyline(points)) {
+                return null;
+            }
+
+            return this.addLineLoop(points);
+        });
+    }
+
+    public addRectangleFromCorners(
+        firstCorner: Vector2,
+        oppositeCorner: Vector2,
+    ): SketchPrimitiveResult | null {
+        return this.capture(() => {
+            if (!isValidRectangle(firstCorner, oppositeCorner)) {
+                return null;
+            }
+
+            return this.addLineLoop([
+                firstCorner,
+                { x: oppositeCorner.x, y: firstCorner.y },
+                oppositeCorner,
+                { x: firstCorner.x, y: oppositeCorner.y },
+            ]);
+        });
+    }
+
+    public addCircle(center: Vector2, radius: number): SketchPrimitiveResult | null {
+        return this.capture(() => this.addCircleCore(center, radius));
+    }
+
+    public deleteEntity(entityRef: SketchEntityRef): SketchPrimitiveResult | null {
+        return this.capture(() => {
+            if (entityRef.kind === SketchEntityKind.Edge) {
+                return this.deleteEdge(entityRef.id);
+            }
+
+            if (entityRef.kind === SketchEntityKind.Vertex) {
+                return this.deleteVertex(entityRef.id);
+            }
+
+            return null;
+        });
+    }
+
+    public moveVertex(vertexId: SketchVertexId, target: Vector2): SketchPrimitiveResult | null {
+        return this.capture(() => this.moveVertexCore(vertexId, target));
+    }
+
+    private addPointCore(position: Vector2): SketchPrimitiveResult {
         const pointId = this.sketch.state.allocatePointId();
         const vertexId = this.sketch.state.allocateVertexId();
         const point = new Point2D({
@@ -59,7 +125,7 @@ export class SketchPrimitiveBuilder {
         };
     }
 
-    public addLineSegment(input: SketchLineSegmentInput): SketchPrimitiveResult | null {
+    private addLineSegmentCore(input: SketchLineSegmentInput): SketchPrimitiveResult | null {
         const start = this.resolveEndpoint({
             position: 'startPosition' in input ? input.startPosition : null,
             vertexId: 'startVertexId' in input ? input.startVertexId : null,
@@ -111,31 +177,7 @@ export class SketchPrimitiveBuilder {
         };
     }
 
-    public addClosedPolyline(points: readonly Vector2[]): SketchPrimitiveResult | null {
-        if (!isValidClosedPolyline(points)) {
-            return null;
-        }
-
-        return this.addLineLoop(points);
-    }
-
-    public addRectangleFromCorners(
-        firstCorner: Vector2,
-        oppositeCorner: Vector2,
-    ): SketchPrimitiveResult | null {
-        if (!isValidRectangle(firstCorner, oppositeCorner)) {
-            return null;
-        }
-
-        return this.addLineLoop([
-            firstCorner,
-            { x: oppositeCorner.x, y: firstCorner.y },
-            oppositeCorner,
-            { x: firstCorner.x, y: oppositeCorner.y },
-        ]);
-    }
-
-    public addCircle(center: Vector2, radius: number): SketchPrimitiveResult | null {
+    private addCircleCore(center: Vector2, radius: number): SketchPrimitiveResult | null {
         if (radius <= 0) {
             return null;
         }
@@ -156,19 +198,10 @@ export class SketchPrimitiveBuilder {
         };
     }
 
-    public deleteEntity(entityRef: SketchEntityRef): SketchPrimitiveResult | null {
-        if (entityRef.kind === SketchEntityKind.Edge) {
-            return this.deleteEdge(entityRef.id);
-        }
-
-        if (entityRef.kind === SketchEntityKind.Vertex) {
-            return this.deleteVertex(entityRef.id);
-        }
-
-        return null;
-    }
-
-    public moveVertex(vertexId: SketchVertexId, target: Vector2): SketchPrimitiveResult | null {
+    private moveVertexCore(
+        vertexId: SketchVertexId,
+        target: Vector2,
+    ): SketchPrimitiveResult | null {
         const point = this.sketch.findPointForVertex(vertexId);
 
         if (!point || (point.position.x === target.x && point.position.y === target.y)) {
@@ -180,6 +213,10 @@ export class SketchPrimitiveBuilder {
         return {
             touchedEntityRefs: [point.ref],
         };
+    }
+
+    private capture<TResult>(action: () => TResult): TResult {
+        return this.recorder ? withActiveSketchChangeRecorder(this.recorder, action) : action();
     }
 
     private addLineLoop(points: readonly Vector2[]): SketchPrimitiveResult {

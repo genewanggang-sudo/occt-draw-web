@@ -71,8 +71,17 @@ export class SelectCommand extends CadCommand {
         return createHandledCommandResult({ draft: null });
     }
 
-    public override cancel(): CommandResult {
+    public override cancel(context: CommandContext): CommandResult {
         this.pendingSelectionPointer = null;
+        const state = context.getState();
+
+        if (state.activeSketchSession?.tool.kind === 'select') {
+            return createHandledCommandResult({
+                activeSketchSession: null,
+                draft: null,
+            });
+        }
+
         return createHandledCommandResult({ draft: null });
     }
 

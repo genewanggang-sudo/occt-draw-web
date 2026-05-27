@@ -113,6 +113,18 @@ export function CommandToolbar({
                 className="cad-workbench__command-actions cad-workbench__command-actions--sketch"
                 aria-label="草图工具"
             >
+                <ToolbarGroup label="草图选择">
+                    <button
+                        className="cad-workbench__action cad-workbench__action--command"
+                        type="button"
+                        aria-pressed={activeCommandId === 'select'}
+                        onClick={() => {
+                            onActivateCommand('select');
+                        }}
+                    >
+                        Select
+                    </button>
+                </ToolbarGroup>
                 <ToolbarGroup label="草图绘制">
                     {sketchDrawingToolGroups.map((group) => (
                         <SketchToolGroup
