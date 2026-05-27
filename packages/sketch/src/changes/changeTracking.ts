@@ -3,6 +3,7 @@ import {
     ChangeRecordingScope,
     createModelChangeId,
     type ModelElementChangeTarget,
+    type ModelChangeSet,
     type ModelPropertyPath,
     type ModelPropertyChangeTarget,
     type Transaction,
@@ -74,6 +75,14 @@ export class SketchChangeRecorder {
             before: copySketchPropertyValue(input.before),
             propertyPath: input.propertyPath,
         });
+    }
+
+    public isEmpty(): boolean {
+        return this.recorder.isEmpty();
+    }
+
+    public toChangeSet(): ModelChangeSet<Sketch> {
+        return this.recorder.toChangeSet();
     }
 
     public toTransaction(input: { readonly id: string }): Transaction<Sketch> {

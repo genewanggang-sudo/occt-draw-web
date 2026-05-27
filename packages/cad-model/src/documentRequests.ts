@@ -1,17 +1,6 @@
-import {
-    createRequestExecution,
-    Transaction,
-    type DocumentEditLabels,
-    type Request,
-    type RequestContext,
-    type RequestExecution,
-    type TransactionId,
-} from '@occt-draw/core';
+import type { DocumentEditLabels, DocumentRequest } from '@occt-draw/core';
 import type { CadDocument, FeaturePayload } from './document';
-import {
-    createFeaturePayloadChangeSet,
-    createFeaturePayloadCreationChangeSet,
-} from './documentChanges';
+import type { CadDocumentWriteContext } from './documentWriteContext';
 import type { Feature } from './features';
 import type { FeaturePayloadId, PartStudioId } from './ids';
 
@@ -24,17 +13,18 @@ export interface CreateFeaturePayloadRequestResult extends CadDocumentRequestRes
     readonly payloadId: FeaturePayloadId;
 }
 
-export class CreateFeaturePayloadRequest implements Request<
+export class CreateFeaturePayloadRequest implements DocumentRequest<
     CadDocument,
-    CreateFeaturePayloadRequestResult
+    CreateFeaturePayloadRequestResult,
+    CadDocumentWriteContext
 > {
     public readonly feature: Feature;
+    public readonly id: string;
     public readonly label: string;
     public readonly partStudioId: PartStudioId;
     public readonly payload: FeaturePayload;
     public readonly payloadId: FeaturePayloadId;
-    private readonly history: DocumentEditLabels | null;
-    private readonly transactionId: TransactionId | null;
+    public readonly history: DocumentEditLabels | null;
 
     constructor(input: {
         readonly feature: Feature;
@@ -43,42 +33,30 @@ export class CreateFeaturePayloadRequest implements Request<
         readonly partStudioId: PartStudioId;
         readonly payload: FeaturePayload;
         readonly payloadId: FeaturePayloadId;
-        readonly transactionId?: TransactionId | null;
+        readonly transactionId?: string | null;
     }) {
         this.feature = input.feature;
         this.history = input.history ?? null;
+        this.id = input.transactionId ?? `create-feature-payload:${input.feature.id}`;
         this.label = input.label ?? `Create ${input.feature.name}`;
         this.partStudioId = input.partStudioId;
         this.payload = input.payload;
         this.payloadId = input.payloadId;
-        this.transactionId = input.transactionId ?? null;
     }
 
-    public execute(
-        context: RequestContext<CadDocument>,
-    ): RequestExecution<CadDocument, CreateFeaturePayloadRequestResult> {
-        const transaction = new Transaction<CadDocument>({
-            changeSet: createFeaturePayloadCreationChangeSet({
-                document: context.document,
-                feature: this.feature,
-                label: this.label,
-                partStudioId: this.partStudioId,
-                payload: this.payload,
-                payloadId: this.payloadId,
-            }),
-            id: this.transactionId ?? `create-feature-payload:${this.feature.id}`,
-            label: this.label,
+    public execute(context: CadDocumentWriteContext): CreateFeaturePayloadRequestResult {
+        context.createFeaturePayload({
+            feature: this.feature,
+            partStudioId: this.partStudioId,
+            payload: this.payload,
+            payloadId: this.payloadId,
         });
 
-        return createRequestExecution({
-            history: this.history,
-            result: {
-                featureId: this.feature.id,
-                partStudioId: this.partStudioId,
-                payloadId: this.payloadId,
-            },
-            transaction,
-        });
+        return {
+            featureId: this.feature.id,
+            partStudioId: this.partStudioId,
+            payloadId: this.payloadId,
+        };
     }
 }
 
@@ -86,16 +64,17 @@ export interface SetFeaturePayloadRequestResult extends CadDocumentRequestResult
     readonly payloadId: FeaturePayloadId;
 }
 
-export class SetFeaturePayloadRequest implements Request<
+export class SetFeaturePayloadRequest implements DocumentRequest<
     CadDocument,
-    SetFeaturePayloadRequestResult
+    SetFeaturePayloadRequestResult,
+    CadDocumentWriteContext
 > {
+    public readonly id: string;
     public readonly label: string;
     public readonly partStudioId: PartStudioId;
     public readonly payload: FeaturePayload;
     public readonly payloadId: FeaturePayloadId;
-    private readonly history: DocumentEditLabels | null;
-    private readonly transactionId: TransactionId | null;
+    public readonly history: DocumentEditLabels | null;
 
     constructor(input: {
         readonly history?: DocumentEditLabels | null;
@@ -103,38 +82,26 @@ export class SetFeaturePayloadRequest implements Request<
         readonly partStudioId: PartStudioId;
         readonly payload: FeaturePayload;
         readonly payloadId: FeaturePayloadId;
-        readonly transactionId?: TransactionId | null;
+        readonly transactionId?: string | null;
     }) {
         this.history = input.history ?? null;
+        this.id = input.transactionId ?? `set-feature-payload:${input.payloadId}`;
         this.label = input.label ?? `Set feature payload: ${input.payloadId}`;
         this.partStudioId = input.partStudioId;
         this.payload = input.payload;
         this.payloadId = input.payloadId;
-        this.transactionId = input.transactionId ?? null;
     }
 
-    public execute(
-        context: RequestContext<CadDocument>,
-    ): RequestExecution<CadDocument, SetFeaturePayloadRequestResult> {
-        const transaction = new Transaction<CadDocument>({
-            changeSet: createFeaturePayloadChangeSet({
-                document: context.document,
-                label: this.label,
-                partStudioId: this.partStudioId,
-                payload: this.payload,
-                payloadId: this.payloadId,
-            }),
-            id: this.transactionId ?? `set-feature-payload:${this.payloadId}`,
-            label: this.label,
+    public execute(context: CadDocumentWriteContext): SetFeaturePayloadRequestResult {
+        context.setFeaturePayload({
+            partStudioId: this.partStudioId,
+            payload: this.payload,
+            payloadId: this.payloadId,
         });
 
-        return createRequestExecution({
-            history: this.history,
-            result: {
-                partStudioId: this.partStudioId,
-                payloadId: this.payloadId,
-            },
-            transaction,
-        });
+        return {
+            partStudioId: this.partStudioId,
+            payloadId: this.payloadId,
+        };
     }
 }

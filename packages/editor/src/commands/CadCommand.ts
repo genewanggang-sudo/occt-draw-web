@@ -1,5 +1,5 @@
-import type { EditDraft, Request, SelectionTarget } from '@occt-draw/core';
-import type { CadDocument } from '@occt-draw/cad-model';
+import type { DocumentRequest, EditDraft, SelectionTarget } from '@occt-draw/core';
+import type { CadDocument, CadDocumentWriteContext } from '@occt-draw/cad-model';
 import {
     ViewportInputHandler,
     createHandledPlatformCommandResult,
@@ -30,7 +30,7 @@ export interface CommandContext {
 export interface CommandResult extends PlatformCommandResult {
     readonly handled: boolean;
     readonly commandSession?: CommandSession;
-    readonly documentRequest?: Request<CadDocument, unknown>;
+    readonly documentRequest?: DocumentRequest<CadDocument, unknown, CadDocumentWriteContext>;
     readonly draft?: EditDraft<CadDocument> | null;
     readonly message?: string;
     readonly navigation?: ViewNavigationState;

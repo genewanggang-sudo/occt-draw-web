@@ -1,3 +1,4 @@
+export { DocumentEditor } from './document/editor';
 export { DocumentSession, type DocumentSessionSnapshot } from './document/session';
 
 export {
@@ -31,6 +32,11 @@ export {
 export { ChangeRecorder, ChangeRecordingScope } from './editing/changeRecorder';
 export {
     createRequestExecution,
+    type DocumentMutationInput,
+    type DocumentMutationRuntime,
+    type DocumentRequest,
+    type DocumentWriteContext,
+    type MutationScope,
     type Request,
     type RequestContext,
     type RequestExecution,
@@ -38,6 +44,7 @@ export {
 export type {
     DocumentEditLabels,
     DocumentEditResult,
+    DocumentPreviewResult,
     DocumentRequestResult,
     DocumentScopeCommitResult,
 } from './editing/result';

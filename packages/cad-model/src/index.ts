@@ -3,8 +3,14 @@ export {
     CadDocumentEditContext,
     type CadDocumentEditContextInput,
     type SketchEditTarget,
-    type SketchTargetInput,
 } from './documentEditContext';
+export {
+    createCadDocumentMutationRuntime,
+    type CadDocumentWriteContext,
+    type SketchReadTarget,
+    type SketchTargetInput,
+    type SketchWriteTarget,
+} from './documentWriteContext';
 export {
     CreateFeaturePayloadRequest,
     SetFeaturePayloadRequest,

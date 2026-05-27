@@ -1,5 +1,6 @@
-import { createEditDraft, type SelectionTarget } from '@occt-draw/core';
+import { DocumentEditor, createEditDraft, type SelectionTarget } from '@occt-draw/core';
 import {
+    createCadDocumentMutationRuntime,
     DeleteSketchEntityRequest,
     isEditableSketchEntityRef,
     MoveVertexRequest,
@@ -301,9 +302,10 @@ function createVertexMoveDraft(
         id: 'draft:move-sketch-vertex',
         kind: 'transform',
     }).withWorkingDocument(
-        request
-            .execute({ activeScopeId: null, document: state.document })
-            .transaction.apply(state.document),
+        new DocumentEditor({
+            mutationRuntime: createCadDocumentMutationRuntime(),
+            session: state.documentSession,
+        }).preview(request).workingDocument,
     );
 }
 

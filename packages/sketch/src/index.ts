@@ -29,7 +29,7 @@ export {
     type SketchLineSegmentInput,
     type SketchPrimitiveResult,
 } from './model/SketchPrimitiveBuilder';
-export { SketchChangeRecorder } from './changes/changeTracking';
+export { SketchChangeRecorder, withActiveSketchChangeRecorder } from './changes/changeTracking';
 export { SketchEntityKind } from './types';
 export {
     SketchDisplayBuilder,

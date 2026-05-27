@@ -64,7 +64,7 @@ flowchart TB
 当前 `math` 已提供：
 
 ```ts
-sampleCurveSegments2(curve, options)
+sampleCurveSegments2(curve, options);
 ```
 
 它将 `Curve2` 离散为 `LineSegment2[]`。

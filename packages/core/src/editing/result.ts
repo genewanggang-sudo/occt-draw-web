@@ -22,6 +22,12 @@ export interface DocumentRequestResult<
     readonly recorded: boolean;
 }
 
+export interface DocumentPreviewResult<TDocument = unknown, TResult = void> {
+    readonly result: TResult;
+    readonly transaction: Transaction<TDocument>;
+    readonly workingDocument: TDocument;
+}
+
 export interface DocumentScopeCommitResult<
     TDocument = unknown,
 > extends DocumentEditResult<TDocument> {

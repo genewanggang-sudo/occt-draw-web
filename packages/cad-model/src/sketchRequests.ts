@@ -1,4 +1,4 @@
-import type { Request, RequestContext, RequestExecution, TransactionId } from '@occt-draw/core';
+import type { DocumentRequest } from '@occt-draw/core';
 import type { Vector2 } from '@occt-draw/math';
 import { SketchEntityKind } from '@occt-draw/sketch';
 import type {
@@ -9,7 +9,7 @@ import type {
     SketchVertexId,
 } from '@occt-draw/sketch';
 import type { CadDocument } from './document';
-import { CadDocumentEditContext, type SketchEditTarget } from './documentEditContext';
+import type { CadDocumentWriteContext, SketchWriteTarget } from './documentWriteContext';
 import type { FeatureId, FeaturePayloadId, PartStudioId } from './ids';
 
 export interface SketchDocumentRequestContext {
@@ -17,38 +17,38 @@ export interface SketchDocumentRequestContext {
     readonly sketchFeatureId: FeatureId;
 }
 
-abstract class SketchDocumentRequest<TResult> implements Request<CadDocument, TResult> {
+abstract class SketchDocumentRequest<TResult> implements DocumentRequest<
+    CadDocument,
+    TResult,
+    CadDocumentWriteContext
+> {
+    public readonly id: string;
     public readonly label: string;
     protected readonly partStudioId: PartStudioId;
     protected readonly sketchFeatureId: FeatureId;
-    private readonly transactionId: TransactionId;
 
     protected constructor(input: {
         readonly label: string;
         readonly partStudioId: PartStudioId;
         readonly sketchFeatureId: FeatureId;
-        readonly transactionId: TransactionId;
+        readonly transactionId: string;
     }) {
+        this.id = input.transactionId;
         this.label = input.label;
         this.partStudioId = input.partStudioId;
         this.sketchFeatureId = input.sketchFeatureId;
-        this.transactionId = input.transactionId;
     }
 
-    public execute(context: RequestContext<CadDocument>): RequestExecution<CadDocument, TResult> {
-        const edit = CadDocumentEditContext.begin(context.document, {
-            id: this.transactionId,
-            label: this.label,
-        });
-        const target = edit.requireSketchTarget({
+    public execute(context: CadDocumentWriteContext): TResult {
+        const target = context.requireSketchTarget({
             partStudioId: this.partStudioId,
             sketchFeatureId: this.sketchFeatureId,
         });
 
-        return edit.finish(this.apply(target));
+        return this.apply(target);
     }
 
-    protected abstract apply(target: SketchEditTarget): TResult;
+    protected abstract apply(target: SketchWriteTarget): TResult;
 }
 
 export interface AddLineSegmentRequestResult extends SketchDocumentRequestContext {
@@ -59,7 +59,7 @@ export interface AddLineSegmentRequestResult extends SketchDocumentRequestContex
 
 export class AddLineSegmentRequest
     extends SketchDocumentRequest<AddLineSegmentRequestResult>
-    implements Request<CadDocument, AddLineSegmentRequestResult>
+    implements DocumentRequest<CadDocument, AddLineSegmentRequestResult, CadDocumentWriteContext>
 {
     private readonly input: LineSegmentEditInput;
 
@@ -73,7 +73,7 @@ export class AddLineSegmentRequest
         this.input = input;
     }
 
-    protected apply(target: SketchEditTarget): AddLineSegmentRequestResult {
+    protected apply(target: SketchWriteTarget): AddLineSegmentRequestResult {
         const result = target.primitives.addLineSegment(this.input);
 
         return {
@@ -93,7 +93,8 @@ export interface AddClosedLineSegmentsRequestResult extends SketchDocumentReques
 
 export class AddClosedLineSegmentsRequest
     extends SketchDocumentRequest<AddClosedLineSegmentsRequestResult>
-    implements Request<CadDocument, AddClosedLineSegmentsRequestResult>
+    implements
+        DocumentRequest<CadDocument, AddClosedLineSegmentsRequestResult, CadDocumentWriteContext>
 {
     private readonly points: readonly Vector2[];
 
@@ -107,7 +108,7 @@ export class AddClosedLineSegmentsRequest
         this.points = input.points;
     }
 
-    protected apply(target: SketchEditTarget): AddClosedLineSegmentsRequestResult {
+    protected apply(target: SketchWriteTarget): AddClosedLineSegmentsRequestResult {
         const result = target.primitives.addClosedPolyline(this.points);
 
         return {
@@ -126,7 +127,8 @@ export interface AddCornerRectangleRequestResult extends SketchDocumentRequestCo
 
 export class AddCornerRectangleRequest
     extends SketchDocumentRequest<AddCornerRectangleRequestResult>
-    implements Request<CadDocument, AddCornerRectangleRequestResult>
+    implements
+        DocumentRequest<CadDocument, AddCornerRectangleRequestResult, CadDocumentWriteContext>
 {
     private readonly firstCorner: Vector2;
     private readonly oppositeCorner: Vector2;
@@ -147,7 +149,7 @@ export class AddCornerRectangleRequest
         this.oppositeCorner = input.oppositeCorner;
     }
 
-    protected apply(target: SketchEditTarget): AddCornerRectangleRequestResult {
+    protected apply(target: SketchWriteTarget): AddCornerRectangleRequestResult {
         const result = target.primitives.addRectangleFromCorners(
             this.firstCorner,
             this.oppositeCorner,
@@ -169,7 +171,7 @@ export interface AddCircleRequestResult extends SketchDocumentRequestContext {
 
 export class AddCircleRequest
     extends SketchDocumentRequest<AddCircleRequestResult>
-    implements Request<CadDocument, AddCircleRequestResult>
+    implements DocumentRequest<CadDocument, AddCircleRequestResult, CadDocumentWriteContext>
 {
     private readonly center: Vector2;
     private readonly radius: number;
@@ -190,7 +192,7 @@ export class AddCircleRequest
         this.radius = input.radius;
     }
 
-    protected apply(target: SketchEditTarget): AddCircleRequestResult {
+    protected apply(target: SketchWriteTarget): AddCircleRequestResult {
         const result = target.primitives.addCircle(this.center, this.radius);
 
         return {
@@ -209,7 +211,8 @@ export interface DeleteSketchEntityRequestResult extends SketchDocumentRequestCo
 
 export class DeleteSketchEntityRequest
     extends SketchDocumentRequest<DeleteSketchEntityRequestResult>
-    implements Request<CadDocument, DeleteSketchEntityRequestResult>
+    implements
+        DocumentRequest<CadDocument, DeleteSketchEntityRequestResult, CadDocumentWriteContext>
 {
     private readonly entityRef: SketchEntityRef;
 
@@ -223,7 +226,7 @@ export class DeleteSketchEntityRequest
         this.entityRef = input.entityRef;
     }
 
-    protected apply(target: SketchEditTarget): DeleteSketchEntityRequestResult {
+    protected apply(target: SketchWriteTarget): DeleteSketchEntityRequestResult {
         target.primitives.deleteEntity(this.entityRef);
 
         return {
@@ -243,7 +246,7 @@ export interface MoveVertexRequestResult extends SketchDocumentRequestContext {
 
 export class MoveVertexRequest
     extends SketchDocumentRequest<MoveVertexRequestResult>
-    implements Request<CadDocument, MoveVertexRequestResult>
+    implements DocumentRequest<CadDocument, MoveVertexRequestResult, CadDocumentWriteContext>
 {
     private readonly target: Vector2;
     private readonly vertexId: SketchVertexId;
@@ -264,7 +267,7 @@ export class MoveVertexRequest
         this.vertexId = input.vertexId;
     }
 
-    protected apply(target: SketchEditTarget): MoveVertexRequestResult {
+    protected apply(target: SketchWriteTarget): MoveVertexRequestResult {
         target.primitives.moveVertex(this.vertexId, this.target);
 
         return {

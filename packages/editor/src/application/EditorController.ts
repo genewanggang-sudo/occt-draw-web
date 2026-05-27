@@ -1,5 +1,15 @@
-import { CadDocumentEditContext, type CadDocument } from '@occt-draw/cad-model';
-import type { EditDraft, Request, SelectionTarget } from '@occt-draw/core';
+import {
+    CadDocumentEditContext,
+    createCadDocumentMutationRuntime,
+    type CadDocument,
+    type CadDocumentWriteContext,
+} from '@occt-draw/cad-model';
+import {
+    DocumentEditor,
+    type DocumentRequest,
+    type EditDraft,
+    type SelectionTarget,
+} from '@occt-draw/core';
 import { SelectionManager, type ViewNavigationState } from '@occt-draw/platform';
 import type { Sketch } from '@occt-draw/sketch';
 import type { CommandResult } from '../commands/CadCommand';
@@ -34,9 +44,15 @@ export class EditorController {
         };
     }
 
-    public executeDocumentRequest(request: Request<CadDocument, unknown>): EditorState {
+    public executeDocumentRequest(
+        request: DocumentRequest<CadDocument, unknown, CadDocumentWriteContext>,
+    ): EditorState {
         const documentSession = this.state.documentSession.clone();
-        const result = documentSession.execute(request);
+        const editor = new DocumentEditor({
+            mutationRuntime: createCadDocumentMutationRuntime(),
+            session: documentSession,
+        });
+        const result = editor.execute(request);
 
         return {
             ...this.state,

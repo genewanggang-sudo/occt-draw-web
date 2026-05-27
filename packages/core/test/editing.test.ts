@@ -1,13 +1,18 @@
 import {
+    DocumentEditor,
     DocumentSession,
     ModelChangeApplierRegistry,
     ModelChangeSet,
     ModelChangeSetBuilder,
     Transaction,
     createRequestExecution,
+    type DocumentMutationRuntime,
+    type DocumentRequest,
+    type DocumentWriteContext,
     type ModelElementChangeTarget,
     type ModelPropertyChangeTarget,
     type ModelRef,
+    type MutationScope,
     type Request,
 } from '../src';
 
@@ -229,6 +234,84 @@ run('DocumentSession does not record empty transactions in history', () => {
     );
 });
 
+run('DocumentEditor previews legacy requests without changing history', () => {
+    const document: TestDocument = {
+        items: {
+            [ref.id]: { id: ref.id, name: 'Initial' },
+        },
+    };
+    const editor = new DocumentEditor(document);
+
+    const preview = editor.preview(createRenameRequest('Initial', 'Preview'));
+    const snapshot = editor.getSnapshot();
+
+    expectEqual(preview.result, 'Preview', 'expected preview request result');
+    expectEqual(
+        preview.workingDocument.items[ref.id]?.name,
+        'Preview',
+        'expected preview working document',
+    );
+    expectEqual(editor.document.items[ref.id]?.name, 'Initial', 'expected live document unchanged');
+    expectEqual(snapshot.undoDepth, 0, 'expected preview not to record history');
+});
+
+run('DocumentEditor executes legacy requests and delegates undo redo', () => {
+    const document: TestDocument = {
+        items: {
+            [ref.id]: { id: ref.id, name: 'Initial' },
+        },
+    };
+    const editor = new DocumentEditor(document);
+
+    const result = editor.execute(createRenameRequest('Initial', 'Final'));
+
+    expectEqual(result.recorded, true, 'expected execute to record history');
+    expectEqual(editor.document.items[ref.id]?.name, 'Final', 'expected live document update');
+    expectEqual(editor.canUndo, true, 'expected editor to expose undo');
+
+    editor.undo();
+    expectEqual(editor.document.items[ref.id]?.name, 'Initial', 'expected undo through editor');
+
+    editor.redo();
+    expectEqual(editor.document.items[ref.id]?.name, 'Final', 'expected redo through editor');
+});
+
+run('DocumentEditor executes DocumentRequest through mutation runtime', () => {
+    const document: TestDocument = {
+        items: {
+            [ref.id]: { id: ref.id, name: 'Initial' },
+        },
+    };
+    const editor = new DocumentEditor({
+        document,
+        mutationRuntime: createTestMutationRuntime(),
+    });
+    const request: DocumentRequest<TestDocument, string, TestWriteContext> = {
+        id: 'rename:item:1',
+        label: 'Rename item',
+        execute: (context) => {
+            context.renameItem(ref, 'Final');
+
+            return 'Final';
+        },
+    };
+
+    const preview = editor.preview(request);
+
+    expectEqual(preview.result, 'Final', 'expected preview result');
+    expectEqual(preview.workingDocument.items[ref.id]?.name, 'Final', 'expected preview document');
+    expectEqual(editor.document.items[ref.id]?.name, 'Initial', 'expected preview not to apply');
+    expectEqual(editor.canUndo, false, 'expected preview not to record history');
+
+    const result = editor.execute(request);
+
+    expectEqual(result.recorded, true, 'expected execute to record generated transaction');
+    expectEqual(editor.document.items[ref.id]?.name, 'Final', 'expected execute to apply');
+
+    editor.undo();
+    expectEqual(editor.document.items[ref.id]?.name, 'Initial', 'expected undo to revert');
+});
+
 function createRenameChangeSet(before: string, after: string): ModelChangeSet<TestDocument> {
     const builder = new ModelChangeSetBuilder<TestDocument>();
 
@@ -243,6 +326,83 @@ function createRenameChangeSet(before: string, after: string): ModelChangeSet<Te
     });
 
     return builder.toChangeSet();
+}
+
+interface TestWriteContext extends DocumentWriteContext<TestDocument> {
+    renameItem(ref: TestRef, name: string): void;
+}
+
+function createTestMutationRuntime(): DocumentMutationRuntime<TestDocument, TestWriteContext> {
+    return {
+        begin: ({ document, id, label }) =>
+            createTestMutationScope({
+                document,
+                id,
+                label,
+            }),
+    };
+}
+
+function createTestMutationScope(input: {
+    readonly document: TestDocument;
+    readonly id: string;
+    readonly label: string;
+}): MutationScope<TestDocument, TestWriteContext> {
+    const builder = new ModelChangeSetBuilder<TestDocument>();
+    let discarded = false;
+    const requireActive = () => {
+        if (discarded) {
+            throw new Error('Mutation scope was discarded.');
+        }
+    };
+
+    return {
+        context: {
+            renameItem: (itemRef, name) => {
+                requireActive();
+
+                builder.recordUpdate({
+                    after: name,
+                    before: input.document.items[itemRef.id]?.name ?? '',
+                    id: `set:${itemRef.id}:name`,
+                    label: input.label,
+                    propertyPath: ['name'],
+                    ref: itemRef,
+                    target: itemPropertyTarget,
+                });
+            },
+        },
+        get workingDocument() {
+            return builder.toChangeSet().apply(input.document);
+        },
+        commit: () => {
+            requireActive();
+
+            return new Transaction({
+                changeSet: builder.toChangeSet(),
+                id: input.id,
+                label: input.label,
+            });
+        },
+        discard: () => {
+            discarded = true;
+        },
+    };
+}
+
+function createRenameRequest(before: string, after: string): Request<TestDocument, string> {
+    return {
+        label: 'Rename item',
+        execute: () =>
+            createRequestExecution({
+                result: after,
+                transaction: new Transaction({
+                    changeSet: createRenameChangeSet(before, after),
+                    id: 'rename:item:1',
+                    label: 'Rename item',
+                }),
+            }),
+    };
 }
 
 function contextDocumentId(document: TestDocument): TestDocument {

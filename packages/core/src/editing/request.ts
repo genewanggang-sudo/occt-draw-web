@@ -1,6 +1,43 @@
 import type { DocumentEditLabels } from './result';
 import type { Transaction } from './transaction';
 
+export interface DocumentWriteContext<TDocument = unknown> {
+    readonly __documentType?: TDocument | undefined;
+}
+
+export interface DocumentRequest<
+    TDocument = unknown,
+    TResult = void,
+    TContext extends DocumentWriteContext<TDocument> = DocumentWriteContext<TDocument>,
+> {
+    readonly id: string;
+    readonly label: string;
+    execute(context: TContext): TResult;
+}
+
+export interface MutationScope<
+    TDocument = unknown,
+    TContext extends DocumentWriteContext<TDocument> = DocumentWriteContext<TDocument>,
+> {
+    readonly context: TContext;
+    readonly workingDocument: TDocument;
+    commit(): Transaction<TDocument>;
+    discard(): void;
+}
+
+export interface DocumentMutationRuntime<
+    TDocument = unknown,
+    TContext extends DocumentWriteContext<TDocument> = DocumentWriteContext<TDocument>,
+> {
+    begin(input: DocumentMutationInput<TDocument>): MutationScope<TDocument, TContext>;
+}
+
+export interface DocumentMutationInput<TDocument = unknown> extends DocumentEditLabels {
+    readonly document: TDocument;
+    readonly id: string;
+    readonly label: string;
+}
+
 export interface RequestContext<TDocument = unknown> {
     readonly document: TDocument;
     readonly activeScopeId: string | null;
