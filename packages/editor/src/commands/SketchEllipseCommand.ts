@@ -147,6 +147,8 @@ export class SketchEllipseCommand extends CadCommand {
         }
 
         if (!tool.primaryAxisPoint) {
+            const ellipse = createEqualRadiusEllipse(tool.centerPoint, point);
+
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
@@ -162,7 +164,14 @@ export class SketchEllipseCommand extends CadCommand {
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
                 },
-                draft: null,
+                ...(ellipse
+                    ? {
+                          draft: createEllipseDraft(target.plane, ellipse, [
+                              tool.centerPoint,
+                              point,
+                          ]),
+                      }
+                    : {}),
             });
         }
 
@@ -204,7 +213,7 @@ export class SketchEllipseCommand extends CadCommand {
             }
 
             return createHandledCommandResult({
-                draft: createEllipseDraft(target.plane, ellipse, [tool.centerPoint]),
+                draft: createEllipseDraft(target.plane, ellipse, [tool.centerPoint, point]),
             });
         }
 
@@ -224,6 +233,7 @@ export class SketchEllipseCommand extends CadCommand {
             draft: createEllipseDraft(target.plane, ellipse, [
                 tool.centerPoint,
                 tool.primaryAxisPoint,
+                point,
             ]),
         });
     }

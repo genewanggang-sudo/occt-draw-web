@@ -137,6 +137,9 @@ export class SketchThreePointCircleCommand extends CadCommand {
         }
 
         if (!tool.secondPoint) {
+            const center = Vec2.lerp(tool.firstPoint, point, 0.5);
+            const radius = Vec2.distance(tool.firstPoint, point) / 2;
+
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
@@ -152,7 +155,14 @@ export class SketchThreePointCircleCommand extends CadCommand {
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
                 },
-                draft: null,
+                ...(radius > MIN_THREE_POINT_CIRCLE_RADIUS
+                    ? {
+                          draft: createCircleDraft(target.plane, center, radius, [
+                              tool.firstPoint,
+                              point,
+                          ]),
+                      }
+                    : {}),
             });
         }
 
@@ -189,7 +199,7 @@ export class SketchThreePointCircleCommand extends CadCommand {
             }
 
             return createHandledCommandResult({
-                draft: createCircleDraft(target.plane, center, radius, [tool.firstPoint]),
+                draft: createCircleDraft(target.plane, center, radius, [tool.firstPoint, point]),
             });
         }
 
@@ -205,6 +215,7 @@ export class SketchThreePointCircleCommand extends CadCommand {
             draft: createCircleDraft(target.plane, circle.center, circle.radius, [
                 tool.firstPoint,
                 tool.secondPoint,
+                point,
             ]),
         });
     }

@@ -189,7 +189,7 @@ export class SketchCircleCommand extends CadCommand {
         }
 
         return createHandledCommandResult({
-            draft: createCircleDraft(target.plane, tool.center, radius),
+            draft: createCircleDraft(target.plane, tool.center, radius, point),
         });
     }
 
@@ -261,7 +261,7 @@ export class SketchCircleCommand extends CadCommand {
     }
 }
 
-function createCircleDraft(plane: Plane3, center: Vector2, radius: number) {
+function createCircleDraft(plane: Plane3, center: Vector2, radius: number, radiusPoint: Vector2) {
     return createEditDraft<CadDocument>({
         id: 'draft:sketch-circle',
         kind: 'temporary',
@@ -282,6 +282,13 @@ function createCircleDraft(plane: Plane3, center: Vector2, radius: number) {
             id: 'draft:sketch-circle:center',
             kind: 'point' as const,
             point: sketchPointToWorldOnPlane(plane, center),
+            visible: true,
+        },
+        {
+            color: Vec3.of(0.1, 0.55, 1),
+            id: 'draft:sketch-circle:radius',
+            kind: 'point' as const,
+            point: sketchPointToWorldOnPlane(plane, radiusPoint),
             visible: true,
         },
     ]);
