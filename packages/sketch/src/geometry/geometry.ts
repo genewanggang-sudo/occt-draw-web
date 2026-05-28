@@ -338,13 +338,19 @@ export class Ellipse2D extends Curve2D {
         readonly xAxis: Vector2;
         readonly yAxis: Vector2;
     }) {
+        const coord = new Coord2({
+            origin: input.center,
+            xAxis: input.xAxis,
+            yAxis: input.yAxis,
+        });
+
         super({
             id: input.id,
             modelType: 'sketch.curve.ellipse',
             properties: new Map<string, ModelPropertyValue>([
-                [ELLIPSE_CENTER_PROPERTY.key, copyVector2(input.center)],
-                [ELLIPSE_X_AXIS_PROPERTY.key, copyVector2(input.xAxis)],
-                [ELLIPSE_Y_AXIS_PROPERTY.key, copyVector2(input.yAxis)],
+                [ELLIPSE_CENTER_PROPERTY.key, coord.origin],
+                [ELLIPSE_X_AXIS_PROPERTY.key, coord.xAxis],
+                [ELLIPSE_Y_AXIS_PROPERTY.key, coord.yAxis],
                 [ELLIPSE_MAJOR_RADIUS_PROPERTY.key, input.majorRadius],
                 [ELLIPSE_MINOR_RADIUS_PROPERTY.key, input.minorRadius],
             ]),

@@ -55,37 +55,49 @@ export class Circle2 extends Curve2 {
             return null;
         }
 
+        const firstToSecond = firstPoint.vectorTo(secondPoint);
+        const firstToThird = firstPoint.vectorTo(thirdPoint);
+        const secondToThird = secondPoint.vectorTo(thirdPoint);
+        const firstToSecondLength = firstToSecond.length();
+        const firstToThirdLength = firstToThird.length();
+        const secondToThirdLength = secondToThird.length();
+
         if (
-            firstPoint.distanceTo(secondPoint) <= tolerance ||
-            secondPoint.distanceTo(thirdPoint) <= tolerance ||
-            thirdPoint.distanceTo(firstPoint) <= tolerance
+            !Number.isFinite(firstToSecondLength) ||
+            !Number.isFinite(firstToThirdLength) ||
+            !Number.isFinite(secondToThirdLength)
         ) {
             return null;
         }
 
-        const denominator =
-            2 *
-            (firstPoint.x * (secondPoint.y - thirdPoint.y) +
-                secondPoint.x * (thirdPoint.y - firstPoint.y) +
-                thirdPoint.x * (firstPoint.y - secondPoint.y));
-
-        if (Math.abs(denominator) <= tolerance) {
+        if (
+            firstToSecondLength <= tolerance ||
+            firstToThirdLength <= tolerance ||
+            secondToThirdLength <= tolerance
+        ) {
             return null;
         }
 
-        const firstLengthSquared = firstPoint.lengthSquared();
-        const secondLengthSquared = secondPoint.lengthSquared();
-        const thirdLengthSquared = thirdPoint.lengthSquared();
-        const center = Vec2.of(
-            (firstLengthSquared * (secondPoint.y - thirdPoint.y) +
-                secondLengthSquared * (thirdPoint.y - firstPoint.y) +
-                thirdLengthSquared * (firstPoint.y - secondPoint.y)) /
+        const cross = firstToSecond.cross(firstToThird);
+        const scale = Math.max(firstToSecondLength, firstToThirdLength, secondToThirdLength);
+        const collinearTolerance = Math.max(tolerance * scale, Number.EPSILON * scale * scale * 16);
+
+        if (Math.abs(cross) <= collinearTolerance) {
+            return null;
+        }
+
+        const denominator = 2 * cross;
+        const firstToSecondLengthSquared = firstToSecond.lengthSquared();
+        const firstToThirdLengthSquared = firstToThird.lengthSquared();
+        const centerOffset = Vec2.of(
+            (firstToThird.y * firstToSecondLengthSquared -
+                firstToSecond.y * firstToThirdLengthSquared) /
                 denominator,
-            (firstLengthSquared * (thirdPoint.x - secondPoint.x) +
-                secondLengthSquared * (firstPoint.x - thirdPoint.x) +
-                thirdLengthSquared * (secondPoint.x - firstPoint.x)) /
+            (firstToSecond.x * firstToThirdLengthSquared -
+                firstToThird.x * firstToSecondLengthSquared) /
                 denominator,
         );
+        const center = firstPoint.translated(centerOffset);
         const radius = center.distanceTo(firstPoint);
         const circle = new Circle2(center, radius);
 

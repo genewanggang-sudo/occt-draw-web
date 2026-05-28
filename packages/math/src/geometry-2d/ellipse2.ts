@@ -164,9 +164,13 @@ export class EllipticalArc2 extends Curve2 {
             return GeometryResult.empty();
         }
 
+        if (Math.abs(this.endAngleRadians - this.startAngleRadians) >= Math.PI * 2) {
+            return this.ellipse.bounds();
+        }
+
         const angles = [this.startAngleRadians, this.endAngleRadians];
 
-        for (const angle of [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2]) {
+        for (const angle of this.extremaAngles()) {
             if (
                 EllipticalArc2.isAngleInSweep(angle, this.startAngleRadians, this.endAngleRadians)
             ) {
@@ -193,6 +197,14 @@ export class EllipticalArc2 extends Curve2 {
             this.startAngleRadians +
             (this.endAngleRadians - this.startAngleRadians) * this.domain.clamp(parameter)
         );
+    }
+
+    private extremaAngles(): readonly number[] {
+        const { coord, majorRadius, minorRadius } = this.ellipse;
+        const xExtremaAngle = Math.atan2(minorRadius * coord.yAxis.x, majorRadius * coord.xAxis.x);
+        const yExtremaAngle = Math.atan2(minorRadius * coord.yAxis.y, majorRadius * coord.xAxis.y);
+
+        return [xExtremaAngle, xExtremaAngle + Math.PI, yExtremaAngle, yExtremaAngle + Math.PI];
     }
 
     private static isAngleInSweep(angle: number, startAngle: number, endAngle: number): boolean {
