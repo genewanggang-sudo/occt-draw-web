@@ -204,6 +204,101 @@ export class AddCircleRequest
     }
 }
 
+export interface AddThreePointCircleRequestResult extends SketchDocumentRequestContext {
+    readonly createdCurveId: string | null;
+    readonly payloadId: FeaturePayloadId;
+}
+
+export class AddThreePointCircleRequest
+    extends SketchDocumentRequest<AddThreePointCircleRequestResult>
+    implements
+        DocumentRequest<CadDocument, AddThreePointCircleRequestResult, CadDocumentWriteContext>
+{
+    private readonly firstPoint: Vector2;
+    private readonly secondPoint: Vector2;
+    private readonly thirdPoint: Vector2;
+
+    constructor(
+        input: SketchDocumentRequestContext & {
+            readonly firstPoint: Vector2;
+            readonly secondPoint: Vector2;
+            readonly thirdPoint: Vector2;
+        },
+    ) {
+        super({
+            label: 'Add sketch 3 point circle',
+            partStudioId: input.partStudioId,
+            sketchFeatureId: input.sketchFeatureId,
+            transactionId: `add-sketch-3-point-circle:${input.sketchFeatureId}`,
+        });
+        this.firstPoint = input.firstPoint;
+        this.secondPoint = input.secondPoint;
+        this.thirdPoint = input.thirdPoint;
+    }
+
+    protected apply(target: SketchWriteTarget): AddThreePointCircleRequestResult {
+        const result = target.primitives.addCircleThroughPoints(
+            this.firstPoint,
+            this.secondPoint,
+            this.thirdPoint,
+        );
+
+        return {
+            createdCurveId: result?.createdCurveId ?? null,
+            partStudioId: this.partStudioId,
+            payloadId: target.payloadId,
+            sketchFeatureId: this.sketchFeatureId,
+        };
+    }
+}
+
+export interface AddEllipseRequestResult extends SketchDocumentRequestContext {
+    readonly createdCurveId: string | null;
+    readonly payloadId: FeaturePayloadId;
+}
+
+export class AddEllipseRequest
+    extends SketchDocumentRequest<AddEllipseRequestResult>
+    implements DocumentRequest<CadDocument, AddEllipseRequestResult, CadDocumentWriteContext>
+{
+    private readonly firstAxisPoint: Vector2;
+    private readonly minorPoint: Vector2;
+    private readonly secondAxisPoint: Vector2;
+
+    constructor(
+        input: SketchDocumentRequestContext & {
+            readonly firstAxisPoint: Vector2;
+            readonly minorPoint: Vector2;
+            readonly secondAxisPoint: Vector2;
+        },
+    ) {
+        super({
+            label: 'Add sketch ellipse',
+            partStudioId: input.partStudioId,
+            sketchFeatureId: input.sketchFeatureId,
+            transactionId: `add-sketch-ellipse:${input.sketchFeatureId}`,
+        });
+        this.firstAxisPoint = input.firstAxisPoint;
+        this.minorPoint = input.minorPoint;
+        this.secondAxisPoint = input.secondAxisPoint;
+    }
+
+    protected apply(target: SketchWriteTarget): AddEllipseRequestResult {
+        const result = target.primitives.addEllipseByAxis(
+            this.firstAxisPoint,
+            this.secondAxisPoint,
+            this.minorPoint,
+        );
+
+        return {
+            createdCurveId: result?.createdCurveId ?? null,
+            partStudioId: this.partStudioId,
+            payloadId: target.payloadId,
+            sketchFeatureId: this.sketchFeatureId,
+        };
+    }
+}
+
 export interface DeleteSketchEntityRequestResult extends SketchDocumentRequestContext {
     readonly deletedEntityRef: SketchEntityRef;
     readonly payloadId: FeaturePayloadId;
@@ -297,5 +392,9 @@ export function predictLineSegmentEndVertexId(
 export type LineSegmentEditInput = SketchLineSegmentInput;
 
 export function isEditableSketchEntityRef(ref: SketchEntityRef): boolean {
-    return ref.kind === SketchEntityKind.Edge || ref.kind === SketchEntityKind.Vertex;
+    return (
+        ref.kind === SketchEntityKind.Curve ||
+        ref.kind === SketchEntityKind.Edge ||
+        ref.kind === SketchEntityKind.Vertex
+    );
 }

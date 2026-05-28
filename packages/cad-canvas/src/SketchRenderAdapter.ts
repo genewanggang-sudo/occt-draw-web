@@ -6,7 +6,7 @@ import {
 } from '@occt-draw/cad-model';
 import type { CanvasObject } from '@occt-draw/canvas';
 import { Vec3 } from '@occt-draw/math';
-import { SketchDisplayBuilder } from '@occt-draw/sketch';
+import { SketchDisplayBuilder, SketchEntityKind, type SketchDisplayEdge } from '@occt-draw/sketch';
 import { EDIT_PREVIEW_LAYER_ID } from './canvasAdapterLayers';
 import { createCanvasPrimitiveMetadata } from './canvasAdapterMetadata';
 import { ReferencePlaneResolver } from './ReferencePlaneResolver';
@@ -55,7 +55,12 @@ export class SketchRenderAdapter {
         );
         const objects: CanvasObject[] = [];
 
-        if (display.edges.length > 0) {
+        const topologyEdges = display.edges.filter(
+            (edge) => edge.ref.kind !== SketchEntityKind.Curve,
+        );
+        const curveEdgeGroups = groupCurveEdges(display.edges);
+
+        if (topologyEdges.length > 0) {
             objects.push({
                 color: Vec3.of(0.05, 0.38, 0.85),
                 depthRole: 'primary',
@@ -64,12 +69,37 @@ export class SketchRenderAdapter {
                 kind: 'edge',
                 layerId: EDIT_PREVIEW_LAYER_ID,
                 name: feature.name,
-                primitiveMetadata: display.edges.map((edge) =>
+                primitiveMetadata: topologyEdges.map((edge) =>
                     createCanvasPrimitiveMetadata(
                         this.pickRefAdapter.createSketchPickRef(feature.id, edge.ref),
                     ),
                 ),
-                segments: display.edges.map((edge) => edge.segment),
+                segments: topologyEdges.map((edge) => edge.segment),
+                visible: !feature.suppressed,
+            });
+        }
+
+        for (const curveEdges of curveEdgeGroups.values()) {
+            const firstEdge = curveEdges[0];
+
+            if (!firstEdge) {
+                continue;
+            }
+
+            objects.push({
+                color: Vec3.of(0.05, 0.38, 0.85),
+                depthRole: 'primary',
+                id: `${feature.id}:curve:${firstEdge.ref.id}`,
+                interactionId: `${sketch.id}:curve:${firstEdge.ref.id}`,
+                kind: 'edge',
+                layerId: EDIT_PREVIEW_LAYER_ID,
+                name: `${feature.name} curve`,
+                primitiveMetadata: curveEdges.map((edge) =>
+                    createCanvasPrimitiveMetadata(
+                        this.pickRefAdapter.createSketchPickRef(feature.id, edge.ref),
+                    ),
+                ),
+                segments: curveEdges.map((edge) => edge.segment),
                 visible: !feature.suppressed,
             });
         }
@@ -96,4 +126,26 @@ export class SketchRenderAdapter {
 
         return objects;
     }
+}
+
+function groupCurveEdges(
+    edges: readonly SketchDisplayEdge[],
+): ReadonlyMap<string, SketchDisplayEdge[]> {
+    const groups = new Map<string, SketchDisplayEdge[]>();
+
+    for (const edge of edges) {
+        if (edge.ref.kind !== SketchEntityKind.Curve) {
+            continue;
+        }
+
+        const group = groups.get(edge.ref.id);
+
+        if (group) {
+            group.push(edge);
+        } else {
+            groups.set(edge.ref.id, [edge]);
+        }
+    }
+
+    return groups;
 }

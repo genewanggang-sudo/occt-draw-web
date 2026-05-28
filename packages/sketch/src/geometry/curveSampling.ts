@@ -5,7 +5,7 @@ import {
     type LineSegment2,
     type Vector2,
 } from '@occt-draw/math';
-import { Circle2D, type Curve2D } from './geometry';
+import { Circle2D, Ellipse2D, type Curve2D } from './geometry';
 
 const DEFAULT_SKETCH_CURVE_SEGMENTS = 64;
 
@@ -32,6 +32,10 @@ export function sampleSketchCurveSegments(
 
     if (input instanceof Circle2D || isCircleSamplingInput(input)) {
         return sampleCurveSegments2(new Circle2(input.center, input.radius), segmentOptions);
+    }
+
+    if (input instanceof Ellipse2D) {
+        return sampleCurveSegments2(input.ellipse, segmentOptions);
     }
 
     return [];

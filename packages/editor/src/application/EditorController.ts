@@ -10,8 +10,8 @@ import {
     type EditDraft,
     type SelectionTarget,
 } from '@occt-draw/core';
-import { SelectionManager, type ViewNavigationState } from '@occt-draw/platform';
-import type { Sketch } from '@occt-draw/sketch';
+import { clearSelection, SelectionManager, type ViewNavigationState } from '@occt-draw/platform';
+import { SketchEntityKind, type Sketch, type SketchEntityRef } from '@occt-draw/sketch';
 import type { CommandResult } from '../commands/CadCommand';
 import {
     activateCommandSession,
@@ -22,6 +22,7 @@ import {
     updateCommandSessionMessage,
 } from '../commands/commandReducer';
 import type { CommandId } from '../commands/commandTypes';
+import { getSketchEntityRefFromSelectionTarget } from '../selection/sketchSelection';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 
 export class EditorController {
@@ -54,12 +55,12 @@ export class EditorController {
         });
         const result = editor.execute(request);
 
-        return {
+        return reconcileDocumentSelection({
             ...this.state,
             document: result.document,
             documentSession,
             draft: null,
-        };
+        });
     }
 
     public applyNavigation(navigation: ViewNavigationState): EditorState {
@@ -212,7 +213,7 @@ export class EditorController {
         const change = documentSession.undo();
         const activeSketchSession = reconcileSketchSession(this.state, change.document);
 
-        return {
+        return reconcileDocumentSelection({
             ...this.state,
             activeSketchSession,
             commandSession: activeSketchSession
@@ -221,7 +222,7 @@ export class EditorController {
             document: change.document,
             documentSession,
             draft: null,
-        };
+        });
     }
 
     public redoDocument(): EditorState {
@@ -229,7 +230,7 @@ export class EditorController {
         const change = documentSession.redo();
         const activeSketchSession = reconcileSketchSession(this.state, change.document);
 
-        return {
+        return reconcileDocumentSelection({
             ...this.state,
             activeSketchSession,
             commandSession: activeSketchSession
@@ -238,7 +239,7 @@ export class EditorController {
             document: change.document,
             documentSession,
             draft: null,
-        };
+        });
     }
 }
 
@@ -272,6 +273,10 @@ function shouldExitSketchSession(state: EditorState): boolean {
 
     if (tool.kind === 'aligned-rectangle') {
         return tool.firstEdge === null;
+    }
+
+    if (tool.kind === 'ellipse') {
+        return tool.firstAxisPoint === null && tool.secondAxisPoint === null;
     }
 
     if (tool.kind === 'line') {
@@ -360,6 +365,57 @@ function reconcileSketchLineStart(session: SketchEditSession, sketch: Sketch): S
               ...session,
               tool: { kind: 'line', start: null },
           };
+}
+
+function reconcileDocumentSelection(state: EditorState): EditorState {
+    const primaryTarget = state.selection.selection.primaryTarget;
+
+    if (!primaryTarget || isValidSelectionTarget(state, primaryTarget)) {
+        return state;
+    }
+
+    return {
+        ...state,
+        selection: clearSelection(state.selection),
+    };
+}
+
+function isValidSelectionTarget(state: EditorState, target: SelectionTarget): boolean {
+    const sketchEntityRef = getSketchEntityRefFromSelectionTarget(target);
+
+    if (sketchEntityRef) {
+        return hasSketchEntity(state, sketchEntityRef);
+    }
+
+    return Boolean(state.document.getActivePartStudio().findObjectById(target.objectId));
+}
+
+function hasSketchEntity(state: EditorState, ref: SketchEntityRef): boolean {
+    const target = state.activeSketchSession
+        ? resolveSketchTarget(state.document, state.activeSketchSession.sketchFeatureId)
+        : null;
+
+    if (target?.sketch.id !== ref.sketchId) {
+        return false;
+    }
+
+    if (ref.kind === SketchEntityKind.Curve) {
+        return Boolean(target.sketch.entities.geometry.curves.get(ref.id));
+    }
+
+    if (ref.kind === SketchEntityKind.Edge) {
+        return Boolean(target.sketch.entities.topology.edges.get(ref.id));
+    }
+
+    if (ref.kind === SketchEntityKind.Vertex) {
+        return Boolean(target.sketch.entities.topology.vertices.get(ref.id));
+    }
+
+    if (ref.kind === SketchEntityKind.Point) {
+        return Boolean(target.sketch.entities.geometry.points.get(ref.id));
+    }
+
+    return false;
 }
 
 function resolveSketchTarget(

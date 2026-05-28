@@ -4,13 +4,14 @@ import {
     type ModelPropertyDefinition,
     type ModelPropertyValue,
 } from '@occt-draw/core';
-import { Vec2, type Vector2 } from '@occt-draw/math';
+import { Coord2, Ellipse2, Vec2, type Vector2 } from '@occt-draw/math';
 import { recordSketchPropertySet } from '../changes/changeTracking';
 import {
     SketchEntityKind,
     type Arc2DSnapshot,
     type Circle2DSnapshot,
     type Curve2DSnapshot,
+    type Ellipse2DSnapshot,
     type Line2DSnapshot,
     type Point2DSnapshot,
     type SketchCurveId,
@@ -45,6 +46,34 @@ const CIRCLE_CENTER_PROPERTY = defineModelProperty<Vector2>({
 
 const CIRCLE_RADIUS_PROPERTY = defineModelProperty<number>({
     key: 'radius',
+    defaultValue: 0,
+});
+
+const ELLIPSE_CENTER_PROPERTY = defineModelProperty<Vector2>({
+    key: 'center',
+    defaultValue: Vec2.of(0, 0),
+    validate: assertVector2Property,
+});
+
+const ELLIPSE_X_AXIS_PROPERTY = defineModelProperty<Vector2>({
+    key: 'xAxis',
+    defaultValue: Vec2.of(1, 0),
+    validate: assertVector2Property,
+});
+
+const ELLIPSE_Y_AXIS_PROPERTY = defineModelProperty<Vector2>({
+    key: 'yAxis',
+    defaultValue: Vec2.of(0, 1),
+    validate: assertVector2Property,
+});
+
+const ELLIPSE_MAJOR_RADIUS_PROPERTY = defineModelProperty<number>({
+    key: 'majorRadius',
+    defaultValue: 0,
+});
+
+const ELLIPSE_MINOR_RADIUS_PROPERTY = defineModelProperty<number>({
+    key: 'minorRadius',
     defaultValue: 0,
 });
 
@@ -297,6 +326,105 @@ export class Circle2D extends Curve2D {
     }
 }
 
+export class Ellipse2D extends Curve2D {
+    public readonly kind = 'ellipse' as const;
+
+    constructor(input: {
+        readonly center: Vector2;
+        readonly id: SketchCurveId;
+        readonly majorRadius: number;
+        readonly minorRadius: number;
+        readonly sketchId: SketchId;
+        readonly xAxis: Vector2;
+        readonly yAxis: Vector2;
+    }) {
+        super({
+            id: input.id,
+            modelType: 'sketch.curve.ellipse',
+            properties: new Map<string, ModelPropertyValue>([
+                [ELLIPSE_CENTER_PROPERTY.key, copyVector2(input.center)],
+                [ELLIPSE_X_AXIS_PROPERTY.key, copyVector2(input.xAxis)],
+                [ELLIPSE_Y_AXIS_PROPERTY.key, copyVector2(input.yAxis)],
+                [ELLIPSE_MAJOR_RADIUS_PROPERTY.key, input.majorRadius],
+                [ELLIPSE_MINOR_RADIUS_PROPERTY.key, input.minorRadius],
+            ]),
+            sketchId: input.sketchId,
+        });
+    }
+
+    public get center(): Vector2 {
+        return this.getVector2Property(ELLIPSE_CENTER_PROPERTY);
+    }
+
+    public get xAxis(): Vector2 {
+        return this.getVector2Property(ELLIPSE_X_AXIS_PROPERTY);
+    }
+
+    public get yAxis(): Vector2 {
+        return this.getVector2Property(ELLIPSE_Y_AXIS_PROPERTY);
+    }
+
+    public get majorRadius(): number {
+        return this.getNumberProperty(ELLIPSE_MAJOR_RADIUS_PROPERTY.key);
+    }
+
+    public get minorRadius(): number {
+        return this.getNumberProperty(ELLIPSE_MINOR_RADIUS_PROPERTY.key);
+    }
+
+    public get ellipse(): Ellipse2 {
+        return new Ellipse2({
+            coord: new Coord2({
+                origin: this.center,
+                xAxis: this.xAxis,
+                yAxis: this.yAxis,
+            }),
+            majorRadius: this.majorRadius,
+            minorRadius: this.minorRadius,
+        });
+    }
+
+    public snapshot(): Ellipse2DSnapshot {
+        return {
+            center: this.center,
+            id: this.id,
+            kind: this.kind,
+            majorRadius: this.majorRadius,
+            minorRadius: this.minorRadius,
+            xAxis: this.xAxis,
+            yAxis: this.yAxis,
+        };
+    }
+
+    public static fromEllipse(input: {
+        readonly ellipse: Ellipse2;
+        readonly id: SketchCurveId;
+        readonly sketchId: SketchId;
+    }): Ellipse2D {
+        return new Ellipse2D({
+            center: input.ellipse.center,
+            id: input.id,
+            majorRadius: input.ellipse.majorRadius,
+            minorRadius: input.ellipse.minorRadius,
+            sketchId: input.sketchId,
+            xAxis: input.ellipse.coord.xAxis,
+            yAxis: input.ellipse.coord.yAxis,
+        });
+    }
+
+    public static fromSnapshot(sketchId: SketchId, snapshot: Ellipse2DSnapshot): Ellipse2D {
+        return new Ellipse2D({
+            center: snapshot.center,
+            id: snapshot.id,
+            majorRadius: snapshot.majorRadius,
+            minorRadius: snapshot.minorRadius,
+            sketchId,
+            xAxis: snapshot.xAxis,
+            yAxis: snapshot.yAxis,
+        });
+    }
+}
+
 export class Arc2D extends Curve2D {
     public readonly kind = 'arc' as const;
 
@@ -351,6 +479,10 @@ export function curveFromSnapshot(sketchId: SketchId, snapshot: Curve2DSnapshot)
 
     if (snapshot.kind === 'circle') {
         return Circle2D.fromSnapshot(sketchId, snapshot);
+    }
+
+    if (snapshot.kind === 'ellipse') {
+        return Ellipse2D.fromSnapshot(sketchId, snapshot);
     }
 
     return Arc2D.fromSnapshot(sketchId, snapshot);

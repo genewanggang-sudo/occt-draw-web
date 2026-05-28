@@ -62,6 +62,16 @@ const sketchDrawingToolGroups: readonly SketchToolbarGroup[] = [
                 label: '中心点圆',
                 shortcut: 'C',
             },
+            {
+                commandId: 'sketch-3-point-circle',
+                icon: ToolbarIconId.Circle3Point,
+                label: '3 点圆',
+            },
+            {
+                commandId: 'sketch-ellipse',
+                icon: ToolbarIconId.Ellipse,
+                label: '椭圆',
+            },
         ],
     },
 ] as const;

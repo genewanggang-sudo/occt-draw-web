@@ -7,8 +7,10 @@ export type CommandId =
     | 'sketch-center-rectangle'
     | 'sketch'
     | 'sketch-circle'
+    | 'sketch-ellipse'
     | 'sketch-line'
     | 'sketch-midpoint-line'
+    | 'sketch-3-point-circle'
     | 'sketch-rectangle';
 export type CommandKind = 'modal';
 export type CommandStatus = 'blocked' | 'cancelled' | 'completed' | 'idle' | 'running';
@@ -31,10 +33,12 @@ export interface CommandAvailabilityContext {
         | 'aligned-rectangle'
         | 'center-rectangle'
         | 'circle'
+        | 'ellipse'
         | 'line'
         | 'midpoint-line'
         | 'rectangle'
         | 'select'
+        | 'three-point-circle'
         | null;
     readonly hasSketchProfile: boolean;
     readonly isEditingSketch: boolean;

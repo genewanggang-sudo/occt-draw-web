@@ -84,6 +84,16 @@ export interface Circle2DSnapshot {
     readonly radius: number;
 }
 
+export interface Ellipse2DSnapshot {
+    readonly center: Vector2;
+    readonly id: SketchCurveId;
+    readonly kind: 'ellipse';
+    readonly majorRadius: number;
+    readonly minorRadius: number;
+    readonly xAxis: Vector2;
+    readonly yAxis: Vector2;
+}
+
 export interface Arc2DSnapshot {
     readonly center: Vector2;
     readonly endAngleRadians: number;
@@ -93,7 +103,7 @@ export interface Arc2DSnapshot {
     readonly startAngleRadians: number;
 }
 
-export type Curve2DSnapshot = Arc2DSnapshot | Circle2DSnapshot | Line2DSnapshot;
+export type Curve2DSnapshot = Arc2DSnapshot | Circle2DSnapshot | Ellipse2DSnapshot | Line2DSnapshot;
 
 export interface VertexSnapshot {
     readonly id: SketchVertexId;

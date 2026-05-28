@@ -38,9 +38,11 @@ import { EnterSketchCommand } from '../commands/EnterSketchCommand';
 import { SketchAlignedRectangleCommand } from '../commands/SketchAlignedRectangleCommand';
 import { SketchCircleCommand } from '../commands/SketchCircleCommand';
 import { SketchCenterRectangleCommand } from '../commands/SketchCenterRectangleCommand';
+import { SketchEllipseCommand } from '../commands/SketchEllipseCommand';
 import { SketchLineCommand } from '../commands/SketchLineCommand';
 import { SketchMidpointLineCommand } from '../commands/SketchMidpointLineCommand';
 import { SketchRectangleCommand } from '../commands/SketchRectangleCommand';
+import { SketchThreePointCircleCommand } from '../commands/SketchThreePointCircleCommand';
 import type { CommandId } from '../commands/commandTypes';
 import type { EditorState } from '../state/editorState';
 import { EditorController } from './EditorController';
@@ -83,6 +85,8 @@ export class ViewportInteractionController {
         | SketchCenterRectangleCommand
         | SketchAlignedRectangleCommand
         | SketchCircleCommand
+        | SketchThreePointCircleCommand
+        | SketchEllipseCommand
     >;
     private readonly context: ViewportInteractionContext;
 
@@ -99,6 +103,8 @@ export class ViewportInteractionController {
                 new SketchCenterRectangleCommand(),
                 new SketchAlignedRectangleCommand(),
                 new SketchCircleCommand(),
+                new SketchThreePointCircleCommand(),
+                new SketchEllipseCommand(),
             ],
             createUnhandledResult: createUnhandledCommandResult,
             mergeResults: mergeCommandResults,

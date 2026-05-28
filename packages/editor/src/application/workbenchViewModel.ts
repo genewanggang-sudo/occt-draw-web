@@ -297,6 +297,14 @@ function getSketchToolLabel(tool: SketchToolKind): string {
         return 'Circle';
     }
 
+    if (tool === 'three-point-circle') {
+        return '3 point circle';
+    }
+
+    if (tool === 'ellipse') {
+        return 'Ellipse';
+    }
+
     return 'Select';
 }
 

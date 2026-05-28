@@ -24,10 +24,20 @@ export type SketchToolState =
     | { readonly kind: 'aligned-rectangle'; readonly firstEdge: SketchAlignedRectangleEdge | null }
     | { readonly center: Vector2 | null; readonly kind: 'circle' }
     | { readonly center: Vector2 | null; readonly kind: 'center-rectangle' }
+    | {
+          readonly firstAxisPoint: Vector2 | null;
+          readonly kind: 'ellipse';
+          readonly secondAxisPoint: Vector2 | null;
+      }
     | { readonly firstCorner: Vector2 | null; readonly kind: 'rectangle' }
     | { readonly kind: 'line'; readonly start: SketchLineStart | null }
     | { readonly kind: 'midpoint-line'; readonly midpoint: Vector2 | null }
-    | { readonly kind: 'select' };
+    | { readonly kind: 'select' }
+    | {
+          readonly firstPoint: Vector2 | null;
+          readonly kind: 'three-point-circle';
+          readonly secondPoint: Vector2 | null;
+      };
 
 export type SketchToolKind = SketchToolState['kind'];
 

@@ -48,6 +48,16 @@ export const commandDefinitions: readonly CommandDefinition[] = [
         kind: 'modal',
     },
     {
+        id: 'sketch-3-point-circle',
+        label: '3 point circle',
+        kind: 'modal',
+    },
+    {
+        id: 'sketch-ellipse',
+        label: 'Ellipse',
+        kind: 'modal',
+    },
+    {
         id: 'extrude',
         label: 'Extrude',
         kind: 'modal',
@@ -89,7 +99,9 @@ export function evaluateCommandAvailability(
         commandId === 'sketch-rectangle' ||
         commandId === 'sketch-center-rectangle' ||
         commandId === 'sketch-aligned-rectangle' ||
-        commandId === 'sketch-circle'
+        commandId === 'sketch-circle' ||
+        commandId === 'sketch-3-point-circle' ||
+        commandId === 'sketch-ellipse'
     ) {
         return {
             enabled: context.isEditingSketch,
@@ -125,6 +137,8 @@ export function evaluateCommandAvailabilityMap(
             context,
         ),
         'sketch-circle': evaluateCommandAvailability('sketch-circle', context),
+        'sketch-3-point-circle': evaluateCommandAvailability('sketch-3-point-circle', context),
+        'sketch-ellipse': evaluateCommandAvailability('sketch-ellipse', context),
         extrude: evaluateCommandAvailability('extrude', context),
     };
 }

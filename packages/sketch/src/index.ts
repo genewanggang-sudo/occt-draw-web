@@ -1,4 +1,12 @@
-export { Arc2D, Circle2D, Curve2D, Line2D, Point2D, curveFromSnapshot } from './geometry/geometry';
+export {
+    Arc2D,
+    Circle2D,
+    Curve2D,
+    Ellipse2D,
+    Line2D,
+    Point2D,
+    curveFromSnapshot,
+} from './geometry/geometry';
 export {
     sampleSketchCurveSegments,
     type SketchCircleSamplingInput,
@@ -44,6 +52,7 @@ export type {
     Circle2DSnapshot,
     Curve2DSnapshot,
     EdgeSnapshot,
+    Ellipse2DSnapshot,
     Line2DSnapshot,
     Point2DSnapshot,
     SketchCurveId,

@@ -1,7 +1,7 @@
-import type { Vector2 } from '@occt-draw/math';
+import { Circle2, Ellipse2, type Vector2 } from '@occt-draw/math';
 import type { SketchChangeRecorder } from '../changes/changeTracking';
 import { withActiveSketchChangeRecorder } from '../changes/changeTracking';
-import { Circle2D, Line2D, Point2D } from '../geometry/geometry';
+import { Circle2D, Ellipse2D, Line2D, Point2D } from '../geometry/geometry';
 import type { Sketch } from './sketch';
 import { Edge, Vertex } from '../topology/topology';
 import {
@@ -83,6 +83,24 @@ export class SketchPrimitiveBuilder {
         return this.capture(() => this.addCircleCore(center, radius));
     }
 
+    public addCircleThroughPoints(
+        first: Vector2,
+        second: Vector2,
+        third: Vector2,
+    ): SketchPrimitiveResult | null {
+        return this.capture(() => this.addCircleThroughPointsCore(first, second, third));
+    }
+
+    public addEllipseByAxis(
+        firstAxisPoint: Vector2,
+        secondAxisPoint: Vector2,
+        minorPoint: Vector2,
+    ): SketchPrimitiveResult | null {
+        return this.capture(() =>
+            this.addEllipseByAxisCore(firstAxisPoint, secondAxisPoint, minorPoint),
+        );
+    }
+
     public deleteEntity(entityRef: SketchEntityRef): SketchPrimitiveResult | null {
         return this.capture(() => {
             if (entityRef.kind === SketchEntityKind.Edge) {
@@ -91,6 +109,10 @@ export class SketchPrimitiveBuilder {
 
             if (entityRef.kind === SketchEntityKind.Vertex) {
                 return this.deleteVertex(entityRef.id);
+            }
+
+            if (entityRef.kind === SketchEntityKind.Curve) {
+                return this.deleteCurve(entityRef.id);
             }
 
             return null;
@@ -195,6 +217,42 @@ export class SketchPrimitiveBuilder {
         return {
             createdCurveId: curveId,
             touchedEntityRefs: [circle.ref],
+        };
+    }
+
+    private addCircleThroughPointsCore(
+        first: Vector2,
+        second: Vector2,
+        third: Vector2,
+    ): SketchPrimitiveResult | null {
+        const circle = Circle2.fromThreePoints(first, second, third);
+
+        return circle ? this.addCircleCore(circle.center, circle.radius) : null;
+    }
+
+    private addEllipseByAxisCore(
+        firstAxisPoint: Vector2,
+        secondAxisPoint: Vector2,
+        minorPoint: Vector2,
+    ): SketchPrimitiveResult | null {
+        const ellipse = Ellipse2.fromAxisPoints(firstAxisPoint, secondAxisPoint, minorPoint);
+
+        if (!ellipse) {
+            return null;
+        }
+
+        const curveId = this.sketch.state.allocateCurveId();
+        const curve = Ellipse2D.fromEllipse({
+            ellipse,
+            id: curveId,
+            sketchId: this.sketch.id,
+        });
+
+        this.sketch.entities.geometry.curves.add(curve);
+
+        return {
+            createdCurveId: curveId,
+            touchedEntityRefs: [curve.ref],
         };
     }
 
@@ -341,6 +399,46 @@ export class SketchPrimitiveBuilder {
         return {
             touchedEntityRefs,
         };
+    }
+
+    private deleteCurve(curveId: SketchCurveId): SketchPrimitiveResult | null {
+        const curve = this.sketch.entities.geometry.curves.get(curveId);
+
+        if (!curve) {
+            return null;
+        }
+
+        const touchedEntityRefs: SketchEntityRef[] = [];
+
+        for (const edge of this.sketch.entities.topology.edges.list()) {
+            if (edge.curveId === curveId) {
+                const result = this.deleteEdge(edge.id);
+
+                if (result) {
+                    touchedEntityRefs.push(...result.touchedEntityRefs);
+                }
+            }
+        }
+
+        if (!this.sketch.entities.geometry.curves.get(curveId)) {
+            return touchedEntityRefs.length > 0
+                ? {
+                      touchedEntityRefs,
+                  }
+                : null;
+        }
+
+        const removedCurve = this.sketch.entities.geometry.curves.remove(curveId);
+
+        if (removedCurve) {
+            touchedEntityRefs.push(removedCurve.ref);
+        }
+
+        return touchedEntityRefs.length > 0
+            ? {
+                  touchedEntityRefs,
+              }
+            : null;
     }
 
     private deleteVertex(vertexId: SketchVertexId): SketchPrimitiveResult | null {

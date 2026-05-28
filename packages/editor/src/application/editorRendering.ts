@@ -2,7 +2,9 @@ import { CadCanvasAdapter } from '@occt-draw/cad-canvas';
 import { renderCanvasSceneToGraph } from '@occt-draw/canvas';
 import type { CadDocument } from '@occt-draw/cad-model';
 import type { RenderGraph, RenderHighlightState } from '@occt-draw/canvas';
+import { SketchEntityKind } from '@occt-draw/sketch';
 import type { EditorState } from '../state/editorState';
+import { getSketchEntityRefFromSelectionTarget } from '../selection/sketchSelection';
 
 const cadCanvasAdapter = new CadCanvasAdapter();
 
@@ -22,12 +24,21 @@ export function createEditorRenderGraph(state: EditorState): RenderGraph {
 
 export function createEditorRenderHighlight(state: EditorState): RenderHighlightState {
     const selectedTarget = state.selection.selection.primaryTarget;
+    const preselectedTarget = state.selection.preselectedTarget;
 
     return {
         hoveredObjectId: state.selection.hoveredObjectId,
-        preselectedObjectId: state.selection.preselectedTarget?.objectId ?? null,
-        preselectedPrimitiveId: state.selection.preselectedTarget?.primitiveId ?? null,
+        preselectedObjectId: preselectedTarget?.objectId ?? null,
+        preselectedPrimitiveId: getHighlightPrimitiveId(preselectedTarget),
         selectedObjectIds: state.selection.selection.objectIds,
-        selectedPrimitiveId: selectedTarget?.primitiveId ?? null,
+        selectedPrimitiveId: getHighlightPrimitiveId(selectedTarget),
     };
+}
+
+function getHighlightPrimitiveId(
+    target: EditorState['selection']['preselectedTarget'],
+): string | null {
+    const sketchEntityRef = getSketchEntityRefFromSelectionTarget(target);
+
+    return sketchEntityRef?.kind === SketchEntityKind.Curve ? null : (target?.primitiveId ?? null);
 }
