@@ -136,6 +136,44 @@ export class Ellipse2 extends Curve2 {
 
         return ellipse.isValid() ? ellipse : null;
     }
+
+    public static fromCenterAxisPoints(
+        centerPoint: Vector2,
+        primaryAxisPoint: Vector2,
+        secondaryPoint: Vector2,
+        tolerance = MATH_EPSILON,
+    ): Ellipse2 | null {
+        const center = Vec2.from(centerPoint);
+        const primary = Vec2.from(primaryAxisPoint);
+        const secondary = Vec2.from(secondaryPoint);
+
+        if (!center.isFinite() || !primary.isFinite() || !secondary.isFinite()) {
+            return null;
+        }
+
+        const primaryVector = center.vectorTo(primary);
+        const primaryRadius = primaryVector.length();
+
+        if (primaryRadius <= tolerance) {
+            return null;
+        }
+
+        const xAxis = primaryVector.normalize();
+        const yAxis = xAxis.perpendicularLeft();
+        const secondaryRadius = Math.abs(center.vectorTo(secondary).dot(yAxis));
+
+        if (secondaryRadius <= tolerance) {
+            return null;
+        }
+
+        const ellipse = new Ellipse2({
+            coord: new Coord2({ origin: center, xAxis, yAxis }),
+            majorRadius: primaryRadius,
+            minorRadius: secondaryRadius,
+        });
+
+        return ellipse.isValid() ? ellipse : null;
+    }
 }
 
 export class EllipticalArc2 extends Curve2 {

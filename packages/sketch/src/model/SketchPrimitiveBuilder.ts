@@ -101,6 +101,16 @@ export class SketchPrimitiveBuilder {
         );
     }
 
+    public addEllipseByCenterAxes(
+        centerPoint: Vector2,
+        primaryAxisPoint: Vector2,
+        secondaryPoint: Vector2,
+    ): SketchPrimitiveResult | null {
+        return this.capture(() =>
+            this.addEllipseByCenterAxesCore(centerPoint, primaryAxisPoint, secondaryPoint),
+        );
+    }
+
     public deleteEntity(entityRef: SketchEntityRef): SketchPrimitiveResult | null {
         return this.capture(() => {
             if (entityRef.kind === SketchEntityKind.Edge) {
@@ -236,6 +246,36 @@ export class SketchPrimitiveBuilder {
         minorPoint: Vector2,
     ): SketchPrimitiveResult | null {
         const ellipse = Ellipse2.fromAxisPoints(firstAxisPoint, secondAxisPoint, minorPoint);
+
+        if (!ellipse) {
+            return null;
+        }
+
+        const curveId = this.sketch.state.allocateCurveId();
+        const curve = Ellipse2D.fromEllipse({
+            ellipse,
+            id: curveId,
+            sketchId: this.sketch.id,
+        });
+
+        this.sketch.entities.geometry.curves.add(curve);
+
+        return {
+            createdCurveId: curveId,
+            touchedEntityRefs: [curve.ref],
+        };
+    }
+
+    private addEllipseByCenterAxesCore(
+        centerPoint: Vector2,
+        primaryAxisPoint: Vector2,
+        secondaryPoint: Vector2,
+    ): SketchPrimitiveResult | null {
+        const ellipse = Ellipse2.fromCenterAxisPoints(
+            centerPoint,
+            primaryAxisPoint,
+            secondaryPoint,
+        );
 
         if (!ellipse) {
             return null;

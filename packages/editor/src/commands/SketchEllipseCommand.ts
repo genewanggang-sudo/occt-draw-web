@@ -1,8 +1,10 @@
 import { createEditDraft } from '@occt-draw/core';
 import { AddEllipseRequest, type CadDocument } from '@occt-draw/cad-model';
 import {
+    Coord2,
     Ellipse2,
     LineSegment3,
+    Vec2,
     Vec3,
     sampleCurveSegments2,
     type Plane3,
@@ -21,6 +23,7 @@ import {
 import { projectScreenPointToSketch2 } from './sketchProjection';
 import { resolveActiveSketchTarget } from './sketchTargetContext';
 
+const MIN_ELLIPSE_RADIUS = 1e-6;
 const ELLIPSE_PREVIEW_SEGMENTS = 64;
 
 export class SketchEllipseCommand extends CadCommand {
@@ -43,7 +46,7 @@ export class SketchEllipseCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...state.activeSketchSession,
-                tool: { firstAxisPoint: null, kind: 'ellipse', secondAxisPoint: null },
+                tool: { centerPoint: null, kind: 'ellipse', primaryAxisPoint: null },
             },
             commandSession: {
                 id: 'sketch-ellipse',
@@ -61,12 +64,12 @@ export class SketchEllipseCommand extends CadCommand {
 
         if (
             session?.tool.kind === 'ellipse' &&
-            (session.tool.firstAxisPoint || session.tool.secondAxisPoint)
+            (session.tool.centerPoint || session.tool.primaryAxisPoint)
         ) {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    tool: { firstAxisPoint: null, kind: 'ellipse', secondAxisPoint: null },
+                    tool: { centerPoint: null, kind: 'ellipse', primaryAxisPoint: null },
                 },
                 commandSession: {
                     id: 'sketch-ellipse',
@@ -127,11 +130,11 @@ export class SketchEllipseCommand extends CadCommand {
             });
         }
 
-        if (!tool.firstAxisPoint) {
+        if (!tool.centerPoint) {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
-                    tool: { firstAxisPoint: point, kind: 'ellipse', secondAxisPoint: null },
+                    tool: { centerPoint: point, kind: 'ellipse', primaryAxisPoint: null },
                 },
                 commandSession: {
                     id: 'sketch-ellipse',
@@ -143,14 +146,14 @@ export class SketchEllipseCommand extends CadCommand {
             });
         }
 
-        if (!tool.secondAxisPoint) {
+        if (!tool.primaryAxisPoint) {
             return createHandledCommandResult({
                 activeSketchSession: {
                     ...session,
                     tool: {
-                        firstAxisPoint: tool.firstAxisPoint,
+                        centerPoint: tool.centerPoint,
                         kind: 'ellipse',
-                        secondAxisPoint: point,
+                        primaryAxisPoint: point,
                     },
                 },
                 commandSession: {
@@ -166,8 +169,8 @@ export class SketchEllipseCommand extends CadCommand {
         return this.createEllipseResult(
             context,
             session,
-            tool.firstAxisPoint,
-            tool.secondAxisPoint,
+            tool.centerPoint,
+            tool.primaryAxisPoint,
             point,
         );
     }
@@ -181,7 +184,7 @@ export class SketchEllipseCommand extends CadCommand {
         const tool = session?.tool.kind === 'ellipse' ? session.tool : null;
         const target = session ? resolveActiveSketchTarget(state, session) : null;
 
-        if (!tool?.firstAxisPoint || !tool.secondAxisPoint || !target) {
+        if (!tool?.centerPoint || !target) {
             return createUnhandledCommandResult();
         }
 
@@ -191,25 +194,48 @@ export class SketchEllipseCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const ellipse = Ellipse2.fromAxisPoints(tool.firstAxisPoint, tool.secondAxisPoint, point);
+        if (!tool.primaryAxisPoint) {
+            const ellipse = createEqualRadiusEllipse(tool.centerPoint, point);
+
+            if (!ellipse) {
+                return createHandledCommandResult({
+                    draft: null,
+                });
+            }
+
+            return createHandledCommandResult({
+                draft: createEllipseDraft(target.plane, ellipse, [tool.centerPoint]),
+            });
+        }
+
+        const ellipse = Ellipse2.fromCenterAxisPoints(
+            tool.centerPoint,
+            tool.primaryAxisPoint,
+            point,
+        );
 
         if (!ellipse) {
-            return createUnhandledCommandResult();
+            return createHandledCommandResult({
+                draft: null,
+            });
         }
 
         return createHandledCommandResult({
-            draft: createEllipseDraft(target.plane, ellipse),
+            draft: createEllipseDraft(target.plane, ellipse, [
+                tool.centerPoint,
+                tool.primaryAxisPoint,
+            ]),
         });
     }
 
     private createEllipseResult(
         context: CommandContext,
         session: SketchEditSession,
-        firstAxisPoint: Vector2,
-        secondAxisPoint: Vector2,
-        minorPoint: Vector2,
+        centerPoint: Vector2,
+        primaryAxisPoint: Vector2,
+        secondaryPoint: Vector2,
     ): CommandResult {
-        if (!Ellipse2.fromAxisPoints(firstAxisPoint, secondAxisPoint, minorPoint)) {
+        if (!Ellipse2.fromCenterAxisPoints(centerPoint, primaryAxisPoint, secondaryPoint)) {
             return createHandledCommandResult();
         }
 
@@ -218,7 +244,7 @@ export class SketchEllipseCommand extends CadCommand {
         return createHandledCommandResult({
             activeSketchSession: {
                 ...session,
-                tool: { firstAxisPoint: null, kind: 'ellipse', secondAxisPoint: null },
+                tool: { centerPoint: null, kind: 'ellipse', primaryAxisPoint: null },
             },
             commandSession: {
                 id: 'sketch-ellipse',
@@ -227,10 +253,10 @@ export class SketchEllipseCommand extends CadCommand {
                 status: 'running',
             },
             documentRequest: new AddEllipseRequest({
-                firstAxisPoint,
-                minorPoint,
+                centerPoint,
                 partStudioId: state.document.getActivePartStudio().id,
-                secondAxisPoint,
+                primaryAxisPoint,
+                secondaryPoint,
                 sketchFeatureId: session.sketchFeatureId,
             }),
             draft: null,
@@ -238,24 +264,62 @@ export class SketchEllipseCommand extends CadCommand {
     }
 }
 
-function createEllipseDraft(plane: Plane3, ellipse: Ellipse2) {
+function createEllipseDraft(
+    plane: Plane3,
+    ellipse: Ellipse2,
+    definitionPoints: readonly Vector2[],
+) {
     return createEditDraft<CadDocument>({
         id: 'draft:sketch-ellipse',
         kind: 'temporary',
-    }).withTemporaryObjects(
-        sampleCurveSegments2(ellipse, { closed: true, segments: ELLIPSE_PREVIEW_SEGMENTS }).map(
+    }).withTemporaryObjects([
+        ...sampleCurveSegments2(ellipse, { closed: true, segments: ELLIPSE_PREVIEW_SEGMENTS }).map(
             (segment, index) => ({
                 color: Vec3.of(0.1, 0.55, 1),
                 id: `draft:sketch-ellipse:segment:${String(index)}`,
-                kind: 'line-segment',
+                kind: 'line-segment' as const,
                 segment: new LineSegment3(
                     sketchPointToWorldOnPlane(plane, segment.start),
                     sketchPointToWorldOnPlane(plane, segment.end),
                 ),
+                showEndpointPoints: false,
                 visible: true,
             }),
         ),
-    );
+        ...definitionPoints.map((point, index) => ({
+            color: Vec3.of(0.1, 0.55, 1),
+            id: `draft:sketch-ellipse:point:${String(index)}`,
+            kind: 'point' as const,
+            point: sketchPointToWorldOnPlane(plane, point),
+            visible: true,
+        })),
+    ]);
+}
+
+function createEqualRadiusEllipse(
+    centerPoint: Vector2,
+    primaryAxisPoint: Vector2,
+): Ellipse2 | null {
+    const center = Vec2.from(centerPoint);
+    const primaryVector = center.vectorTo(primaryAxisPoint);
+    const radius = primaryVector.length();
+
+    if (radius <= MIN_ELLIPSE_RADIUS) {
+        return null;
+    }
+
+    const xAxis = primaryVector.normalize();
+    const ellipse = new Ellipse2({
+        coord: new Coord2({
+            origin: center,
+            xAxis,
+            yAxis: xAxis.perpendicularLeft(),
+        }),
+        majorRadius: radius,
+        minorRadius: radius,
+    });
+
+    return ellipse.isValid() ? ellipse : null;
 }
 
 function projectPointerToSketch(

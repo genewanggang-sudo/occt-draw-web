@@ -22,7 +22,9 @@ export class DraftRenderAdapter {
             this.isDraftPointObject(object),
         );
         const segments = lineSegmentObjects.map((object) => object.segment);
-        const linePoints = segments.flatMap((segment) => [segment.start, segment.end]);
+        const linePoints = lineSegmentObjects
+            .filter((object) => object.showEndpointPoints !== false)
+            .flatMap((object) => [object.segment.start, object.segment.end]);
         const objects: CanvasObject[] = [];
 
         if (segments.length > 0) {

@@ -1,6 +1,6 @@
 import { createEditDraft } from '@occt-draw/core';
 import { AddThreePointCircleRequest, type CadDocument } from '@occt-draw/cad-model';
-import { Circle2, LineSegment3, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
+import { Circle2, LineSegment3, Vec2, Vec3, type Plane3, type Vector2 } from '@occt-draw/math';
 import { sampleSketchCurveSegments, sketchPointToWorldOnPlane } from '@occt-draw/sketch';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import {
@@ -13,6 +13,8 @@ import {
 } from './CadCommand';
 import { projectScreenPointToSketch2 } from './sketchProjection';
 import { resolveActiveSketchTarget } from './sketchTargetContext';
+
+const MIN_THREE_POINT_CIRCLE_RADIUS = 1e-6;
 
 export class SketchThreePointCircleCommand extends CadCommand {
     public readonly id = 'sketch-3-point-circle';
@@ -166,7 +168,7 @@ export class SketchThreePointCircleCommand extends CadCommand {
         const tool = session?.tool.kind === 'three-point-circle' ? session.tool : null;
         const target = session ? resolveActiveSketchTarget(state, session) : null;
 
-        if (!tool?.firstPoint || !tool.secondPoint || !target) {
+        if (!tool?.firstPoint || !target) {
             return createUnhandledCommandResult();
         }
 
@@ -176,14 +178,34 @@ export class SketchThreePointCircleCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
+        if (!tool.secondPoint) {
+            const center = Vec2.lerp(tool.firstPoint, point, 0.5);
+            const radius = Vec2.distance(tool.firstPoint, point) / 2;
+
+            if (radius <= MIN_THREE_POINT_CIRCLE_RADIUS) {
+                return createHandledCommandResult({
+                    draft: null,
+                });
+            }
+
+            return createHandledCommandResult({
+                draft: createCircleDraft(target.plane, center, radius, [tool.firstPoint]),
+            });
+        }
+
         const circle = Circle2.fromThreePoints(tool.firstPoint, tool.secondPoint, point);
 
         if (!circle) {
-            return createUnhandledCommandResult();
+            return createHandledCommandResult({
+                draft: null,
+            });
         }
 
         return createHandledCommandResult({
-            draft: createCircleDraft(target.plane, circle.center, circle.radius),
+            draft: createCircleDraft(target.plane, circle.center, circle.radius, [
+                tool.firstPoint,
+                tool.secondPoint,
+            ]),
         });
     }
 
@@ -223,22 +245,35 @@ export class SketchThreePointCircleCommand extends CadCommand {
     }
 }
 
-function createCircleDraft(plane: Plane3, center: Vector2, radius: number) {
+function createCircleDraft(
+    plane: Plane3,
+    center: Vector2,
+    radius: number,
+    definitionPoints: readonly Vector2[],
+) {
     return createEditDraft<CadDocument>({
         id: 'draft:sketch-3-point-circle',
         kind: 'temporary',
-    }).withTemporaryObjects(
-        sampleSketchCurveSegments({ center, kind: 'circle', radius }).map((segment, index) => ({
+    }).withTemporaryObjects([
+        ...sampleSketchCurveSegments({ center, kind: 'circle', radius }).map((segment, index) => ({
             color: Vec3.of(0.1, 0.55, 1),
             id: `draft:sketch-3-point-circle:segment:${String(index)}`,
-            kind: 'line-segment',
+            kind: 'line-segment' as const,
             segment: new LineSegment3(
                 sketchPointToWorldOnPlane(plane, segment.start),
                 sketchPointToWorldOnPlane(plane, segment.end),
             ),
+            showEndpointPoints: false,
             visible: true,
         })),
-    );
+        ...definitionPoints.map((point, index) => ({
+            color: Vec3.of(0.1, 0.55, 1),
+            id: `draft:sketch-3-point-circle:point:${String(index)}`,
+            kind: 'point' as const,
+            point: sketchPointToWorldOnPlane(plane, point),
+            visible: true,
+        })),
+    ]);
 }
 
 function projectPointerToSketch(

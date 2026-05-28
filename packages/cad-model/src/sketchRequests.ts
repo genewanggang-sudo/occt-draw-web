@@ -261,15 +261,15 @@ export class AddEllipseRequest
     extends SketchDocumentRequest<AddEllipseRequestResult>
     implements DocumentRequest<CadDocument, AddEllipseRequestResult, CadDocumentWriteContext>
 {
-    private readonly firstAxisPoint: Vector2;
-    private readonly minorPoint: Vector2;
-    private readonly secondAxisPoint: Vector2;
+    private readonly centerPoint: Vector2;
+    private readonly primaryAxisPoint: Vector2;
+    private readonly secondaryPoint: Vector2;
 
     constructor(
         input: SketchDocumentRequestContext & {
-            readonly firstAxisPoint: Vector2;
-            readonly minorPoint: Vector2;
-            readonly secondAxisPoint: Vector2;
+            readonly centerPoint: Vector2;
+            readonly primaryAxisPoint: Vector2;
+            readonly secondaryPoint: Vector2;
         },
     ) {
         super({
@@ -278,16 +278,16 @@ export class AddEllipseRequest
             sketchFeatureId: input.sketchFeatureId,
             transactionId: `add-sketch-ellipse:${input.sketchFeatureId}`,
         });
-        this.firstAxisPoint = input.firstAxisPoint;
-        this.minorPoint = input.minorPoint;
-        this.secondAxisPoint = input.secondAxisPoint;
+        this.centerPoint = input.centerPoint;
+        this.primaryAxisPoint = input.primaryAxisPoint;
+        this.secondaryPoint = input.secondaryPoint;
     }
 
     protected apply(target: SketchWriteTarget): AddEllipseRequestResult {
-        const result = target.primitives.addEllipseByAxis(
-            this.firstAxisPoint,
-            this.secondAxisPoint,
-            this.minorPoint,
+        const result = target.primitives.addEllipseByCenterAxes(
+            this.centerPoint,
+            this.primaryAxisPoint,
+            this.secondaryPoint,
         );
 
         return {

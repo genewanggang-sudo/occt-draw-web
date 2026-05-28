@@ -265,18 +265,26 @@ function createCircleDraft(plane: Plane3, center: Vector2, radius: number) {
     return createEditDraft<CadDocument>({
         id: 'draft:sketch-circle',
         kind: 'temporary',
-    }).withTemporaryObjects(
-        sampleSketchCurveSegments({ center, kind: 'circle', radius }).map((segment, index) => ({
+    }).withTemporaryObjects([
+        ...sampleSketchCurveSegments({ center, kind: 'circle', radius }).map((segment, index) => ({
             color: Vec3.of(0.1, 0.55, 1),
             id: `draft:sketch-circle:segment:${String(index)}`,
-            kind: 'line-segment',
+            kind: 'line-segment' as const,
             segment: new LineSegment3(
                 sketchPointToWorldOnPlane(plane, segment.start),
                 sketchPointToWorldOnPlane(plane, segment.end),
             ),
+            showEndpointPoints: false,
             visible: true,
         })),
-    );
+        {
+            color: Vec3.of(0.1, 0.55, 1),
+            id: 'draft:sketch-circle:center',
+            kind: 'point' as const,
+            point: sketchPointToWorldOnPlane(plane, center),
+            visible: true,
+        },
+    ]);
 }
 
 function projectPointerToSketch(

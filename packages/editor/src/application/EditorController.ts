@@ -276,7 +276,7 @@ function shouldExitSketchSession(state: EditorState): boolean {
     }
 
     if (tool.kind === 'ellipse') {
-        return tool.firstAxisPoint === null && tool.secondAxisPoint === null;
+        return tool.centerPoint === null && tool.primaryAxisPoint === null;
     }
 
     if (tool.kind === 'line') {

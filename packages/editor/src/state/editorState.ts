@@ -25,9 +25,9 @@ export type SketchToolState =
     | { readonly center: Vector2 | null; readonly kind: 'circle' }
     | { readonly center: Vector2 | null; readonly kind: 'center-rectangle' }
     | {
-          readonly firstAxisPoint: Vector2 | null;
+          readonly centerPoint: Vector2 | null;
           readonly kind: 'ellipse';
-          readonly secondAxisPoint: Vector2 | null;
+          readonly primaryAxisPoint: Vector2 | null;
       }
     | { readonly firstCorner: Vector2 | null; readonly kind: 'rectangle' }
     | { readonly kind: 'line'; readonly start: SketchLineStart | null }

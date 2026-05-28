@@ -14,6 +14,7 @@ export interface BaseDraftObject {
 export interface DraftLineSegmentObject extends BaseDraftObject {
     readonly color?: Vector3;
     readonly kind: 'line-segment';
+    readonly showEndpointPoints?: boolean;
     readonly segment: LineSegment3;
 }
 
