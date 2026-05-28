@@ -10,6 +10,7 @@ import {
 import { ToolbarIcon, ToolbarIconId, ToolbarIconSprite } from '@occt-draw/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CommandToolbar } from '../editor/commands/CommandToolbar';
+import { SketchEditPanel } from '../editor/sketch/SketchEditPanel';
 import { ViewToolbar } from '../editor/view-toolbar/ViewToolbar';
 import { CadViewport } from '../editor/viewport/CadViewport';
 import { InspectorPanel } from '../editor/workbench/InspectorPanel';
@@ -36,6 +37,7 @@ export function App() {
     const activeCommandLabel = getCommandLabel(activeCommandId);
     const commandAvailability = workbenchView.commandAvailability;
     const isEditingSketch = editorState.activeSketchSession !== null;
+    const activeSketch = workbenchView.inspector.activeSketch;
 
     useEffect(() => {
         const hostElement = viewportHostRef.current;
@@ -171,13 +173,33 @@ export function App() {
                     />
                 }
                 viewport={
-                    <CadViewport
-                        activeCommandLabel={activeCommandLabel}
-                        displayObjectCount={viewportStatus.displayObjectCount}
-                        documentName={editorState.document.name}
-                        rendererStatus={viewportStatus.rendererStatus}
-                        viewportHostRef={viewportHostRef}
-                    />
+                    <>
+                        <CadViewport
+                            activeCommandLabel={activeCommandLabel}
+                            displayObjectCount={viewportStatus.displayObjectCount}
+                            documentName={editorState.document.name}
+                            rendererStatus={viewportStatus.rendererStatus}
+                            viewportHostRef={viewportHostRef}
+                        />
+                        {isEditingSketch && activeSketch ? (
+                            <SketchEditPanel
+                                sketch={activeSketch}
+                                onAccept={() => {
+                                    // TODO: split accept from cancel once sketch edit scopes support
+                                    // Onshape-style confirm/cancel semantics.
+                                    setEditorState((current) =>
+                                        new EditorController(current).cancelActiveCommand(),
+                                    );
+                                }}
+                                onCancel={() => {
+                                    // TODO: add rollback semantics for cancel in the next phase.
+                                    setEditorState((current) =>
+                                        new EditorController(current).cancelActiveCommand(),
+                                    );
+                                }}
+                            />
+                        ) : null}
+                    </>
                 }
                 inspectorPanel={
                     <InspectorPanel

@@ -507,11 +507,125 @@ button {
 }
 
 .cad-workbench__viewport-shell {
+    position: relative;
     min-width: 0;
     min-height: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
+}
+
+.cad-sketch-edit-panel {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 8;
+    width: 220px;
+    border: 1px solid #3b4654;
+    border-radius: 3px;
+    background: #1c232b;
+    color: #dfe7ef;
+    box-shadow: 0 8px 18px rgb(0 0 0 / 28%);
+    font-size: 12px;
+}
+
+.cad-sketch-edit-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 32px;
+    border-bottom: 1px solid #303a45;
+    background: #202933;
+}
+
+.cad-sketch-edit-panel__title {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    padding: 0 8px;
+    color: #eef3f8;
+    font-size: 13px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cad-sketch-edit-panel__actions {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+.cad-sketch-edit-panel__action {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-left: 1px solid #303a45;
+    background: transparent;
+    color: #dfe7ef;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.cad-sketch-edit-panel__action:hover {
+    filter: brightness(1.08);
+}
+
+.cad-sketch-edit-panel__action--accept {
+    background: #17863a;
+    color: #ffffff;
+}
+
+.cad-sketch-edit-panel__action--cancel {
+    background: #5b2023;
+    color: #ffc9c9;
+}
+
+.cad-sketch-edit-panel__body {
+    display: grid;
+    gap: 8px;
+    padding: 9px 10px 10px;
+}
+
+.cad-sketch-edit-panel__field {
+    display: grid;
+    gap: 4px;
+}
+
+.cad-sketch-edit-panel__field-label {
+    color: #94a7ba;
+    font-size: 11px;
+}
+
+.cad-sketch-edit-panel__plane {
+    width: 100%;
+    min-width: 0;
+    height: 26px;
+    padding: 3px 7px;
+    border: 1px solid #384452;
+    border-radius: 3px;
+    background: #121820;
+    color: #dfe7ef;
+    font: inherit;
+    outline: none;
+}
+
+.cad-sketch-edit-panel__checkbox {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 20px;
+    color: #cbd7e4;
+}
+
+.cad-sketch-edit-panel__checkbox input {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    accent-color: #2e7ad2;
 }
 
 .cad-workbench__viewport-host {
