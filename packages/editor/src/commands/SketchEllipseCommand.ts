@@ -25,6 +25,7 @@ import { resolveActiveSketchTarget } from './sketchTargetContext';
 
 const MIN_ELLIPSE_RADIUS = 1e-6;
 const ELLIPSE_PREVIEW_SEGMENTS = 64;
+const ELLIPSE_PROVISIONAL_MINOR_RADIUS_RATIO = 0.5;
 
 export class SketchEllipseCommand extends CadCommand {
     public readonly id = 'sketch-ellipse';
@@ -147,7 +148,7 @@ export class SketchEllipseCommand extends CadCommand {
         }
 
         if (!tool.primaryAxisPoint) {
-            const ellipse = createEqualRadiusEllipse(tool.centerPoint, point);
+            const ellipse = createProvisionalEllipse(tool.centerPoint, point);
 
             return createHandledCommandResult({
                 activeSketchSession: {
@@ -204,7 +205,7 @@ export class SketchEllipseCommand extends CadCommand {
         }
 
         if (!tool.primaryAxisPoint) {
-            const ellipse = createEqualRadiusEllipse(tool.centerPoint, point);
+            const ellipse = createProvisionalEllipse(tool.centerPoint, point);
 
             if (!ellipse) {
                 return createHandledCommandResult({
@@ -306,7 +307,7 @@ function createEllipseDraft(
     ]);
 }
 
-function createEqualRadiusEllipse(
+function createProvisionalEllipse(
     centerPoint: Vector2,
     primaryAxisPoint: Vector2,
 ): Ellipse2 | null {
@@ -326,7 +327,7 @@ function createEqualRadiusEllipse(
             yAxis: xAxis.perpendicularLeft(),
         }),
         majorRadius: radius,
-        minorRadius: radius,
+        minorRadius: radius * ELLIPSE_PROVISIONAL_MINOR_RADIUS_RATIO,
     });
 
     return ellipse.isValid() ? ellipse : null;
