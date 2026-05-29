@@ -37,6 +37,7 @@ export interface ModelTreeDefaultGeometryItem {
 }
 
 export interface ModelTreeFeatureItem {
+    readonly active: boolean;
     readonly id: string;
     readonly label: string;
     readonly type: string;
@@ -99,7 +100,12 @@ export function createEditorWorkbenchViewModel(state: EditorState): EditorWorkbe
             selectedObjects,
             selectedTarget: state.selection.selection.primaryTarget,
         }),
-        modelTree: createModelTreeViewModel(state.document, partStudio, selectedObjectIds),
+        modelTree: createModelTreeViewModel(
+            state.document,
+            partStudio,
+            selectedObjectIds,
+            state.activeSketchSession?.sketchFeatureId ?? null,
+        ),
         selectedObjectIds,
     };
 }
@@ -108,6 +114,7 @@ function createModelTreeViewModel(
     document: CadDocument,
     partStudio: PartStudio,
     selectedObjectIds: readonly string[],
+    activeSketchFeatureId: string | null,
 ): ModelTreeViewModel {
     const defaultGeometryItems = createDefaultGeometryItems(partStudio).map((item) => ({
         ...item,
@@ -117,6 +124,7 @@ function createModelTreeViewModel(
         const sketch = resolveSketchForFeature(document, partStudio.id, feature);
 
         return {
+            active: feature.id === activeSketchFeatureId,
             id: feature.id,
             label: sketch?.name ?? feature.name,
             type: feature.type,

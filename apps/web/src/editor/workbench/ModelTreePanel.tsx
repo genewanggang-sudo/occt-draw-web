@@ -3,10 +3,15 @@ import type { ModelTreeViewModel } from '@occt-draw/editor';
 
 interface ModelTreePanelProps {
     readonly modelTree: ModelTreeViewModel;
+    readonly onEditSketchFeature: (sketchFeatureId: string) => void;
     readonly onSelectObject: (objectId: string) => void;
 }
 
-export function ModelTreePanel({ modelTree, onSelectObject }: ModelTreePanelProps) {
+export function ModelTreePanel({
+    modelTree,
+    onEditSketchFeature,
+    onSelectObject,
+}: ModelTreePanelProps) {
     const [filterText, setFilterText] = useState('');
     const normalizedFilter = normalizeFilterText(filterText);
     const visibleDefaultGeometryItems = modelTree.defaultGeometryItems.filter((item) =>
@@ -59,13 +64,11 @@ export function ModelTreePanel({ modelTree, onSelectObject }: ModelTreePanelProp
                         </div>
                     </div>
                     {visibleFeatures.map((feature) => (
-                        <div key={feature.id} className="cad-feature-tree__node">
-                            <span
-                                className="cad-feature-tree__node-icon cad-feature-tree__node-icon--feature"
-                                aria-hidden="true"
-                            />
-                            <span>{feature.label}</span>
-                        </div>
+                        <FeatureNode
+                            feature={feature}
+                            key={feature.id}
+                            onEditSketchFeature={onEditSketchFeature}
+                        />
                     ))}
                 </section>
                 <section className="cad-feature-tree__parts">
@@ -73,6 +76,45 @@ export function ModelTreePanel({ modelTree, onSelectObject }: ModelTreePanelProp
                 </section>
             </div>
         </aside>
+    );
+}
+
+function FeatureNode({
+    feature,
+    onEditSketchFeature,
+}: {
+    readonly feature: ModelTreeViewModel['features'][number];
+    readonly onEditSketchFeature: (sketchFeatureId: string) => void;
+}) {
+    const className = feature.active
+        ? 'cad-feature-tree__node cad-feature-tree__node--active-sketch'
+        : 'cad-feature-tree__node';
+    const content = (
+        <>
+            <span
+                className="cad-feature-tree__node-icon cad-feature-tree__node-icon--feature"
+                aria-hidden="true"
+            />
+            <span>{feature.label}</span>
+        </>
+    );
+
+    if (feature.type !== 'sketch') {
+        return <div className={className}>{content}</div>;
+    }
+
+    return (
+        <button
+            type="button"
+            aria-label={`编辑 ${feature.label}`}
+            aria-current={feature.active ? 'true' : undefined}
+            className={className}
+            onClick={() => {
+                onEditSketchFeature(feature.id);
+            }}
+        >
+            {content}
+        </button>
     );
 }
 

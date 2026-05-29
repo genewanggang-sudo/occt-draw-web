@@ -273,7 +273,7 @@ function appendEdgeSetHighlight(
     viewProjectionMatrix: Matrix4,
     viewportSize: ViewportSize,
 ): void {
-    const useSketchLineOverlay = target.primitiveId !== null && isSketchEdgeSet(object);
+    const useSketchLineOverlay = isSketchEdgeSet(object);
 
     for (let index = 0; index < object.geometry.segments.length; index += 1) {
         const segment = object.geometry.segments[index];

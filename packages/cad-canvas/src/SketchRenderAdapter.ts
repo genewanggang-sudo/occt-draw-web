@@ -94,6 +94,7 @@ export class SketchRenderAdapter {
                 kind: 'edge',
                 layerId: EDIT_PREVIEW_LAYER_ID,
                 name: `${feature.name} curve`,
+                pickGranularity: 'object',
                 primitiveMetadata: curveEdges.map((edge) =>
                     createCanvasPrimitiveMetadata(
                         this.pickRefAdapter.createSketchPickRef(feature.id, edge.ref),

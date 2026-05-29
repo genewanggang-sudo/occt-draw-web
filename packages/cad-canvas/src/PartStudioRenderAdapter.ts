@@ -1,5 +1,10 @@
-import type { CadDocument, PartStudio } from '@occt-draw/cad-model';
-import type { CanvasScene } from '@occt-draw/canvas';
+import {
+    getSketchForFeature,
+    type CadDocument,
+    type CadObject,
+    type PartStudio,
+} from '@occt-draw/cad-model';
+import type { CanvasObject, CanvasScene } from '@occt-draw/canvas';
 import type { EditDraft } from '@occt-draw/core';
 import { ActiveSketchPlaneRenderAdapter } from './ActiveSketchPlaneRenderAdapter';
 import { CadObjectRenderAdapter } from './CadObjectRenderAdapter';
@@ -35,11 +40,16 @@ export class PartStudioRenderAdapter {
     }
 
     public createPartStudio(input: CreatePartStudioRenderInput): CanvasScene {
+        const activeSketchPlaneObjectId = resolveActiveSketchPlaneObjectId(
+            input.partStudio,
+            input.activeSketchFeatureId ?? null,
+        );
+
         return {
             layers: DEFAULT_CANVAS_LAYERS,
             objects: [
                 ...input.partStudio.objects.flatMap((object) =>
-                    this.objectAdapter.createObjects(object),
+                    this.createCadObjects(object, activeSketchPlaneObjectId),
                 ),
                 ...this.activeSketchPlaneAdapter.createActiveSketchPlaneObjects({
                     activeSketchFeatureId: input.activeSketchFeatureId ?? null,
@@ -50,4 +60,34 @@ export class PartStudioRenderAdapter {
             ],
         };
     }
+
+    private createCadObjects(
+        object: CadObject,
+        activeSketchPlaneObjectId: string | null,
+    ): readonly CanvasObject[] {
+        const objects = this.objectAdapter.createObjects(object);
+
+        if (object.id !== activeSketchPlaneObjectId) {
+            return objects;
+        }
+
+        return objects.map((canvasObject) => ({
+            ...canvasObject,
+            pickable: false,
+        }));
+    }
+}
+
+function resolveActiveSketchPlaneObjectId(
+    partStudio: PartStudio,
+    activeSketchFeatureId: string | null,
+): string | null {
+    if (!activeSketchFeatureId) {
+        return null;
+    }
+
+    const feature = partStudio.findFeatureById(activeSketchFeatureId);
+    const sketch = feature ? getSketchForFeature(partStudio, feature) : null;
+
+    return sketch?.plane.planeObjectRef.id ?? null;
 }

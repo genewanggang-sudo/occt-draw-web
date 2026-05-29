@@ -900,6 +900,18 @@ button.cad-feature-tree__node:hover {
     color: #eef7ff;
 }
 
+.cad-feature-tree__node--active-sketch {
+    border-color: rgba(81, 207, 255, 0.7);
+    background: rgba(36, 118, 160, 0.32);
+    color: #f2fbff;
+    box-shadow: inset 3px 0 0 #51cfff;
+}
+
+.cad-feature-tree__node--active-sketch .cad-feature-tree__node-icon--feature::before {
+    border-color: #51cfff;
+    background: #1f4d68;
+}
+
 .cad-feature-tree__node--muted {
     color: #8fa3b8;
 }

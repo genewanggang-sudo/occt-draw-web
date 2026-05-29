@@ -170,6 +170,11 @@ export function App() {
                                 }),
                             );
                         }}
+                        onEditSketchFeature={(sketchFeatureId) => {
+                            setEditorState((current) =>
+                                new EditorController(current).editSketchFeature(sketchFeatureId),
+                            );
+                        }}
                     />
                 }
                 viewport={
@@ -185,16 +190,13 @@ export function App() {
                             <SketchEditPanel
                                 sketch={activeSketch}
                                 onAccept={() => {
-                                    // TODO: split accept from cancel once sketch edit scopes support
-                                    // Onshape-style confirm/cancel semantics.
                                     setEditorState((current) =>
-                                        new EditorController(current).cancelActiveCommand(),
+                                        new EditorController(current).confirmActiveSketchEdit(),
                                     );
                                 }}
                                 onCancel={() => {
-                                    // TODO: add rollback semantics for cancel in the next phase.
                                     setEditorState((current) =>
-                                        new EditorController(current).cancelActiveCommand(),
+                                        new EditorController(current).cancelActiveSketchEdit(),
                                     );
                                 }}
                             />

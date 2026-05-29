@@ -139,11 +139,71 @@ export class EditorController {
         return reconcileSketchEditScope(nextState, this.state.activeSketchSession);
     }
 
+    public confirmActiveSketchEdit(): EditorState {
+        if (!this.state.activeSketchSession) {
+            return this.state;
+        }
+
+        const nextState = {
+            ...this.state,
+            activeSketchSession: null,
+            commandSession: resetToSelectCommandSession(),
+            draft: null,
+            selection: this.selectionManager.clear(),
+        };
+
+        return reconcileSketchEditScope(nextState, this.state.activeSketchSession);
+    }
+
+    public cancelActiveSketchEdit(): EditorState {
+        if (!this.state.activeSketchSession) {
+            return this.state;
+        }
+
+        const documentSession = this.state.documentSession.clone();
+        const snapshot = documentSession.getSnapshot();
+        const document = snapshot.hasActiveScope
+            ? documentSession.cancelScope().document
+            : this.state.document;
+
+        return {
+            ...this.state,
+            activeSketchSession: null,
+            commandSession: resetToSelectCommandSession(),
+            document,
+            documentSession,
+            draft: null,
+            selection: this.selectionManager.clear(),
+        };
+    }
+
     public clearSelection(): EditorState {
         return {
             ...this.state,
             selection: this.selectionManager.clear(),
         };
+    }
+
+    public editSketchFeature(sketchFeatureId: string): EditorState {
+        if (
+            this.state.activeSketchSession ||
+            !resolveSketchTarget(this.state.document, sketchFeatureId)
+        ) {
+            return this.state;
+        }
+
+        const nextState = {
+            ...this.state,
+            activeSketchSession: {
+                sketchFeatureId,
+                tool: { kind: 'select' as const },
+            },
+            commandSession: resetToSelectCommandSession(),
+            draft: null,
+            selection: this.selectionManager.clear(),
+        };
+
+        return reconcileSketchEditScope(nextState, this.state.activeSketchSession);
     }
 
     public completeActiveCommand(): EditorState {
