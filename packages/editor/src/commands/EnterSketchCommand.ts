@@ -15,6 +15,7 @@ import {
     type CommandContext,
     type CommandResult,
 } from './CadCommand';
+import { createDefaultSketchDisplayOptions } from '../state/editorState';
 
 const SKETCH_WORKSPACE_CAMERA_HEIGHT_SCALE = 1.55;
 
@@ -62,6 +63,7 @@ export class EnterSketchCommand extends CadCommand {
 
         return createHandledCommandResult({
             activeSketchSession: {
+                displayOptions: createDefaultSketchDisplayOptions(),
                 sketchFeatureId: feature.id,
                 tool: { kind: 'select' },
             },

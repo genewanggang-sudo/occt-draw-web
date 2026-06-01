@@ -199,6 +199,13 @@ export function App() {
                                         new EditorController(current).cancelActiveSketchEdit(),
                                     );
                                 }}
+                                onDisplayOptionsChange={(displayOptions) => {
+                                    setEditorState((current) =>
+                                        new EditorController(
+                                            current,
+                                        ).updateActiveSketchDisplayOptions(displayOptions),
+                                    );
+                                }}
                             />
                         ) : null}
                     </>

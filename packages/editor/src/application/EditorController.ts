@@ -23,7 +23,12 @@ import {
 } from '../commands/commandReducer';
 import type { CommandId } from '../commands/commandTypes';
 import { getSketchEntityRefFromSelectionTarget } from '../selection/sketchSelection';
-import type { EditorState, SketchEditSession } from '../state/editorState';
+import {
+    createDefaultSketchDisplayOptions,
+    type EditorState,
+    type SketchDisplayOptions,
+    type SketchEditSession,
+} from '../state/editorState';
 
 export class EditorController {
     private readonly selectionManager: SelectionManager;
@@ -195,6 +200,7 @@ export class EditorController {
         const nextState = {
             ...this.state,
             activeSketchSession: {
+                displayOptions: createDefaultSketchDisplayOptions(),
                 sketchFeatureId,
                 tool: { kind: 'select' as const },
             },
@@ -265,6 +271,25 @@ export class EditorController {
         return {
             ...this.state,
             commandSession: updateCommandSessionMessage(this.state.commandSession, message),
+        };
+    }
+
+    public updateActiveSketchDisplayOptions(
+        displayOptions: Partial<SketchDisplayOptions>,
+    ): EditorState {
+        if (!this.state.activeSketchSession) {
+            return this.state;
+        }
+
+        return {
+            ...this.state,
+            activeSketchSession: {
+                ...this.state.activeSketchSession,
+                displayOptions: {
+                    ...this.state.activeSketchSession.displayOptions,
+                    ...displayOptions,
+                },
+            },
         };
     }
 

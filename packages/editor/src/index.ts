@@ -97,5 +97,5 @@ export { SketchMidpointLineCommand } from './commands/SketchMidpointLineCommand'
 export { SketchRectangleCommand } from './commands/SketchRectangleCommand';
 export { SketchThreePointCircleCommand } from './commands/SketchThreePointCircleCommand';
 export { createInitialEditorState } from './state/createInitialEditorState';
-export type { EditorState, SketchEditSession } from './state/editorState';
+export type { EditorState, SketchDisplayOptions, SketchEditSession } from './state/editorState';
 export type { StandardCameraView, ViewCubeArrowCommand } from '@occt-draw/canvas';

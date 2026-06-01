@@ -1,5 +1,4 @@
-import type { InspectorViewModel } from '@occt-draw/editor';
-import { useState } from 'react';
+import type { InspectorViewModel, SketchDisplayOptions } from '@occt-draw/editor';
 
 type ActiveSketchView = NonNullable<InspectorViewModel['activeSketch']>;
 
@@ -7,13 +6,15 @@ interface SketchEditPanelProps {
     readonly sketch: ActiveSketchView;
     readonly onAccept: () => void;
     readonly onCancel: () => void;
+    readonly onDisplayOptionsChange: (displayOptions: Partial<SketchDisplayOptions>) => void;
 }
 
-export function SketchEditPanel({ sketch, onAccept, onCancel }: SketchEditPanelProps) {
-    const [showConstraints, setShowConstraints] = useState(false);
-    const [showExpressions, setShowExpressions] = useState(false);
-    const [showErrors, setShowErrors] = useState(true);
-
+export function SketchEditPanel({
+    sketch,
+    onAccept,
+    onCancel,
+    onDisplayOptionsChange,
+}: SketchEditPanelProps) {
     return (
         <section className="cad-sketch-edit-panel" aria-label="草图编辑">
             <header className="cad-sketch-edit-panel__header">
@@ -54,9 +55,11 @@ export function SketchEditPanel({ sketch, onAccept, onCancel }: SketchEditPanelP
                 <label className="cad-sketch-edit-panel__checkbox">
                     <input
                         type="checkbox"
-                        checked={showConstraints}
+                        checked={sketch.displayOptions.showConstraints}
                         onChange={(event) => {
-                            setShowConstraints(event.currentTarget.checked);
+                            onDisplayOptionsChange({
+                                showConstraints: event.currentTarget.checked,
+                            });
                         }}
                     />
                     <span>显示约束</span>
@@ -64,9 +67,11 @@ export function SketchEditPanel({ sketch, onAccept, onCancel }: SketchEditPanelP
                 <label className="cad-sketch-edit-panel__checkbox">
                     <input
                         type="checkbox"
-                        checked={showExpressions}
+                        checked={sketch.displayOptions.showExpressions}
                         onChange={(event) => {
-                            setShowExpressions(event.currentTarget.checked);
+                            onDisplayOptionsChange({
+                                showExpressions: event.currentTarget.checked,
+                            });
                         }}
                     />
                     <span>显示表达式</span>
@@ -74,9 +79,11 @@ export function SketchEditPanel({ sketch, onAccept, onCancel }: SketchEditPanelP
                 <label className="cad-sketch-edit-panel__checkbox">
                     <input
                         type="checkbox"
-                        checked={showErrors}
+                        checked={sketch.displayOptions.showErrors}
                         onChange={(event) => {
-                            setShowErrors(event.currentTarget.checked);
+                            onDisplayOptionsChange({
+                                showErrors: event.currentTarget.checked,
+                            });
                         }}
                     />
                     <span>显示错误</span>

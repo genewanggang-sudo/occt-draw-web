@@ -12,7 +12,12 @@ import type { SelectionTarget, SelectionTargetKind } from '@occt-draw/core';
 import { SketchEntityKind, type Sketch, type SketchEntityRef } from '@occt-draw/sketch';
 import { evaluateCommandAvailabilityMap } from '../commands/commandRegistry';
 import type { CommandAvailabilityMap } from '../commands/commandTypes';
-import type { EditorState, SketchEditSession, SketchToolKind } from '../state/editorState';
+import type {
+    EditorState,
+    SketchDisplayOptions,
+    SketchEditSession,
+    SketchToolKind,
+} from '../state/editorState';
 import { getSketchEntityRefFromSelectionTarget } from '../selection/sketchSelection';
 
 export interface EditorWorkbenchViewModel {
@@ -53,6 +58,7 @@ export interface InspectorViewModel {
 
 export interface InspectorSketchSession {
     readonly activeToolLabel: string;
+    readonly displayOptions: SketchDisplayOptions;
     readonly entityCount: number;
     readonly name: string;
     readonly planeKind: string;
@@ -243,6 +249,7 @@ function createInspectorSketchSession(
 ): InspectorSketchSession {
     return {
         activeToolLabel: getSketchToolLabel(session.tool.kind),
+        displayOptions: session.displayOptions,
         entityCount:
             sketch.entities.geometry.points.list().length +
             sketch.entities.geometry.curves.list().length +

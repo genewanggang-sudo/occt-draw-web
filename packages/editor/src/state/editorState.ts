@@ -41,7 +41,14 @@ export type SketchToolState =
 
 export type SketchToolKind = SketchToolState['kind'];
 
+export interface SketchDisplayOptions {
+    readonly showConstraints: boolean;
+    readonly showErrors: boolean;
+    readonly showExpressions: boolean;
+}
+
 export interface SketchEditSession {
+    readonly displayOptions: SketchDisplayOptions;
     readonly sketchFeatureId: string;
     readonly tool: SketchToolState;
 }
@@ -54,4 +61,12 @@ export interface EditorState {
     readonly draft: EditDraft<CadDocument> | null;
     readonly navigation: ViewNavigationState;
     readonly selection: SelectionState;
+}
+
+export function createDefaultSketchDisplayOptions(): SketchDisplayOptions {
+    return {
+        showConstraints: false,
+        showErrors: true,
+        showExpressions: false,
+    };
 }
