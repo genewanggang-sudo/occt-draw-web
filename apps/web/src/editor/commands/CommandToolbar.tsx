@@ -230,8 +230,11 @@ function SketchToolGroup({
     readonly onToggleMenu: () => void;
     readonly selectedToolLabel: string | undefined;
 }) {
+    const activeTool = group.tools.find((tool) => tool.commandId === activeCommandId);
     const selectedTool =
-        group.tools.find((tool) => tool.label === selectedToolLabel) ?? group.tools[0];
+        activeTool ??
+        group.tools.find((tool) => tool.label === selectedToolLabel) ??
+        group.tools[0];
 
     if (!selectedTool) {
         return null;

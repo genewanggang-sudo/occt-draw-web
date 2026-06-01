@@ -78,16 +78,23 @@ export class SketchCircleCommand extends CadCommand {
             });
         }
 
-        return createHandledCommandResult({
-            activeSketchSession: null,
-            commandSession: {
-                id: 'select',
-                message: 'Sketch command updated.',
-                selectionContext: state.commandSession.selectionContext,
-                status: 'idle',
-            },
-            draft: null,
-        });
+        if (session) {
+            return createHandledCommandResult({
+                activeSketchSession: {
+                    ...session,
+                    tool: { kind: 'select' },
+                },
+                commandSession: {
+                    id: 'select',
+                    message: 'Sketch command updated.',
+                    selectionContext: state.commandSession.selectionContext,
+                    status: 'idle',
+                },
+                draft: null,
+            });
+        }
+
+        return createHandledCommandResult({ draft: null });
     }
 
     public override exit(): CommandResult {
@@ -185,7 +192,9 @@ export class SketchCircleCommand extends CadCommand {
         const radius = Vec2.distance(tool.center, point);
 
         if (radius <= MIN_CIRCLE_RADIUS) {
-            return createUnhandledCommandResult();
+            return createHandledCommandResult({
+                draft: null,
+            });
         }
 
         return createHandledCommandResult({

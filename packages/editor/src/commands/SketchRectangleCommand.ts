@@ -78,16 +78,23 @@ export class SketchRectangleCommand extends CadCommand {
             });
         }
 
-        return createHandledCommandResult({
-            activeSketchSession: null,
-            commandSession: {
-                id: 'select',
-                message: 'Sketch command updated.',
-                selectionContext: state.commandSession.selectionContext,
-                status: 'idle',
-            },
-            draft: null,
-        });
+        if (session) {
+            return createHandledCommandResult({
+                activeSketchSession: {
+                    ...session,
+                    tool: { kind: 'select' },
+                },
+                commandSession: {
+                    id: 'select',
+                    message: 'Sketch command updated.',
+                    selectionContext: state.commandSession.selectionContext,
+                    status: 'idle',
+                },
+                draft: null,
+            });
+        }
+
+        return createHandledCommandResult({ draft: null });
     }
 
     public override exit(): CommandResult {
