@@ -376,6 +376,10 @@ function shouldExitSketchSession(state: EditorState): boolean {
         return tool.firstCorner === null;
     }
 
+    if (tool.kind === 'three-point-arc') {
+        return tool.startPoint === null && tool.endPoint === null;
+    }
+
     return true;
 }
 

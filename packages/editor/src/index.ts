@@ -95,6 +95,7 @@ export { SketchEllipseCommand } from './commands/SketchEllipseCommand';
 export { SketchLineCommand } from './commands/SketchLineCommand';
 export { SketchMidpointLineCommand } from './commands/SketchMidpointLineCommand';
 export { SketchRectangleCommand } from './commands/SketchRectangleCommand';
+export { SketchThreePointArcCommand } from './commands/SketchThreePointArcCommand';
 export { SketchThreePointCircleCommand } from './commands/SketchThreePointCircleCommand';
 export { createInitialEditorState } from './state/createInitialEditorState';
 export type { EditorState, SketchDisplayOptions, SketchEditSession } from './state/editorState';

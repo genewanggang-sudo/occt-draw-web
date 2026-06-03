@@ -10,6 +10,7 @@ export type CommandId =
     | 'sketch-ellipse'
     | 'sketch-line'
     | 'sketch-midpoint-line'
+    | 'sketch-3-point-arc'
     | 'sketch-3-point-circle'
     | 'sketch-rectangle';
 export type CommandKind = 'modal';
@@ -38,6 +39,7 @@ export interface CommandAvailabilityContext {
         | 'midpoint-line'
         | 'rectangle'
         | 'select'
+        | 'three-point-arc'
         | 'three-point-circle'
         | null;
     readonly hasSketchProfile: boolean;

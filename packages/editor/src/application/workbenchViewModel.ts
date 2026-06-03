@@ -312,6 +312,10 @@ function getSketchToolLabel(tool: SketchToolKind): string {
         return 'Circle';
     }
 
+    if (tool === 'three-point-arc') {
+        return '3 point arc';
+    }
+
     if (tool === 'three-point-circle') {
         return '3 point circle';
     }

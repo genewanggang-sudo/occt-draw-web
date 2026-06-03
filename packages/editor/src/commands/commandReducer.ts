@@ -140,6 +140,10 @@ function getCommandRunningMessage(commandId: CommandId): string {
         return 'Specify circle center.';
     }
 
+    if (commandId === 'sketch-3-point-arc') {
+        return 'Specify arc start point.';
+    }
+
     if (commandId === 'sketch-3-point-circle') {
         return 'Specify first point on circle.';
     }

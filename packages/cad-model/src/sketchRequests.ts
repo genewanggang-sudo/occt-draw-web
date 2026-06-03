@@ -252,6 +252,55 @@ export class AddThreePointCircleRequest
     }
 }
 
+export interface AddThreePointArcRequestResult extends SketchDocumentRequestContext {
+    readonly createdCurveId: string | null;
+    readonly createdEdgeId: SketchEdgeId | null;
+    readonly payloadId: FeaturePayloadId;
+}
+
+export class AddThreePointArcRequest
+    extends SketchDocumentRequest<AddThreePointArcRequestResult>
+    implements DocumentRequest<CadDocument, AddThreePointArcRequestResult, CadDocumentWriteContext>
+{
+    private readonly endPoint: Vector2;
+    private readonly radiusPoint: Vector2;
+    private readonly startPoint: Vector2;
+
+    constructor(
+        input: SketchDocumentRequestContext & {
+            readonly endPoint: Vector2;
+            readonly radiusPoint: Vector2;
+            readonly startPoint: Vector2;
+        },
+    ) {
+        super({
+            label: 'Add sketch 3 point arc',
+            partStudioId: input.partStudioId,
+            sketchFeatureId: input.sketchFeatureId,
+            transactionId: `add-sketch-3-point-arc:${input.sketchFeatureId}`,
+        });
+        this.endPoint = input.endPoint;
+        this.radiusPoint = input.radiusPoint;
+        this.startPoint = input.startPoint;
+    }
+
+    protected apply(target: SketchWriteTarget): AddThreePointArcRequestResult {
+        const result = target.primitives.addArcByStartEndRadiusPoint(
+            this.startPoint,
+            this.endPoint,
+            this.radiusPoint,
+        );
+
+        return {
+            createdCurveId: result?.createdCurveId ?? null,
+            createdEdgeId: result?.createdEdgeId ?? null,
+            partStudioId: this.partStudioId,
+            payloadId: target.payloadId,
+            sketchFeatureId: this.sketchFeatureId,
+        };
+    }
+}
+
 export interface AddEllipseRequestResult extends SketchDocumentRequestContext {
     readonly createdCurveId: string | null;
     readonly payloadId: FeaturePayloadId;

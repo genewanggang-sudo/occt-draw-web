@@ -4,8 +4,9 @@ import { GeometryResult } from '../value/result';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
 import { BBox2 } from './bbox2';
 import { ParameterDomain } from './parameter';
-import type { Circle2 } from './circle2';
+import { Circle2 } from './circle2';
 import { Curve2 } from './curve';
+import type { Vector2 } from '../linear/vec2';
 
 export class Arc2 extends Curve2 {
     public readonly circle: Circle2;
@@ -59,6 +60,30 @@ export class Arc2 extends Curve2 {
         );
     }
 
+    public static fromStartEndRadiusPoint(
+        startPoint: Vector2,
+        endPoint: Vector2,
+        radiusPoint: Vector2,
+        tolerance = DEFAULT_TOLERANCE.distance,
+    ): Arc2 | null {
+        const circle = Circle2.fromThreePoints(startPoint, endPoint, radiusPoint, tolerance);
+
+        if (!circle) {
+            return null;
+        }
+
+        const startAngle = angleOfPoint(circle, startPoint);
+        const endAngle = angleOfPoint(circle, endPoint);
+        const radiusAngle = angleOfPoint(circle, radiusPoint);
+        const positiveEndAngle = adjustAngleAbove(endAngle, startAngle);
+        const negativeEndAngle = adjustAngleBelow(endAngle, startAngle);
+        const arc = Arc2.isAngleInSweep(radiusAngle, startAngle, positiveEndAngle)
+            ? new Arc2(circle, Angle.fromRadians(startAngle), Angle.fromRadians(positiveEndAngle))
+            : new Arc2(circle, Angle.fromRadians(startAngle), Angle.fromRadians(negativeEndAngle));
+
+        return arc.isValid() ? arc : null;
+    }
+
     private angleAt(parameter: number): Angle {
         return Angle.lerp(this.startAngle, this.endAngle, this.domain.clamp(parameter));
     }
@@ -88,4 +113,30 @@ export class Arc2 extends Curve2 {
 
         return progress > 0 && progress < 1;
     }
+}
+
+function angleOfPoint(circle: Circle2, point: Vector2): number {
+    return Math.atan2(point.y - circle.center.y, point.x - circle.center.x);
+}
+
+function adjustAngleAbove(angle: number, floor: number): number {
+    const twoPi = Math.PI * 2;
+    let adjusted = angle;
+
+    while (adjusted <= floor) {
+        adjusted += twoPi;
+    }
+
+    return adjusted;
+}
+
+function adjustAngleBelow(angle: number, ceiling: number): number {
+    const twoPi = Math.PI * 2;
+    let adjusted = angle;
+
+    while (adjusted >= ceiling) {
+        adjusted -= twoPi;
+    }
+
+    return adjusted;
 }

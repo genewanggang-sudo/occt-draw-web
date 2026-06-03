@@ -51,36 +51,53 @@ export class SketchDisplayBuilder {
                   ]
                 : [];
         });
+        const edgeCurveIds = new Set<string>();
         const edges = sketch.entities.topology.edges.list().flatMap((edge) => {
             const curve = sketch.entities.geometry.curves.get(edge.curveId);
             const start = sketch.findPointForVertex(edge.startVertexId);
             const end = sketch.findPointForVertex(edge.endVertexId);
 
-            if (!(curve instanceof Line2D) || !start || !end) {
+            if (!curve || !start || !end) {
                 return [];
             }
 
-            return [
-                {
-                    ref: edge.ref,
-                    role: edge.role,
-                    segment: new LineSegment3(
-                        plane.localToWorld(start.position),
-                        plane.localToWorld(end.position),
-                    ),
-                },
-            ];
-        });
-        const sampledCurveEdges = sketch.entities.geometry.curves.list().flatMap((curve) =>
-            sampleSketchCurveSegments(curve).map((segment) => ({
-                ref: curve.ref,
-                role: 'normal' as const,
+            edgeCurveIds.add(edge.curveId);
+
+            if (curve instanceof Line2D) {
+                return [
+                    {
+                        ref: edge.ref,
+                        role: edge.role,
+                        segment: new LineSegment3(
+                            plane.localToWorld(start.position),
+                            plane.localToWorld(end.position),
+                        ),
+                    },
+                ];
+            }
+
+            return sampleSketchCurveSegments(curve).map((segment) => ({
+                ref: edge.ref,
+                role: edge.role,
                 segment: new LineSegment3(
                     plane.localToWorld(segment.start),
                     plane.localToWorld(segment.end),
                 ),
-            })),
-        );
+            }));
+        });
+        const sampledCurveEdges = sketch.entities.geometry.curves
+            .list()
+            .filter((curve) => !edgeCurveIds.has(curve.id))
+            .flatMap((curve) =>
+                sampleSketchCurveSegments(curve).map((segment) => ({
+                    ref: curve.ref,
+                    role: 'normal' as const,
+                    segment: new LineSegment3(
+                        plane.localToWorld(segment.start),
+                        plane.localToWorld(segment.end),
+                    ),
+                })),
+            );
 
         return new SketchDisplayModel({
             edges: [...edges, ...sampledCurveEdges],

@@ -48,6 +48,11 @@ export const commandDefinitions: readonly CommandDefinition[] = [
         kind: 'modal',
     },
     {
+        id: 'sketch-3-point-arc',
+        label: '3 point arc',
+        kind: 'modal',
+    },
+    {
         id: 'sketch-3-point-circle',
         label: '3 point circle',
         kind: 'modal',
@@ -100,6 +105,7 @@ export function evaluateCommandAvailability(
         commandId === 'sketch-center-rectangle' ||
         commandId === 'sketch-aligned-rectangle' ||
         commandId === 'sketch-circle' ||
+        commandId === 'sketch-3-point-arc' ||
         commandId === 'sketch-3-point-circle' ||
         commandId === 'sketch-ellipse'
     ) {
@@ -137,6 +143,7 @@ export function evaluateCommandAvailabilityMap(
             context,
         ),
         'sketch-circle': evaluateCommandAvailability('sketch-circle', context),
+        'sketch-3-point-arc': evaluateCommandAvailability('sketch-3-point-arc', context),
         'sketch-3-point-circle': evaluateCommandAvailability('sketch-3-point-circle', context),
         'sketch-ellipse': evaluateCommandAvailability('sketch-ellipse', context),
         extrude: evaluateCommandAvailability('extrude', context),

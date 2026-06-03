@@ -42,6 +42,7 @@ import { SketchEllipseCommand } from '../commands/SketchEllipseCommand';
 import { SketchLineCommand } from '../commands/SketchLineCommand';
 import { SketchMidpointLineCommand } from '../commands/SketchMidpointLineCommand';
 import { SketchRectangleCommand } from '../commands/SketchRectangleCommand';
+import { SketchThreePointArcCommand } from '../commands/SketchThreePointArcCommand';
 import { SketchThreePointCircleCommand } from '../commands/SketchThreePointCircleCommand';
 import type { CommandId } from '../commands/commandTypes';
 import type { EditorState } from '../state/editorState';
@@ -85,6 +86,7 @@ export class ViewportInteractionController {
         | SketchCenterRectangleCommand
         | SketchAlignedRectangleCommand
         | SketchCircleCommand
+        | SketchThreePointArcCommand
         | SketchThreePointCircleCommand
         | SketchEllipseCommand
     >;
@@ -103,6 +105,7 @@ export class ViewportInteractionController {
                 new SketchCenterRectangleCommand(),
                 new SketchAlignedRectangleCommand(),
                 new SketchCircleCommand(),
+                new SketchThreePointArcCommand(),
                 new SketchThreePointCircleCommand(),
                 new SketchEllipseCommand(),
             ],

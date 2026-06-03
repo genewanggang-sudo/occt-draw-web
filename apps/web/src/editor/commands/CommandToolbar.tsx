@@ -74,6 +74,17 @@ const sketchDrawingToolGroups: readonly SketchToolbarGroup[] = [
             },
         ],
     },
+    {
+        label: '圆弧',
+        tools: [
+            {
+                commandId: 'sketch-3-point-arc',
+                icon: ToolbarIconId.Arc,
+                label: '3 点圆弧',
+                shortcut: 'A',
+            },
+        ],
+    },
 ] as const;
 
 interface CommandToolbarProps {

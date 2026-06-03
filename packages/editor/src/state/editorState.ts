@@ -34,6 +34,11 @@ export type SketchToolState =
     | { readonly kind: 'midpoint-line'; readonly midpoint: Vector2 | null }
     | { readonly kind: 'select' }
     | {
+          readonly endPoint: Vector2 | null;
+          readonly kind: 'three-point-arc';
+          readonly startPoint: Vector2 | null;
+      }
+    | {
           readonly firstPoint: Vector2 | null;
           readonly kind: 'three-point-circle';
           readonly secondPoint: Vector2 | null;

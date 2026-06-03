@@ -5,7 +5,7 @@ import {
     type LineSegment2,
     type Vector2,
 } from '@occt-draw/math';
-import { Circle2D, Ellipse2D, type Curve2D } from './geometry';
+import { Arc2D, Circle2D, Ellipse2D, type Curve2D } from './geometry';
 
 const DEFAULT_SKETCH_CURVE_SEGMENTS = 64;
 
@@ -36,6 +36,13 @@ export function sampleSketchCurveSegments(
 
     if (input instanceof Ellipse2D) {
         return sampleCurveSegments2(input.ellipse, segmentOptions);
+    }
+
+    if (input instanceof Arc2D) {
+        return sampleCurveSegments2(input.arc, {
+            closed: false,
+            segments: options.segments ?? DEFAULT_SKETCH_CURVE_SEGMENTS,
+        });
     }
 
     return [];

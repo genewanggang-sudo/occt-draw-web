@@ -4,7 +4,7 @@ import {
     type ModelPropertyDefinition,
     type ModelPropertyValue,
 } from '@occt-draw/core';
-import { Coord2, Ellipse2, Vec2, type Vector2 } from '@occt-draw/math';
+import { Angle, Arc2, Circle2, Coord2, Ellipse2, Vec2, type Vector2 } from '@occt-draw/math';
 import { recordSketchPropertySet } from '../changes/changeTracking';
 import {
     SketchEntityKind,
@@ -455,14 +455,38 @@ export class Arc2D extends Curve2D {
         });
     }
 
+    public get arc(): Arc2 {
+        return new Arc2(
+            new Circle2(this.center, this.radius),
+            Angle.fromRadians(this.startAngleRadians),
+            Angle.fromRadians(this.endAngleRadians),
+        );
+    }
+
+    public get center(): Vector2 {
+        return this.getVector2Property(ARC_CENTER_PROPERTY);
+    }
+
+    public get endAngleRadians(): number {
+        return this.getNumberProperty(ARC_END_ANGLE_PROPERTY.key);
+    }
+
+    public get radius(): number {
+        return this.getNumberProperty(ARC_RADIUS_PROPERTY.key);
+    }
+
+    public get startAngleRadians(): number {
+        return this.getNumberProperty(ARC_START_ANGLE_PROPERTY.key);
+    }
+
     public snapshot(): Arc2DSnapshot {
         return {
-            center: this.getVector2Property(ARC_CENTER_PROPERTY),
-            endAngleRadians: this.getNumberProperty(ARC_END_ANGLE_PROPERTY.key),
+            center: this.center,
+            endAngleRadians: this.endAngleRadians,
             id: this.id,
             kind: this.kind,
-            radius: this.getNumberProperty(ARC_RADIUS_PROPERTY.key),
-            startAngleRadians: this.getNumberProperty(ARC_START_ANGLE_PROPERTY.key),
+            radius: this.radius,
+            startAngleRadians: this.startAngleRadians,
         };
     }
 
