@@ -10,4 +10,4 @@
 
 - 未经用户确认，不允许新增、删除或修改跨包 public API、导出项、Request/Edit 类型、共享 helper、workspace package 边界，或会被其他 package/app 直接 import 的模块。仅限单包内部且不新增 public export 的实现细节修改可以直接执行。
 
-- 如果用户要求查询 Revit 相关资料，必须优先查找 Revit 2026/2027 的最新官方资料或对应版本 API 文档；当实在找不到 2026/2027 资料时，可以查找过往版本资料，但必须明确注明资料来源版本或时间，以及该资料可能不是最新依据。
+- 查询 Revit 相关资料时，必须优先以 Autodesk 官方 Revit 2026/2027 Help、Developer Guide、API Reference、SDK/API 文档作为主要依据。检索时不要只依赖搜索结果排序；如果旧版官方文档包含 `guid`，应优先尝试用 `https://help.autodesk.com/view/RVT/2027/...` 和 `https://help.autodesk.com/view/RVT/2026/...` 路径反推对应新版页面。若 2026/2027 官方资料缺少细节、示例或背景说明，可以补充使用过往版本官方资料、Autodesk Blog、The Building Coder、RevitApiDocs 或社区资料，但必须在回答中明确区分“当前官方依据”和“辅助参考资料”，并注明资料来源、Revit 版本或发布时间、官方/非官方属性，以及旧资料可能存在版本滞后。

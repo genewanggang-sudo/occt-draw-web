@@ -241,7 +241,11 @@ export class SketchThreePointArcCommand extends CadCommand {
         }
 
         return createHandledCommandResult({
-            draft: createArcDraft(target.plane, arc, [tool.startPoint, tool.endPoint]),
+            draft: createArcDraft(target.plane, arc, [
+                tool.startPoint,
+                tool.endPoint,
+                arc.circle.center,
+            ]),
         });
     }
 
