@@ -1,8 +1,11 @@
 import { createEditDraft } from '@occt-draw/core';
 import { AddThreePointArcRequest, type CadDocument } from '@occt-draw/cad-model';
 import {
+    Angle,
     Arc2,
+    Circle2,
     LineSegment3,
+    Vec2,
     Vec3,
     sampleCurveSegments2,
     type Plane3,
@@ -23,6 +26,7 @@ import { resolveActiveSketchTarget } from './sketchTargetContext';
 
 const THREE_POINT_ARC_PREVIEW_SEGMENTS = 32;
 const THREE_POINT_ARC_DRAG_THRESHOLD_PIXELS = 3;
+const MIN_THREE_POINT_ARC_PREVIEW_RADIUS = 1e-6;
 const DRAFT_COLOR = Vec3.of(0.1, 0.55, 1);
 
 interface PendingThreePointArcDrag {
@@ -187,7 +191,7 @@ export class SketchThreePointArcCommand extends CadCommand {
                     selectionContext: state.commandSession.selectionContext,
                     status: 'running',
                 },
-                draft: createChordDraft(target.plane, tool.startPoint, point),
+                draft: createInitialArcDraft(target.plane, tool.startPoint, point),
             });
         }
 
@@ -224,7 +228,7 @@ export class SketchThreePointArcCommand extends CadCommand {
 
         if (!tool.endPoint) {
             return createHandledCommandResult({
-                draft: createChordDraft(target.plane, tool.startPoint, point),
+                draft: createInitialArcDraft(target.plane, tool.startPoint, point),
             });
         }
 
@@ -277,7 +281,7 @@ export class SketchThreePointArcCommand extends CadCommand {
                 selectionContext: state.commandSession.selectionContext,
                 status: 'running',
             },
-            draft: createChordDraft(target.plane, tool.startPoint, point),
+            draft: createInitialArcDraft(target.plane, tool.startPoint, point),
         });
     }
 
@@ -317,32 +321,6 @@ export class SketchThreePointArcCommand extends CadCommand {
     }
 }
 
-function createChordDraft(plane: Plane3, startPoint: Vector2, endPoint: Vector2) {
-    return createEditDraft<CadDocument>({
-        id: 'draft:sketch-3-point-arc:chord',
-        kind: 'temporary',
-    }).withTemporaryObjects([
-        {
-            color: DRAFT_COLOR,
-            id: 'draft:sketch-3-point-arc:chord:segment',
-            kind: 'line-segment' as const,
-            segment: new LineSegment3(
-                sketchPointToWorldOnPlane(plane, startPoint),
-                sketchPointToWorldOnPlane(plane, endPoint),
-            ),
-            showEndpointPoints: false,
-            visible: true,
-        },
-        ...[startPoint, endPoint].map((point, index) => ({
-            color: DRAFT_COLOR,
-            id: `draft:sketch-3-point-arc:chord:point:${String(index)}`,
-            kind: 'point' as const,
-            point: sketchPointToWorldOnPlane(plane, point),
-            visible: true,
-        })),
-    ]);
-}
-
 function createArcDraft(plane: Plane3, arc: Arc2, definitionPoints: readonly Vector2[]) {
     return createEditDraft<CadDocument>({
         id: 'draft:sketch-3-point-arc',
@@ -372,6 +350,28 @@ function createArcDraft(plane: Plane3, arc: Arc2, definitionPoints: readonly Vec
     ]);
 }
 
+function createInitialArcDraft(plane: Plane3, startPoint: Vector2, currentPoint: Vector2) {
+    const chord = Vec2.from(startPoint).vectorTo(currentPoint);
+    const center = Vec2.from(startPoint)
+        .translated(chord.scale(0.5))
+        .translated(chord.perpendicularLeft().scale(-0.5));
+    const radius = center.distanceTo(startPoint);
+
+    if (radius <= MIN_THREE_POINT_ARC_PREVIEW_RADIUS) {
+        return null;
+    }
+
+    const startAngle = Math.atan2(startPoint.y - center.y, startPoint.x - center.x);
+    const currentAngle = Math.atan2(currentPoint.y - center.y, currentPoint.x - center.x);
+    const arc = new Arc2(
+        new Circle2(center, radius),
+        Angle.fromRadians(startAngle),
+        Angle.fromRadians(startAngle + normalizeAngleDelta(currentAngle - startAngle)),
+    );
+
+    return createArcDraft(plane, arc, [startPoint, currentPoint, center]);
+}
+
 function projectPointerToSketch(
     state: EditorState,
     plane: Plane3,
@@ -383,6 +383,21 @@ function projectPointerToSketch(
         point: event.point,
         viewportSize: state.navigation.viewportSize,
     });
+}
+
+function normalizeAngleDelta(delta: number): number {
+    const fullTurn = Math.PI * 2;
+    let normalized = delta;
+
+    while (normalized <= -Math.PI) {
+        normalized += fullTurn;
+    }
+
+    while (normalized > Math.PI) {
+        normalized -= fullTurn;
+    }
+
+    return normalized;
 }
 
 function distanceScreenPoints(
