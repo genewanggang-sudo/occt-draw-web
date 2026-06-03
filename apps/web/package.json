@@ -5,7 +5,7 @@
     "dependencies": {
         "@occt-draw/editor": "workspace:*",
         "@occt-draw/ui": "workspace:*",
-        "react": "^19.2.0",
+        "react": "^19.2.7",
         "react-dom": "^19.2.0"
     },
     "scripts": {
