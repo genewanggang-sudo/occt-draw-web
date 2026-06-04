@@ -50,8 +50,8 @@ class RenderObjectPrimitiveBuilder implements RenderObjectBuilder {
 
     public edges(segments: readonly LineSegment3[], style: EdgeStyle): void {
         this.setPrimitive({
-            drawMode: 'lines',
-            geometryBuffer: this.context.geometry.segments(segments),
+            drawMode: 'triangles',
+            geometryBuffer: this.context.geometry.screenSpaceLineSegments(segments),
             material: this.context.materials.edge(style),
             primitiveKind: 'edge',
         });
@@ -72,8 +72,8 @@ class RenderObjectPrimitiveBuilder implements RenderObjectBuilder {
         input: { readonly primitiveKind?: DrawPrimitiveKind } = {},
     ): void {
         this.setPrimitive({
-            drawMode: 'lines',
-            geometryBuffer: this.context.geometry.segments(segments),
+            drawMode: 'triangles',
+            geometryBuffer: this.context.geometry.screenSpaceLineSegments(segments),
             material: this.context.materials.edge(style),
             primitiveKind: input.primitiveKind ?? 'edge',
         });

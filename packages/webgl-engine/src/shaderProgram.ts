@@ -3,26 +3,73 @@ in vec3 a_position;
 in vec3 a_color;
 in float a_alpha;
 in float a_line_distance;
+in vec3 a_line_opposite_position;
+in float a_line_side;
+in float a_line_along;
 uniform mat4 u_matrix;
 uniform float u_line_distance_scale;
+uniform float u_line_filter_width;
+uniform float u_line_mode;
+uniform float u_line_width;
 uniform float u_point_size;
+uniform vec2 u_viewport_size;
 out vec4 v_color;
 out float v_line_distance;
+out float v_line_center_distance;
+flat out float v_line_mode;
+
+float safeClipW(float w) {
+    return abs(w) < 0.000001 ? sign(w + 0.000001) * 0.000001 : w;
+}
+
+vec2 safeNormalize(vec2 value) {
+    float lengthValue = length(value);
+
+    return lengthValue < 0.000001 ? vec2(1.0, 0.0) : value / lengthValue;
+}
 
 void main() {
-    gl_Position = u_matrix * vec4(a_position, 1.0);
+    vec4 projectedPosition = u_matrix * vec4(a_position, 1.0);
     gl_PointSize = u_point_size;
     v_color = vec4(a_color, a_alpha);
     v_line_distance = a_line_distance * u_line_distance_scale;
+    v_line_center_distance = 0.0;
+    v_line_mode = u_line_mode;
+
+    if (u_line_mode > 0.5) {
+        vec4 projectedOppositePosition = u_matrix * vec4(a_line_opposite_position, 1.0);
+        vec2 positionNdc = projectedPosition.xy / safeClipW(projectedPosition.w);
+        vec2 oppositePositionNdc =
+            projectedOppositePosition.xy / safeClipW(projectedOppositePosition.w);
+        vec2 lineDirection = a_line_along < 0.0
+            ? safeNormalize(oppositePositionNdc - positionNdc)
+            : safeNormalize(positionNdc - oppositePositionNdc);
+        vec2 lineNormal = vec2(-lineDirection.y, lineDirection.x);
+        float halfWidth = max(u_line_width * 0.5, 0.001);
+        float filterWidth = max(u_line_filter_width, 0.0);
+        float lineExtent = halfWidth + filterWidth;
+        vec2 offsetPixels = lineNormal * a_line_side * lineExtent +
+            lineDirection * a_line_along * halfWidth;
+        vec2 offsetNdc = 2.0 * offsetPixels / max(u_viewport_size, vec2(1.0, 1.0));
+
+        projectedPosition.xy += offsetNdc * projectedPosition.w;
+        v_line_center_distance = a_line_side * lineExtent;
+    }
+
+    gl_Position = projectedPosition;
 }
 `;
 
 const fragmentShaderSource = `#version 300 es
-precision mediump float;
+precision highp float;
 uniform vec4 u_line_stipple;
+uniform float u_line_filter_width;
+uniform float u_line_width;
 uniform float u_point_shape;
 in vec4 v_color;
 in float v_line_distance;
+in float v_line_center_distance;
+flat in float v_line_mode;
 out vec4 out_color;
 
 bool isLineGap(float lineDistance, vec4 lineStipple) {
@@ -96,6 +143,20 @@ void main() {
 
     if (isLineGap(v_line_distance, u_line_stipple)) {
         discard;
+    }
+
+    if (v_line_mode > 0.5) {
+        float halfWidth = max(u_line_width * 0.5, 0.001);
+        float filterWidth = max(u_line_filter_width, 0.001);
+        float edgeAlpha =
+            1.0 - smoothstep(halfWidth, halfWidth + filterWidth, abs(v_line_center_distance));
+
+        if (edgeAlpha <= 0.0) {
+            discard;
+        }
+
+        out_color = vec4(v_color.rgb, v_color.a * edgeAlpha);
+        return;
     }
 
     out_color = v_color;

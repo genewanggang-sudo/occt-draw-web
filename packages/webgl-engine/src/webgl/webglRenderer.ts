@@ -8,6 +8,7 @@ import {
     disposeNavigationDepthResources,
     type NavigationDepthResources,
 } from '../navigationDepth';
+import { resolveSolidLineRenderStyle } from '../pipeline/lineRenderStyle';
 import type { DrawCommand, DrawMode } from '../pipeline/renderQueue';
 import type {
     BufferAttributeSemantic,
@@ -21,6 +22,7 @@ import type { RenderPipelineResources } from '../renderPipeline';
 import { LabelAtlasManager } from './labelAtlasManager';
 import { RenderBufferCache } from './renderBufferCache';
 import type {
+    ImmediateGeometryDrawInput,
     ImmediateLabelDrawInput,
     ImmediatePrimitiveDrawInput,
     RenderBackend,
@@ -70,14 +72,27 @@ export class WebGLRenderer implements RenderBackend {
         const colorLocation = context.getAttribLocation(this.program, 'a_color');
         const alphaLocation = context.getAttribLocation(this.program, 'a_alpha');
         const lineDistanceLocation = context.getAttribLocation(this.program, 'a_line_distance');
+        const lineOppositePositionLocation = context.getAttribLocation(
+            this.program,
+            'a_line_opposite_position',
+        );
+        const lineSideLocation = context.getAttribLocation(this.program, 'a_line_side');
+        const lineAlongLocation = context.getAttribLocation(this.program, 'a_line_along');
         const matrixLocation = context.getUniformLocation(this.program, 'u_matrix');
         const lineDistanceScaleLocation = context.getUniformLocation(
             this.program,
             'u_line_distance_scale',
         );
+        const lineFilterWidthLocation = context.getUniformLocation(
+            this.program,
+            'u_line_filter_width',
+        );
+        const lineModeLocation = context.getUniformLocation(this.program, 'u_line_mode');
         const lineStippleLocation = context.getUniformLocation(this.program, 'u_line_stipple');
+        const lineWidthLocation = context.getUniformLocation(this.program, 'u_line_width');
         const pointShapeLocation = context.getUniformLocation(this.program, 'u_point_shape');
         const pointSizeLocation = context.getUniformLocation(this.program, 'u_point_size');
+        const viewportSizeLocation = context.getUniformLocation(this.program, 'u_viewport_size');
         const labelPositionLocation = context.getAttribLocation(this.labelProgram, 'a_position');
         const labelUvLocation = context.getAttribLocation(this.labelProgram, 'a_uv');
         const labelColorLocation = context.getAttribLocation(this.labelProgram, 'a_color');
@@ -87,10 +102,14 @@ export class WebGLRenderer implements RenderBackend {
 
         if (
             !lineDistanceScaleLocation ||
+            !lineFilterWidthLocation ||
+            !lineModeLocation ||
             !lineStippleLocation ||
+            !lineWidthLocation ||
             !matrixLocation ||
             !pointShapeLocation ||
-            !pointSizeLocation
+            !pointSizeLocation ||
+            !viewportSizeLocation
         ) {
             throw new Error('WebGL renderer initialization failed: missing render uniform.');
         }
@@ -138,11 +157,18 @@ export class WebGLRenderer implements RenderBackend {
             labelUvLocation,
             lineDistanceLocation,
             lineDistanceScaleLocation,
+            lineFilterWidthLocation,
+            lineModeLocation,
+            lineOppositePositionLocation,
+            lineSideLocation,
             lineStippleLocation,
+            lineWidthLocation,
+            lineAlongLocation,
             matrixLocation,
             pointShapeLocation,
             pointSizeLocation,
             positionLocation,
+            viewportSizeLocation,
         };
         this.immediateRenderer = new WebGLImmediateRenderer(context, {
             bindings: this.bindings,
@@ -172,6 +198,11 @@ export class WebGLRenderer implements RenderBackend {
             Math.max(input.viewportSize.height, 1) / Math.max(getCameraViewHeight(input.camera), 1);
         this.context.useProgram(this.program);
         this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
+        this.context.uniform2f(
+            this.bindings.viewportSizeLocation,
+            input.viewportSize.width,
+            input.viewportSize.height,
+        );
         this.frameCameraKey = getLabelCacheCameraKey(input);
         this.context.bindFramebuffer(this.context.FRAMEBUFFER, null);
         this.renderBufferCache.beginFrame();
@@ -208,17 +239,48 @@ export class WebGLRenderer implements RenderBackend {
 
         this.applyRenderState(command);
         this.bindRenderVertexBuffer(buffer, command.geometryBuffer.layout);
-        this.applyMaterialVertexAttributes(command);
+        this.applyMaterialVertexAttributes(command.material);
         this.context.uniform1f(this.bindings.pointSizeLocation, command.material.pointSize);
         this.context.uniform1f(
             this.bindings.pointShapeLocation,
             command.primitiveKind === 'point' ? 1 : 0,
+        );
+        this.context.uniform1f(
+            this.bindings.lineModeLocation,
+            isScreenSpaceLineLayout(command.geometryBuffer.layout) ? 1 : 0,
         );
         this.drawGeometryBuffer(command.geometryBuffer, command.drawMode, command.cacheKey);
     }
 
     public drawImmediateLabels(input: ImmediateLabelDrawInput): void {
         this.immediateRenderer.drawLabels(input);
+    }
+
+    public drawImmediateGeometry(input: ImmediateGeometryDrawInput): void {
+        if (input.geometryBuffer.vertexCount === 0) {
+            return;
+        }
+
+        const buffer = this.renderBufferCache.getGeometryBufferArrayBuffer({
+            dirty: true,
+            geometry: input.geometryBuffer,
+            key: input.cacheKey,
+            usage: this.context.DYNAMIC_DRAW,
+        });
+
+        this.applyMaterialRenderState(input.material);
+        this.bindRenderVertexBuffer(buffer, input.geometryBuffer.layout);
+        this.applyMaterialVertexAttributes(input.material);
+        this.context.uniform1f(this.bindings.pointSizeLocation, input.material.pointSize);
+        this.context.uniform1f(
+            this.bindings.pointShapeLocation,
+            input.primitiveKind === 'point' ? 1 : 0,
+        );
+        this.context.uniform1f(
+            this.bindings.lineModeLocation,
+            isScreenSpaceLineLayout(input.geometryBuffer.layout) ? 1 : 0,
+        );
+        this.drawGeometryBuffer(input.geometryBuffer, input.drawMode, input.cacheKey);
     }
 
     public drawImmediatePrimitives(input: ImmediatePrimitiveDrawInput): void {
@@ -275,7 +337,11 @@ export class WebGLRenderer implements RenderBackend {
     }
 
     private applyRenderState(command: DrawCommand): void {
-        const { renderState } = command.material;
+        this.applyMaterialRenderState(command.material);
+    }
+
+    private applyMaterialRenderState(material: DrawCommand['material']): void {
+        const { renderState } = material;
 
         if (renderState.blend) {
             this.context.enable(this.context.BLEND);
@@ -290,6 +356,7 @@ export class WebGLRenderer implements RenderBackend {
             this.context.disable(this.context.DEPTH_TEST);
         }
 
+        this.context.depthFunc(resolveDepthFunc(this.context, renderState.depthFunc));
         this.context.depthMask(renderState.depthWrite);
 
         if (renderState.polygonOffset) {
@@ -309,6 +376,9 @@ export class WebGLRenderer implements RenderBackend {
             this.bindings.colorLocation,
             this.bindings.alphaLocation,
             this.bindings.lineDistanceLocation,
+            this.bindings.lineOppositePositionLocation,
+            this.bindings.lineSideLocation,
+            this.bindings.lineAlongLocation,
         ]);
         this.context.bindBuffer(this.context.ARRAY_BUFFER, buffer);
         this.context.enableVertexAttribArray(this.bindings.labelPositionLocation);
@@ -362,6 +432,9 @@ export class WebGLRenderer implements RenderBackend {
             this.bindings.colorLocation,
             this.bindings.alphaLocation,
             this.bindings.lineDistanceLocation,
+            this.bindings.lineOppositePositionLocation,
+            this.bindings.lineSideLocation,
+            this.bindings.lineAlongLocation,
         ]);
 
         for (const attribute of layout.attributes) {
@@ -383,25 +456,28 @@ export class WebGLRenderer implements RenderBackend {
         }
 
         this.context.vertexAttrib1f(this.bindings.lineDistanceLocation, 0);
+        this.context.vertexAttrib3f(this.bindings.lineOppositePositionLocation, 0, 0, 0);
+        this.context.vertexAttrib1f(this.bindings.lineSideLocation, 0);
+        this.context.vertexAttrib1f(this.bindings.lineAlongLocation, 0);
     }
 
-    private applyMaterialVertexAttributes(
-        command: Exclude<DrawCommand, { readonly primitiveKind: 'label' | 'marker' }>,
-    ): void {
+    private applyMaterialVertexAttributes(material: DrawCommand['material']): void {
         this.context.vertexAttrib3f(
             this.bindings.colorLocation,
-            command.material.color.x,
-            command.material.color.y,
-            command.material.color.z,
+            material.color.x,
+            material.color.y,
+            material.color.z,
         );
-        this.context.vertexAttrib1f(this.bindings.alphaLocation, command.material.alpha);
+        this.context.vertexAttrib1f(this.bindings.alphaLocation, material.alpha);
         this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
+        this.context.uniform1f(this.bindings.lineFilterWidthLocation, material.lineFilterWidthPx);
+        this.context.uniform1f(this.bindings.lineWidthLocation, material.lineWidthPx);
         this.context.uniform4f(
             this.bindings.lineStippleLocation,
-            command.material.lineStipple[0],
-            command.material.lineStipple[1],
-            command.material.lineStipple[2],
-            command.material.lineStipple[3],
+            material.lineStipple[0],
+            material.lineStipple[1],
+            material.lineStipple[2],
+            material.lineStipple[3],
         );
     }
 
@@ -434,7 +510,17 @@ export class WebGLRenderer implements RenderBackend {
             });
             this.context.uniform1f(this.bindings.pointSizeLocation, vertex.sizePixels);
             this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
-            this.context.uniform4f(this.bindings.lineStippleLocation, 12, 0, 12, 0);
+            this.context.uniform1f(this.bindings.lineFilterWidthLocation, 1);
+            this.context.uniform1f(this.bindings.lineModeLocation, 0);
+            this.context.uniform1f(this.bindings.lineWidthLocation, 1);
+            const lineStipple = resolveSolidLineRenderStyle().stipple;
+            this.context.uniform4f(
+                this.bindings.lineStippleLocation,
+                lineStipple[0],
+                lineStipple[1],
+                lineStipple[2],
+                lineStipple[3],
+            );
             this.context.uniform1f(this.bindings.pointShapeLocation, 2);
             this.context.drawArrays(this.context.POINTS, 0, 1);
         }
@@ -478,8 +564,24 @@ export class WebGLRenderer implements RenderBackend {
             return this.bindings.lineDistanceLocation;
         }
 
+        if (semantic === 'line-opposite-position') {
+            return this.bindings.lineOppositePositionLocation;
+        }
+
+        if (semantic === 'line-side') {
+            return this.bindings.lineSideLocation;
+        }
+
+        if (semantic === 'line-along') {
+            return this.bindings.lineAlongLocation;
+        }
+
         return this.bindings.alphaLocation;
     }
+}
+
+function isScreenSpaceLineLayout(layout: VertexAttributeLayout): boolean {
+    return layout.attributes.some((attribute) => attribute.semantic === 'line-side');
 }
 
 function disableVertexAttribs(context: WebGL2RenderingContext, locations: readonly number[]): void {
@@ -526,6 +628,10 @@ function resolveDrawMode(context: WebGL2RenderingContext, mode: DrawMode): numbe
     }
 
     return context.TRIANGLES;
+}
+
+function resolveDepthFunc(context: WebGL2RenderingContext, depthFunc: 'lequal' | 'less'): number {
+    return depthFunc === 'lequal' ? context.LEQUAL : context.LESS;
 }
 
 function resolveIndexType(context: WebGL2RenderingContext, type: BufferIndexType): number {

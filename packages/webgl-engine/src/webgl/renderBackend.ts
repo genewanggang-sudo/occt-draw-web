@@ -1,5 +1,7 @@
+import type { GeometryBuffer } from '../geometry';
 import type { RenderGraph } from '../core';
-import type { DrawCommand } from '../pipeline/renderQueue';
+import type { DrawCommand, DrawMode, DrawPrimitiveKind } from '../pipeline/renderQueue';
+import type { RenderMaterial } from '../pipeline/renderMaterial';
 import type { CameraState, LabelVertex, Matrix4, RenderVertex, ViewportSize } from '../types';
 
 export interface RenderBackendFrameInput {
@@ -37,10 +39,19 @@ export interface ImmediateLabelDrawInput {
     readonly vertices: readonly LabelVertex[];
 }
 
+export interface ImmediateGeometryDrawInput {
+    readonly cacheKey: string;
+    readonly drawMode: DrawMode;
+    readonly geometryBuffer: GeometryBuffer;
+    readonly material: RenderMaterial;
+    readonly primitiveKind?: DrawPrimitiveKind;
+}
+
 export interface RenderBackend {
     beginFrame(input: RenderBackendFrameInput): void;
     dispose(): void;
     draw(command: Exclude<DrawCommand, { readonly primitiveKind: 'label' }>): void;
+    drawImmediateGeometry(input: ImmediateGeometryDrawInput): void;
     drawImmediateLabels(input: ImmediateLabelDrawInput): void;
     drawImmediatePrimitives(input: ImmediatePrimitiveDrawInput): void;
     drawLabels(command: Extract<DrawCommand, { readonly primitiveKind: 'label' }>): void;

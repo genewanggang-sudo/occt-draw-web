@@ -162,7 +162,13 @@ export class RenderQueueBuilder {
             style: object.style,
         };
 
-        if (primitive.drawMode === 'triangles') {
+        if (primitive.primitiveKind === 'face') {
+            queue.faces.push(command);
+        } else if (primitive.primitiveKind === 'edge') {
+            queue.edges.push(command);
+        } else if (primitive.primitiveKind === 'point') {
+            queue.points.push(command);
+        } else if (primitive.drawMode === 'triangles') {
             queue.faces.push(command);
         } else if (primitive.drawMode === 'lines') {
             queue.edges.push(command);

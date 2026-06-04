@@ -1,19 +1,15 @@
-import { Vec3, type Vector3 } from '@occt-draw/math';
+import { LineSegment3, Vec3, type Vector3 } from '@occt-draw/math';
+import { GeometryBufferBuilder } from '../geometry';
 import type { RenderGraphObjectEntry } from '../graphTraversal';
 import { collectPickableGraphObjects } from '../graphTraversal';
-import { createViewProjectionMatrix } from '../matrix';
 import { createRenderPrimitiveId } from '../primitiveId';
 import { EdgeSet, FaceSet, MarkerSet, PointSet } from '../scene';
-import type {
-    MarkerVertex,
-    Matrix4,
-    RenderHighlightState,
-    RenderVertex,
-    ViewportSize,
-} from '../types';
+import type { MarkerVertex, RenderHighlightState } from '../types';
 import type { RenderPass, RenderPassContext } from './renderPass';
+import { resolveHighlightLineMaterial } from './renderMaterial';
 
 type HighlightKind = 'hovered' | 'preselected' | 'selected';
+type HighlightLineDepthMode = 'overlay' | 'scene';
 
 interface HighlightTarget {
     readonly alpha: number;
@@ -22,28 +18,33 @@ interface HighlightTarget {
     readonly primitiveId: string | null;
 }
 
+interface HighlightLineBatch {
+    readonly depthMode: HighlightLineDepthMode;
+    readonly key: string;
+    readonly segments: LineSegment3[];
+    readonly target: HighlightTarget;
+}
+
 const HOVER_PRESELECT_COLOR = Vec3.of(0.35, 0.72, 1);
 const SELECTED_COLOR = Vec3.of(1, 0.72, 0.18);
 const HIGHLIGHT_LINE_ALPHA = 0.82;
+const SCENE_HIGHLIGHT_LINE_WIDTH_PIXELS = 1;
 const SKETCH_HIGHLIGHT_LINE_WIDTH_PIXELS = 3;
 const SKETCH_METADATA_SOURCE_KEY = 'source';
 const HOVER_PRESELECT_POINT_ALPHA = 0.42;
 const SELECTED_POINT_ALPHA = 0.58;
 const HOVER_PRESELECT_POINT_SIZE_GROWTH = 6;
 const SELECTED_POINT_SIZE_GROWTH = 8;
-const IDENTITY_MATRIX_4: Matrix4 = new Float32Array([
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
-]);
+
+const geometryBuilder = new GeometryBufferBuilder();
 
 export class HighlightPass implements RenderPass {
     public readonly name = 'highlight';
 
     public execute({ input, resources }: RenderPassContext): void {
-        const lineVertices: RenderVertex[] = [];
-        const thickLineVertices: RenderVertex[] = [];
+        const lineBatches = new Map<string, HighlightLineBatch>();
         const pointVertices: MarkerVertex[] = [];
         const markerVertices: MarkerVertex[] = [];
-        const viewProjectionMatrix = createViewProjectionMatrix(input.camera, input.viewportSize);
 
         for (const entry of collectPickableGraphObjects(input.graph)) {
             const target = resolveHighlightTarget(entry, input.highlight);
@@ -52,46 +53,37 @@ export class HighlightPass implements RenderPass {
                 continue;
             }
 
-            appendHighlightVertices(
-                lineVertices,
-                thickLineVertices,
-                pointVertices,
-                markerVertices,
-                entry,
-                target,
-                viewProjectionMatrix,
-                input.viewportSize,
-            );
+            appendHighlightVertices(lineBatches, pointVertices, markerVertices, entry, target);
         }
 
-        if (
-            lineVertices.length === 0 &&
-            thickLineVertices.length === 0 &&
-            pointVertices.length === 0 &&
-            markerVertices.length === 0
-        ) {
+        if (lineBatches.size === 0 && pointVertices.length === 0 && markerVertices.length === 0) {
             return;
         }
 
-        resources.backend.drawImmediatePrimitives({
-            drawMode: 'lines',
-            state: HIGHLIGHT_RENDER_STATE,
-            vertices: lineVertices,
-        });
-
-        resources.backend.drawImmediatePrimitives({
-            drawMode: 'triangles',
-            matrix: IDENTITY_MATRIX_4,
-            state: SKETCH_HIGHLIGHT_RENDER_STATE,
-            vertices: thickLineVertices,
-        });
+        for (const batch of lineBatches.values()) {
+            resources.backend.drawImmediateGeometry({
+                cacheKey: `highlight:${batch.key}`,
+                drawMode: 'triangles',
+                geometryBuffer: geometryBuilder.screenSpaceLineSegments(batch.segments),
+                material: resolveHighlightLineMaterial({
+                    alpha: HIGHLIGHT_LINE_ALPHA,
+                    color: batch.target.color,
+                    depthMode: batch.depthMode,
+                    widthPx:
+                        batch.depthMode === 'overlay'
+                            ? SKETCH_HIGHLIGHT_LINE_WIDTH_PIXELS
+                            : SCENE_HIGHLIGHT_LINE_WIDTH_PIXELS,
+                }),
+                primitiveKind: 'edge',
+            });
+        }
 
         for (const vertex of pointVertices) {
             resources.backend.drawImmediatePrimitives({
                 drawMode: 'points',
                 pointShape: 'halo',
                 pointSize: vertex.sizePixels,
-                state: HIGHLIGHT_RENDER_STATE,
+                state: HIGHLIGHT_POINT_RENDER_STATE,
                 vertices: [vertex],
             });
         }
@@ -101,22 +93,16 @@ export class HighlightPass implements RenderPass {
                 drawMode: 'points',
                 pointShape: 'marker',
                 pointSize: vertex.sizePixels,
-                state: HIGHLIGHT_RENDER_STATE,
+                state: HIGHLIGHT_POINT_RENDER_STATE,
                 vertices: [vertex],
             });
         }
     }
 }
 
-const HIGHLIGHT_RENDER_STATE = {
+const HIGHLIGHT_POINT_RENDER_STATE = {
     blend: true,
     depthFunc: 'lequal',
-    depthWrite: false,
-} as const;
-
-const SKETCH_HIGHLIGHT_RENDER_STATE = {
-    blend: true,
-    depthTest: false,
     depthWrite: false,
 } as const;
 
@@ -157,28 +143,18 @@ function resolveHighlightTarget(
 }
 
 function appendHighlightVertices(
-    lineVertices: RenderVertex[],
-    thickLineVertices: RenderVertex[],
+    lineBatches: Map<string, HighlightLineBatch>,
     pointVertices: MarkerVertex[],
     markerVertices: MarkerVertex[],
     entry: RenderGraphObjectEntry,
     target: HighlightTarget,
-    viewProjectionMatrix: Matrix4,
-    viewportSize: ViewportSize,
 ): void {
     const object = entry.object;
 
     if (object instanceof FaceSet) {
-        appendFaceSetHighlight(lineVertices, object, target);
+        appendFaceSetHighlight(lineBatches, object, target);
     } else if (object instanceof EdgeSet) {
-        appendEdgeSetHighlight(
-            lineVertices,
-            thickLineVertices,
-            object,
-            target,
-            viewProjectionMatrix,
-            viewportSize,
-        );
+        appendEdgeSetHighlight(lineBatches, object, target);
     } else if (object instanceof PointSet) {
         appendPointSetHighlight(pointVertices, object, target);
     } else if (object instanceof MarkerSet) {
@@ -187,12 +163,12 @@ function appendHighlightVertices(
 }
 
 function appendFaceSetHighlight(
-    vertices: RenderVertex[],
+    lineBatches: Map<string, HighlightLineBatch>,
     object: FaceSet,
     target: HighlightTarget,
 ): void {
     if (target.primitiveId === null) {
-        appendFaceSetBoundaryHighlight(vertices, object, target);
+        appendFaceSetBoundaryHighlight(lineBatches, object, target);
         return;
     }
 
@@ -203,22 +179,22 @@ function appendFaceSetHighlight(
             continue;
         }
 
-        appendLine(vertices, triangle.a, triangle.b, target);
-        appendLine(vertices, triangle.b, triangle.c, target);
-        appendLine(vertices, triangle.c, triangle.a, target);
+        appendLineSegment(lineBatches, triangle.a, triangle.b, target, 'scene');
+        appendLineSegment(lineBatches, triangle.b, triangle.c, target, 'scene');
+        appendLineSegment(lineBatches, triangle.c, triangle.a, target, 'scene');
     }
 }
 
 function appendFaceSetBoundaryHighlight(
-    vertices: RenderVertex[],
+    lineBatches: Map<string, HighlightLineBatch>,
     object: FaceSet,
     target: HighlightTarget,
 ): void {
     const edges = new Map<
         string,
         {
-            readonly start: RenderVertex['position'];
-            readonly end: RenderVertex['position'];
+            readonly start: Vector3;
+            readonly end: Vector3;
             count: number;
         }
     >();
@@ -231,7 +207,7 @@ function appendFaceSetBoundaryHighlight(
 
     for (const edge of edges.values()) {
         if (edge.count === 1) {
-            appendLine(vertices, edge.start, edge.end, target);
+            appendLineSegment(lineBatches, edge.start, edge.end, target, 'scene');
         }
     }
 }
@@ -240,13 +216,13 @@ function addBoundaryEdge(
     edges: Map<
         string,
         {
-            readonly start: RenderVertex['position'];
-            readonly end: RenderVertex['position'];
+            readonly start: Vector3;
+            readonly end: Vector3;
             count: number;
         }
     >,
-    start: RenderVertex['position'],
-    end: RenderVertex['position'],
+    start: Vector3,
+    end: Vector3,
 ): void {
     const startKey = toPointKey(start);
     const endKey = toPointKey(end);
@@ -261,19 +237,16 @@ function addBoundaryEdge(
     edges.set(key, { start, end, count: 1 });
 }
 
-function toPointKey(point: RenderVertex['position']): string {
+function toPointKey(point: Vector3): string {
     return `${point.x.toPrecision(12)},${point.y.toPrecision(12)},${point.z.toPrecision(12)}`;
 }
 
 function appendEdgeSetHighlight(
-    lineVertices: RenderVertex[],
-    thickLineVertices: RenderVertex[],
+    lineBatches: Map<string, HighlightLineBatch>,
     object: EdgeSet,
     target: HighlightTarget,
-    viewProjectionMatrix: Matrix4,
-    viewportSize: ViewportSize,
 ): void {
-    const useSketchLineOverlay = isSketchEdgeSet(object);
+    const depthMode = isSketchEdgeSet(object) ? 'overlay' : 'scene';
 
     for (let index = 0; index < object.geometry.segments.length; index += 1) {
         const segment = object.geometry.segments[index];
@@ -282,18 +255,7 @@ function appendEdgeSetHighlight(
             continue;
         }
 
-        if (useSketchLineOverlay) {
-            appendScreenSpaceLineQuad(
-                thickLineVertices,
-                segment.start,
-                segment.end,
-                target,
-                viewProjectionMatrix,
-                viewportSize,
-            );
-        } else {
-            appendLine(lineVertices, segment.start, segment.end, target);
-        }
+        appendLineSegment(lineBatches, segment.start, segment.end, target, depthMode);
     }
 }
 
@@ -363,144 +325,36 @@ function shouldDrawPrimitive(
     );
 }
 
-function appendLine(
-    vertices: RenderVertex[],
-    start: RenderVertex['position'],
-    end: RenderVertex['position'],
+function appendLineSegment(
+    batches: Map<string, HighlightLineBatch>,
+    start: Vector3,
+    end: Vector3,
     target: HighlightTarget,
+    depthMode: HighlightLineDepthMode,
 ): void {
-    vertices.push(
-        { alpha: HIGHLIGHT_LINE_ALPHA, color: target.color, position: start },
-        { alpha: HIGHLIGHT_LINE_ALPHA, color: target.color, position: end },
-    );
+    getLineBatch(batches, target, depthMode).segments.push(new LineSegment3(start, end));
 }
 
-function appendScreenSpaceLineQuad(
-    vertices: RenderVertex[],
-    start: RenderVertex['position'],
-    end: RenderVertex['position'],
+function getLineBatch(
+    batches: Map<string, HighlightLineBatch>,
     target: HighlightTarget,
-    matrix: Matrix4,
-    viewportSize: ViewportSize,
-): void {
-    const startClip = projectToClip(start, matrix);
-    const endClip = projectToClip(end, matrix);
+    depthMode: HighlightLineDepthMode,
+): HighlightLineBatch {
+    const key = `${depthMode}:${target.kind}`;
+    const existing = batches.get(key);
 
-    if (!startClip || !endClip) {
-        return;
+    if (existing) {
+        return existing;
     }
 
-    const startScreen = clipToScreen(startClip, viewportSize);
-    const endScreen = clipToScreen(endClip, viewportSize);
-    const dx = endScreen.x - startScreen.x;
-    const dy = endScreen.y - startScreen.y;
-    const length = Math.hypot(dx, dy);
-
-    if (!Number.isFinite(length) || length <= 0.0001) {
-        return;
-    }
-
-    const halfWidth = SKETCH_HIGHLIGHT_LINE_WIDTH_PIXELS / 2;
-    const normalX = (-dy / length) * halfWidth;
-    const normalY = (dx / length) * halfWidth;
-    const startLeft = screenToNdc(
-        { x: startScreen.x + normalX, y: startScreen.y + normalY },
-        startClip.z,
-        viewportSize,
-    );
-    const startRight = screenToNdc(
-        { x: startScreen.x - normalX, y: startScreen.y - normalY },
-        startClip.z,
-        viewportSize,
-    );
-    const endLeft = screenToNdc(
-        { x: endScreen.x + normalX, y: endScreen.y + normalY },
-        endClip.z,
-        viewportSize,
-    );
-    const endRight = screenToNdc(
-        { x: endScreen.x - normalX, y: endScreen.y - normalY },
-        endClip.z,
-        viewportSize,
-    );
-
-    appendTriangle(vertices, startLeft, startRight, endRight, target);
-    appendTriangle(vertices, startLeft, endRight, endLeft, target);
-}
-
-function appendTriangle(
-    vertices: RenderVertex[],
-    a: RenderVertex['position'],
-    b: RenderVertex['position'],
-    c: RenderVertex['position'],
-    target: HighlightTarget,
-): void {
-    vertices.push(
-        { alpha: HIGHLIGHT_LINE_ALPHA, color: target.color, position: a },
-        { alpha: HIGHLIGHT_LINE_ALPHA, color: target.color, position: b },
-        { alpha: HIGHLIGHT_LINE_ALPHA, color: target.color, position: c },
-    );
-}
-
-function projectToClip(
-    point: RenderVertex['position'],
-    matrix: Matrix4,
-): { readonly w: number; readonly x: number; readonly y: number; readonly z: number } | null {
-    const x =
-        matrixValue(matrix, 0) * point.x +
-        matrixValue(matrix, 4) * point.y +
-        matrixValue(matrix, 8) * point.z +
-        matrixValue(matrix, 12);
-    const y =
-        matrixValue(matrix, 1) * point.x +
-        matrixValue(matrix, 5) * point.y +
-        matrixValue(matrix, 9) * point.z +
-        matrixValue(matrix, 13);
-    const z =
-        matrixValue(matrix, 2) * point.x +
-        matrixValue(matrix, 6) * point.y +
-        matrixValue(matrix, 10) * point.z +
-        matrixValue(matrix, 14);
-    const w =
-        matrixValue(matrix, 3) * point.x +
-        matrixValue(matrix, 7) * point.y +
-        matrixValue(matrix, 11) * point.z +
-        matrixValue(matrix, 15);
-
-    if (!Number.isFinite(w) || Math.abs(w) <= 0.000001) {
-        return null;
-    }
-
-    return {
-        w,
-        x: x / w,
-        y: y / w,
-        z: z / w,
+    const batch = {
+        depthMode,
+        key,
+        segments: [],
+        target,
     };
-}
 
-function clipToScreen(
-    point: { readonly x: number; readonly y: number },
-    viewportSize: ViewportSize,
-): { readonly x: number; readonly y: number } {
-    return {
-        x: (point.x * 0.5 + 0.5) * viewportSize.width,
-        y: (0.5 - point.y * 0.5) * viewportSize.height,
-    };
-}
+    batches.set(key, batch);
 
-function screenToNdc(
-    point: { readonly x: number; readonly y: number },
-    z: number,
-    viewportSize: ViewportSize,
-): RenderVertex['position'] {
-    return Vec3.of(
-        (point.x / Math.max(viewportSize.width, 1)) * 2 - 1,
-        1 - (point.y / Math.max(viewportSize.height, 1)) * 2,
-        z,
-    );
-}
-
-function matrixValue(matrix: Matrix4, index: number): number {
-    return matrix[index] ?? 0;
+    return batch;
 }
