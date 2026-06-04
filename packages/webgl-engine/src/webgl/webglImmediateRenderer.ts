@@ -19,6 +19,9 @@ export interface WebGLRendererBindings {
     readonly labelPositionLocation: number;
     readonly labelTextureLocation: WebGLUniformLocation;
     readonly labelUvLocation: number;
+    readonly lineDistanceLocation: number;
+    readonly lineDistanceScaleLocation: WebGLUniformLocation;
+    readonly lineStippleLocation: WebGLUniformLocation;
     readonly matrixLocation: WebGLUniformLocation;
     readonly pointShapeLocation: WebGLUniformLocation;
     readonly pointSizeLocation: WebGLUniformLocation;
@@ -83,6 +86,8 @@ export class WebGLImmediateRenderer {
             this.context.STATIC_DRAW,
         );
         this.context.uniform1f(bindings.pointSizeLocation, input.pointSize ?? 1);
+        this.context.uniform1f(bindings.lineDistanceScaleLocation, 1);
+        this.context.uniform4f(bindings.lineStippleLocation, 12, 0, 12, 0);
         this.context.uniform1f(
             bindings.pointShapeLocation,
             resolveImmediatePointShape(input.pointShape ?? 'none'),
@@ -125,6 +130,7 @@ export class WebGLImmediateRenderer {
             bindings.positionLocation,
             bindings.colorLocation,
             bindings.alphaLocation,
+            bindings.lineDistanceLocation,
         ]);
         this.context.bindBuffer(this.context.ARRAY_BUFFER, buffer);
         this.context.enableVertexAttribArray(bindings.labelPositionLocation);
@@ -174,6 +180,7 @@ export class WebGLImmediateRenderer {
             bindings.labelUvLocation,
             bindings.labelColorLocation,
             bindings.labelAlphaLocation,
+            bindings.lineDistanceLocation,
         ]);
         this.context.bindBuffer(this.context.ARRAY_BUFFER, buffer);
         this.context.enableVertexAttribArray(bindings.positionLocation);
@@ -203,6 +210,7 @@ export class WebGLImmediateRenderer {
             stride,
             6 * Float32Array.BYTES_PER_ELEMENT,
         );
+        this.context.vertexAttrib1f(bindings.lineDistanceLocation, 0);
     }
 }
 

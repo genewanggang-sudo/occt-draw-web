@@ -2,6 +2,7 @@ import { toLabelVertexBuffer } from '../labelGeometry';
 import { createLabelProgram } from '../labelShaderProgram';
 import { toVertexBuffer } from '../lineGeometry';
 import { createViewProjectionMatrix } from '../matrix';
+import { getCameraViewHeight } from '../cameraGeometry';
 import {
     createNavigationDepthResources,
     disposeNavigationDepthResources,
@@ -45,6 +46,7 @@ export class WebGLRenderer implements RenderBackend {
     private readonly vertexArray: WebGLVertexArrayObject;
     private frameCameraKey = '';
     private frameMatrix: Float32List = new Float32Array(16);
+    private lineDistanceScale = 1;
     private viewportSize: ViewportSize = { width: 1, height: 1 };
 
     public readonly resources: RenderPipelineResources;
@@ -67,7 +69,13 @@ export class WebGLRenderer implements RenderBackend {
         const positionLocation = context.getAttribLocation(this.program, 'a_position');
         const colorLocation = context.getAttribLocation(this.program, 'a_color');
         const alphaLocation = context.getAttribLocation(this.program, 'a_alpha');
+        const lineDistanceLocation = context.getAttribLocation(this.program, 'a_line_distance');
         const matrixLocation = context.getUniformLocation(this.program, 'u_matrix');
+        const lineDistanceScaleLocation = context.getUniformLocation(
+            this.program,
+            'u_line_distance_scale',
+        );
+        const lineStippleLocation = context.getUniformLocation(this.program, 'u_line_stipple');
         const pointShapeLocation = context.getUniformLocation(this.program, 'u_point_shape');
         const pointSizeLocation = context.getUniformLocation(this.program, 'u_point_size');
         const labelPositionLocation = context.getAttribLocation(this.labelProgram, 'a_position');
@@ -77,7 +85,13 @@ export class WebGLRenderer implements RenderBackend {
         const labelMatrixLocation = context.getUniformLocation(this.labelProgram, 'u_matrix');
         const labelTextureLocation = context.getUniformLocation(this.labelProgram, 'u_texture');
 
-        if (!matrixLocation || !pointShapeLocation || !pointSizeLocation) {
+        if (
+            !lineDistanceScaleLocation ||
+            !lineStippleLocation ||
+            !matrixLocation ||
+            !pointShapeLocation ||
+            !pointSizeLocation
+        ) {
             throw new Error('WebGL renderer initialization failed: missing render uniform.');
         }
 
@@ -122,6 +136,9 @@ export class WebGLRenderer implements RenderBackend {
             labelPositionLocation,
             labelTextureLocation,
             labelUvLocation,
+            lineDistanceLocation,
+            lineDistanceScaleLocation,
+            lineStippleLocation,
             matrixLocation,
             pointShapeLocation,
             pointSizeLocation,
@@ -151,6 +168,10 @@ export class WebGLRenderer implements RenderBackend {
         this.resources.labelAtlasGlyphs = labelAtlas.glyphs;
         this.resize(input.viewportSize);
         this.frameMatrix = createViewProjectionMatrix(input.camera, input.viewportSize);
+        this.lineDistanceScale =
+            Math.max(input.viewportSize.height, 1) / Math.max(getCameraViewHeight(input.camera), 1);
+        this.context.useProgram(this.program);
+        this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
         this.frameCameraKey = getLabelCacheCameraKey(input);
         this.context.bindFramebuffer(this.context.FRAMEBUFFER, null);
         this.renderBufferCache.beginFrame();
@@ -161,7 +182,6 @@ export class WebGLRenderer implements RenderBackend {
         this.context.disable(this.context.BLEND);
         this.context.clearColor(0.035, 0.043, 0.055, 1);
         this.context.clear(this.context.COLOR_BUFFER_BIT | this.context.DEPTH_BUFFER_BIT);
-        this.context.useProgram(this.program);
         this.context.uniformMatrix4fv(this.bindings.matrixLocation, false, this.frameMatrix);
         this.context.bindVertexArray(null);
     }
@@ -288,6 +308,7 @@ export class WebGLRenderer implements RenderBackend {
             this.bindings.positionLocation,
             this.bindings.colorLocation,
             this.bindings.alphaLocation,
+            this.bindings.lineDistanceLocation,
         ]);
         this.context.bindBuffer(this.context.ARRAY_BUFFER, buffer);
         this.context.enableVertexAttribArray(this.bindings.labelPositionLocation);
@@ -340,6 +361,7 @@ export class WebGLRenderer implements RenderBackend {
             this.bindings.positionLocation,
             this.bindings.colorLocation,
             this.bindings.alphaLocation,
+            this.bindings.lineDistanceLocation,
         ]);
 
         for (const attribute of layout.attributes) {
@@ -359,6 +381,8 @@ export class WebGLRenderer implements RenderBackend {
                 attribute.offsetFloats * Float32Array.BYTES_PER_ELEMENT,
             );
         }
+
+        this.context.vertexAttrib1f(this.bindings.lineDistanceLocation, 0);
     }
 
     private applyMaterialVertexAttributes(
@@ -371,6 +395,14 @@ export class WebGLRenderer implements RenderBackend {
             command.material.color.z,
         );
         this.context.vertexAttrib1f(this.bindings.alphaLocation, command.material.alpha);
+        this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
+        this.context.uniform4f(
+            this.bindings.lineStippleLocation,
+            command.material.lineStipple[0],
+            command.material.lineStipple[1],
+            command.material.lineStipple[2],
+            command.material.lineStipple[3],
+        );
     }
 
     private drawMarkerVertices(
@@ -401,6 +433,8 @@ export class WebGLRenderer implements RenderBackend {
                 strideFloats: 7,
             });
             this.context.uniform1f(this.bindings.pointSizeLocation, vertex.sizePixels);
+            this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
+            this.context.uniform4f(this.bindings.lineStippleLocation, 12, 0, 12, 0);
             this.context.uniform1f(this.bindings.pointShapeLocation, 2);
             this.context.drawArrays(this.context.POINTS, 0, 1);
         }
@@ -438,6 +472,10 @@ export class WebGLRenderer implements RenderBackend {
 
         if (semantic === 'color') {
             return this.bindings.colorLocation;
+        }
+
+        if (semantic === 'line-distance') {
+            return this.bindings.lineDistanceLocation;
         }
 
         return this.bindings.alphaLocation;

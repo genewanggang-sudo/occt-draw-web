@@ -2,6 +2,7 @@ import type { LineSegment3, Vector3 } from '@occt-draw/math';
 
 export type DraftId = string;
 export type DraftKind = 'generic' | 'selection' | 'temporary' | 'transform';
+export type DraftLineStyle = 'construction' | 'solid';
 export type DraftObjectId = string;
 export type DraftObjectKind = 'line-segment' | 'point';
 
@@ -14,6 +15,7 @@ export interface BaseDraftObject {
 export interface DraftLineSegmentObject extends BaseDraftObject {
     readonly color?: Vector3;
     readonly kind: 'line-segment';
+    readonly lineStyle?: DraftLineStyle;
     readonly showEndpointPoints?: boolean;
     readonly segment: LineSegment3;
 }

@@ -2,6 +2,8 @@ import { Vec3, type Vector3 } from '@occt-draw/math';
 
 const DEFAULT_COLOR = Vec3.of(1, 1, 1);
 
+export type EdgeLineStyle = 'construction' | 'solid';
+
 export class FaceStyle {
     public readonly color: Vector3;
     public readonly opacity: number;
@@ -14,9 +16,11 @@ export class FaceStyle {
 
 export class EdgeStyle {
     public readonly color: Vector3;
+    public readonly lineStyle: EdgeLineStyle;
 
-    constructor(input: { readonly color?: Vector3 } = {}) {
+    constructor(input: { readonly color?: Vector3; readonly lineStyle?: EdgeLineStyle } = {}) {
         this.color = input.color ?? DEFAULT_COLOR;
+        this.lineStyle = input.lineStyle ?? 'solid';
     }
 }
 

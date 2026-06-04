@@ -1,1 +1,8 @@
-export { EdgeStyle, FaceStyle, MarkerStyle, PointStyle, TextStyle } from './renderStyle';
+export {
+    EdgeStyle,
+    FaceStyle,
+    MarkerStyle,
+    PointStyle,
+    TextStyle,
+    type EdgeLineStyle,
+} from './renderStyle';

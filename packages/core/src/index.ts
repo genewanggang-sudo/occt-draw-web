@@ -63,6 +63,7 @@ export {
     type DraftId,
     type DraftKind,
     type DraftLineSegmentObject,
+    type DraftLineStyle,
     type DraftObject,
     type DraftObjectId,
     type DraftObjectKind,

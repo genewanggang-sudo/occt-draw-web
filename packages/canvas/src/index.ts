@@ -11,6 +11,7 @@ export type {
     CanvasFaceObject,
     CanvasLabelObject,
     CanvasLayer,
+    CanvasLineStyle,
     CanvasMarkerObject,
     CanvasObject,
     CanvasObjectBase,

@@ -83,6 +83,11 @@ const sketchDrawingToolGroups: readonly SketchToolbarGroup[] = [
                 label: '3 点圆弧',
                 shortcut: 'A',
             },
+            {
+                commandId: 'sketch-center-arc',
+                icon: ToolbarIconId.CenterArc,
+                label: '圆心圆弧',
+            },
         ],
     },
 ] as const;

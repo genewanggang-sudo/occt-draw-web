@@ -360,6 +360,10 @@ function shouldExitSketchSession(state: EditorState): boolean {
         return tool.firstEdge === null;
     }
 
+    if (tool.kind === 'center-arc') {
+        return tool.centerPoint === null && tool.startPoint === null;
+    }
+
     if (tool.kind === 'ellipse') {
         return tool.centerPoint === null && tool.primaryAxisPoint === null;
     }

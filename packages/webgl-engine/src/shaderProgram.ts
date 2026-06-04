@@ -2,22 +2,39 @@ const vertexShaderSource = `#version 300 es
 in vec3 a_position;
 in vec3 a_color;
 in float a_alpha;
+in float a_line_distance;
 uniform mat4 u_matrix;
+uniform float u_line_distance_scale;
 uniform float u_point_size;
 out vec4 v_color;
+out float v_line_distance;
 
 void main() {
     gl_Position = u_matrix * vec4(a_position, 1.0);
     gl_PointSize = u_point_size;
     v_color = vec4(a_color, a_alpha);
+    v_line_distance = a_line_distance * u_line_distance_scale;
 }
 `;
 
 const fragmentShaderSource = `#version 300 es
 precision mediump float;
+uniform vec4 u_line_stipple;
 uniform float u_point_shape;
 in vec4 v_color;
+in float v_line_distance;
 out vec4 out_color;
+
+bool isLineGap(float lineDistance, vec4 lineStipple) {
+    float gapStart1 = lineStipple.x;
+    float gapStop1 = gapStart1 + lineStipple.y;
+    float gapStart2 = gapStop1 + lineStipple.z;
+    float stippleLength = max(gapStart2 + lineStipple.w, 0.001);
+    float stippleDistance = mod(lineDistance, stippleLength);
+
+    return (stippleDistance > gapStart1 && stippleDistance < gapStop1) ||
+        (stippleDistance > gapStart2 && stippleDistance < stippleLength);
+}
 
 void main() {
     if (u_point_shape > 3.5) {
@@ -75,6 +92,10 @@ void main() {
 
         out_color = vec4(v_color.rgb, v_color.a * edgeAlpha);
         return;
+    }
+
+    if (isLineGap(v_line_distance, u_line_stipple)) {
+        discard;
     }
 
     out_color = v_color;

@@ -84,6 +84,46 @@ export class Arc2 extends Curve2 {
         return arc.isValid() ? arc : null;
     }
 
+    public static fromCenterStartEndPoint(
+        centerPoint: Vector2,
+        startPoint: Vector2,
+        endDirectionPoint: Vector2,
+        tolerance = DEFAULT_TOLERANCE.distance,
+    ): Arc2 | null {
+        const center = Vec2.from(centerPoint);
+        const start = Vec2.from(startPoint);
+        const endDirection = Vec2.from(endDirectionPoint);
+
+        if (!center.isFinite() || !start.isFinite() || !endDirection.isFinite()) {
+            return null;
+        }
+
+        const startVector = center.vectorTo(start);
+        const endVector = center.vectorTo(endDirection);
+        const radius = startVector.length();
+        const endDirectionLength = endVector.length();
+
+        if (
+            !Number.isFinite(radius) ||
+            !Number.isFinite(endDirectionLength) ||
+            radius <= tolerance ||
+            endDirectionLength <= tolerance
+        ) {
+            return null;
+        }
+
+        const startAngle = Math.atan2(startVector.y, startVector.x);
+        const endAngle = Math.atan2(endVector.y, endVector.x);
+        const sweep = normalizeAngleDelta(endAngle - startAngle);
+        const arc = new Arc2(
+            new Circle2(center, radius),
+            Angle.fromRadians(startAngle),
+            Angle.fromRadians(startAngle + sweep),
+        );
+
+        return arc.isValid() ? arc : null;
+    }
+
     private angleAt(parameter: number): Angle {
         return Angle.lerp(this.startAngle, this.endAngle, this.domain.clamp(parameter));
     }
@@ -139,4 +179,19 @@ function adjustAngleBelow(angle: number, ceiling: number): number {
     }
 
     return adjusted;
+}
+
+function normalizeAngleDelta(delta: number): number {
+    const fullTurn = Math.PI * 2;
+    let normalized = delta;
+
+    while (normalized <= -Math.PI) {
+        normalized += fullTurn;
+    }
+
+    while (normalized > Math.PI) {
+        normalized -= fullTurn;
+    }
+
+    return normalized;
 }

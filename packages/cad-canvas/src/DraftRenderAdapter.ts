@@ -5,9 +5,15 @@ import type {
     DraftPointObject,
     EditDraft,
 } from '@occt-draw/core';
-import type { CanvasObject } from '@occt-draw/canvas';
-import { Vec3 } from '@occt-draw/math';
+import type { CanvasLineStyle, CanvasObject } from '@occt-draw/canvas';
+import { Vec3, type Vector3 } from '@occt-draw/math';
 import { EDIT_PREVIEW_LAYER_ID } from './canvasAdapterLayers';
+
+interface DraftLineGroup {
+    readonly color: Vector3;
+    readonly lineStyle: CanvasLineStyle;
+    readonly objects: DraftLineSegmentObject[];
+}
 
 export class DraftRenderAdapter {
     public createDraftObjects(draft: EditDraft<CadDocument> | null): readonly CanvasObject[] {
@@ -21,22 +27,23 @@ export class DraftRenderAdapter {
         const pointObjects = draft.temporaryObjects.filter((object) =>
             this.isDraftPointObject(object),
         );
-        const segments = lineSegmentObjects.map((object) => object.segment);
+        const lineGroups = groupLineSegmentObjects(lineSegmentObjects);
         const linePoints = lineSegmentObjects
             .filter((object) => object.showEndpointPoints !== false)
             .flatMap((object) => [object.segment.start, object.segment.end]);
         const objects: CanvasObject[] = [];
 
-        if (segments.length > 0) {
+        for (const group of lineGroups) {
             objects.push({
-                color: Vec3.of(0.35, 0.72, 1),
+                color: group.color,
                 depthRole: 'primary',
-                id: `${draft.id}:temporary-lines`,
+                id: `${draft.id}:temporary-lines:${group.lineStyle}:${toColorKey(group.color)}`,
                 kind: 'edge',
                 layerId: EDIT_PREVIEW_LAYER_ID,
                 name: 'temporary lines',
                 pickable: false,
-                segments,
+                lineStyle: group.lineStyle,
+                segments: group.objects.map((object) => object.segment),
                 visible: true,
             });
         }
@@ -81,4 +88,34 @@ export class DraftRenderAdapter {
     private isDraftPointObject(object: DraftObject): object is DraftPointObject {
         return object.kind === 'point';
     }
+}
+
+function groupLineSegmentObjects(
+    objects: readonly DraftLineSegmentObject[],
+): readonly DraftLineGroup[] {
+    const groups = new Map<string, DraftLineGroup>();
+
+    for (const object of objects) {
+        const color = object.color ?? Vec3.of(0.35, 0.72, 1);
+        const lineStyle = object.lineStyle ?? 'solid';
+        const key = `${lineStyle}:${toColorKey(color)}`;
+        const group = groups.get(key);
+
+        if (group) {
+            group.objects.push(object);
+            continue;
+        }
+
+        groups.set(key, {
+            color,
+            lineStyle,
+            objects: [object],
+        });
+    }
+
+    return [...groups.values()];
+}
+
+function toColorKey(color: Vector3): string {
+    return [color.x, color.y, color.z].map((component) => component.toFixed(4)).join(',');
 }

@@ -61,7 +61,10 @@ export class CanvasRenderGraphProjector {
         if (object.kind === 'edge') {
             return new EdgeSet(
                 new EdgeGeometry(object.segments, object.primitiveMetadata ?? []),
-                new EdgeStyle({ color: object.color }),
+                new EdgeStyle({
+                    color: object.color,
+                    ...(object.lineStyle ? { lineStyle: object.lineStyle } : {}),
+                }),
                 createRenderObjectOptions(object),
             );
         }

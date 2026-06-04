@@ -301,6 +301,55 @@ export class AddThreePointArcRequest
     }
 }
 
+export interface AddCenterPointArcRequestResult extends SketchDocumentRequestContext {
+    readonly createdCurveId: string | null;
+    readonly createdEdgeId: SketchEdgeId | null;
+    readonly payloadId: FeaturePayloadId;
+}
+
+export class AddCenterPointArcRequest
+    extends SketchDocumentRequest<AddCenterPointArcRequestResult>
+    implements DocumentRequest<CadDocument, AddCenterPointArcRequestResult, CadDocumentWriteContext>
+{
+    private readonly centerPoint: Vector2;
+    private readonly endDirectionPoint: Vector2;
+    private readonly startPoint: Vector2;
+
+    constructor(
+        input: SketchDocumentRequestContext & {
+            readonly centerPoint: Vector2;
+            readonly endDirectionPoint: Vector2;
+            readonly startPoint: Vector2;
+        },
+    ) {
+        super({
+            label: 'Add sketch center point arc',
+            partStudioId: input.partStudioId,
+            sketchFeatureId: input.sketchFeatureId,
+            transactionId: `add-sketch-center-point-arc:${input.sketchFeatureId}`,
+        });
+        this.centerPoint = input.centerPoint;
+        this.endDirectionPoint = input.endDirectionPoint;
+        this.startPoint = input.startPoint;
+    }
+
+    protected apply(target: SketchWriteTarget): AddCenterPointArcRequestResult {
+        const result = target.primitives.addArcByCenterStartEndPoint(
+            this.centerPoint,
+            this.startPoint,
+            this.endDirectionPoint,
+        );
+
+        return {
+            createdCurveId: result?.createdCurveId ?? null,
+            createdEdgeId: result?.createdEdgeId ?? null,
+            partStudioId: this.partStudioId,
+            payloadId: target.payloadId,
+            sketchFeatureId: this.sketchFeatureId,
+        };
+    }
+}
+
 export interface AddEllipseRequestResult extends SketchDocumentRequestContext {
     readonly createdCurveId: string | null;
     readonly payloadId: FeaturePayloadId;

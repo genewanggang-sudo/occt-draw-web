@@ -36,6 +36,7 @@ import {
 import { SelectCommand } from '../commands/SelectCommand';
 import { EnterSketchCommand } from '../commands/EnterSketchCommand';
 import { SketchAlignedRectangleCommand } from '../commands/SketchAlignedRectangleCommand';
+import { SketchCenterPointArcCommand } from '../commands/SketchCenterPointArcCommand';
 import { SketchCircleCommand } from '../commands/SketchCircleCommand';
 import { SketchCenterRectangleCommand } from '../commands/SketchCenterRectangleCommand';
 import { SketchEllipseCommand } from '../commands/SketchEllipseCommand';
@@ -85,6 +86,7 @@ export class ViewportInteractionController {
         | SketchRectangleCommand
         | SketchCenterRectangleCommand
         | SketchAlignedRectangleCommand
+        | SketchCenterPointArcCommand
         | SketchCircleCommand
         | SketchThreePointArcCommand
         | SketchThreePointCircleCommand
@@ -104,6 +106,7 @@ export class ViewportInteractionController {
                 new SketchRectangleCommand(),
                 new SketchCenterRectangleCommand(),
                 new SketchAlignedRectangleCommand(),
+                new SketchCenterPointArcCommand(),
                 new SketchCircleCommand(),
                 new SketchThreePointArcCommand(),
                 new SketchThreePointCircleCommand(),

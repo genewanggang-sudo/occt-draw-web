@@ -101,6 +101,16 @@ export class SketchPrimitiveBuilder {
         );
     }
 
+    public addArcByCenterStartEndPoint(
+        centerPoint: Vector2,
+        startPoint: Vector2,
+        endDirectionPoint: Vector2,
+    ): SketchPrimitiveResult | null {
+        return this.capture(() =>
+            this.addArcByCenterStartEndPointCore(centerPoint, startPoint, endDirectionPoint),
+        );
+    }
+
     public addEllipseByAxis(
         firstAxisPoint: Vector2,
         secondAxisPoint: Vector2,
@@ -261,6 +271,53 @@ export class SketchPrimitiveBuilder {
             return null;
         }
 
+        const startVertex = this.addVertexAtPosition(startPoint);
+        const endVertex = this.addVertexAtPosition(endPoint);
+        const curveId = this.sketch.state.allocateCurveId();
+        const edgeId = this.sketch.state.allocateEdgeId();
+        const curve = new Arc2D({
+            center: arc.circle.center,
+            endAngleRadians: arc.endAngle.radians,
+            id: curveId,
+            radius: arc.circle.radius,
+            sketchId: this.sketch.id,
+            startAngleRadians: arc.startAngle.radians,
+        });
+        const edge = new Edge({
+            curveId,
+            endVertexId: endVertex.vertex.id,
+            id: edgeId,
+            sketchId: this.sketch.id,
+            startVertexId: startVertex.vertex.id,
+        });
+
+        this.sketch.entities.geometry.curves.add(curve);
+        this.sketch.entities.topology.edges.add(edge);
+
+        return {
+            createdCurveId: curveId,
+            createdEdgeId: edgeId,
+            touchedEntityRefs: [
+                ...startVertex.touchedEntityRefs,
+                ...endVertex.touchedEntityRefs,
+                curve.ref,
+                edge.ref,
+            ],
+        };
+    }
+
+    private addArcByCenterStartEndPointCore(
+        centerPoint: Vector2,
+        startPoint: Vector2,
+        endDirectionPoint: Vector2,
+    ): SketchPrimitiveResult | null {
+        const arc = Arc2.fromCenterStartEndPoint(centerPoint, startPoint, endDirectionPoint);
+
+        if (!arc) {
+            return null;
+        }
+
+        const endPoint = arc.pointAt(1);
         const startVertex = this.addVertexAtPosition(startPoint);
         const endVertex = this.addVertexAtPosition(endPoint);
         const curveId = this.sketch.state.allocateCurveId();

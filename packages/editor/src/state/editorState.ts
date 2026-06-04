@@ -22,6 +22,11 @@ export interface SketchAlignedRectangleEdge {
 
 export type SketchToolState =
     | { readonly kind: 'aligned-rectangle'; readonly firstEdge: SketchAlignedRectangleEdge | null }
+    | {
+          readonly centerPoint: Vector2 | null;
+          readonly kind: 'center-arc';
+          readonly startPoint: Vector2 | null;
+      }
     | { readonly center: Vector2 | null; readonly kind: 'circle' }
     | { readonly center: Vector2 | null; readonly kind: 'center-rectangle' }
     | {

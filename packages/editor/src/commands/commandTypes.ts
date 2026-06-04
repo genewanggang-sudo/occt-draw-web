@@ -4,6 +4,7 @@ export type CommandId =
     | 'extrude'
     | 'select'
     | 'sketch-aligned-rectangle'
+    | 'sketch-center-arc'
     | 'sketch-center-rectangle'
     | 'sketch'
     | 'sketch-circle'
@@ -32,6 +33,7 @@ export type CommandAvailabilityMap = Readonly<Record<CommandId, CommandAvailabil
 export interface CommandAvailabilityContext {
     readonly activeSketchTool:
         | 'aligned-rectangle'
+        | 'center-arc'
         | 'center-rectangle'
         | 'circle'
         | 'ellipse'

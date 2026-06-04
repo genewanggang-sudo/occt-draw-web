@@ -20,6 +20,7 @@ export {
 } from './documentRequests';
 export {
     AddCornerRectangleRequest,
+    AddCenterPointArcRequest,
     AddClosedLineSegmentsRequest,
     AddCircleRequest,
     AddEllipseRequest,
@@ -31,6 +32,7 @@ export {
     isEditableSketchEntityRef,
     predictLineSegmentEndVertexId,
     type AddCornerRectangleRequestResult,
+    type AddCenterPointArcRequestResult,
     type AddClosedLineSegmentsRequestResult,
     type AddCircleRequestResult,
     type AddEllipseRequestResult,

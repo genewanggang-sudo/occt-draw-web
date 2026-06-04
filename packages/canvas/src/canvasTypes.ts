@@ -8,6 +8,7 @@ import type {
 import type { RenderLayerOptions } from '@occt-draw/webgl-engine';
 
 export type CanvasObjectKind = 'edge' | 'face' | 'label' | 'marker' | 'point';
+export type CanvasLineStyle = 'construction' | 'solid';
 export type CanvasPrimitiveMetadata = ReadonlyMap<string, unknown>;
 
 export interface CanvasPickRef {
@@ -53,6 +54,7 @@ export interface CanvasFaceObject extends CanvasObjectBase {
 export interface CanvasEdgeObject extends CanvasObjectBase {
     readonly color: Vector3;
     readonly kind: 'edge';
+    readonly lineStyle?: CanvasLineStyle;
     readonly primitiveMetadata?: readonly (CanvasPrimitiveMetadata | undefined)[];
     readonly segments: readonly LineSegment3[];
 }

@@ -23,7 +23,14 @@ export {
 export { RenderableObject } from './renderableObject';
 export type { RenderObjectBuilder } from './renderableObject';
 export { EdgeSet, FaceSet, MarkerSet, PointSet, TextLabelSet } from './scene';
-export { EdgeStyle, FaceStyle, MarkerStyle, PointStyle, TextStyle } from './style';
+export {
+    EdgeStyle,
+    FaceStyle,
+    MarkerStyle,
+    PointStyle,
+    TextStyle,
+    type EdgeLineStyle,
+} from './style';
 export {
     ColorPass,
     HighlightPass,

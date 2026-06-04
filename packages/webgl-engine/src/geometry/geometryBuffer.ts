@@ -1,8 +1,8 @@
-import { BBox3, type LineSegment3, type Vector3 } from '@occt-draw/math';
+import { BBox3, Vec3, type LineSegment3, type Vector3 } from '@occt-draw/math';
 import type { GeometryBounds } from '../core';
 import type { SurfaceTriangle } from '../types';
 
-export type BufferAttributeSemantic = 'alpha' | 'color' | 'position';
+export type BufferAttributeSemantic = 'alpha' | 'color' | 'line-distance' | 'position';
 export type BufferIndexData = Uint16Array | Uint32Array;
 export const BufferIndexType = {
     Uint16: 'uint16',
@@ -63,17 +63,33 @@ export const PositionVertexAttributeLayout: VertexAttributeLayout = {
     strideFloats: 3,
 };
 
+export const LineVertexAttributeLayout: VertexAttributeLayout = {
+    attributes: [
+        { components: 3, offsetFloats: 0, semantic: 'position' },
+        { components: 1, offsetFloats: 3, semantic: 'line-distance' },
+    ],
+    strideFloats: 4,
+};
+
 export class GeometryBufferBuilder {
     public points(points: readonly Vector3[]): GeometryBuffer {
         return this.positions(points);
     }
 
     public segments(segments: readonly LineSegment3[]): GeometryBuffer {
-        const buffer = new PositionBufferWriter(segments.length * 2);
+        const buffer = new LineBufferWriter(segments.length * 2);
+        let distance = 0;
+        let previousEnd: Vector3 | null = null;
 
         for (const segment of segments) {
-            buffer.write(segment.start);
-            buffer.write(segment.end);
+            if (previousEnd && Vec3.distance(previousEnd, segment.start) > 1e-7) {
+                distance = 0;
+            }
+
+            buffer.write(segment.start, distance);
+            distance += Vec3.distance(segment.start, segment.end);
+            buffer.write(segment.end, distance);
+            previousEnd = segment.end;
         }
 
         return buffer.toGeometryBuffer();
@@ -99,6 +115,38 @@ export class GeometryBufferBuilder {
         }
 
         return buffer.toGeometryBuffer();
+    }
+}
+
+class LineBufferWriter {
+    private bounds: BBox3 | null = null;
+    private offset = 0;
+    private vertexCount = 0;
+    private readonly data: Float32Array;
+
+    constructor(vertexCapacity: number) {
+        this.data = new Float32Array(vertexCapacity * LineVertexAttributeLayout.strideFloats);
+    }
+
+    public write(position: Vector3, lineDistance: number): void {
+        this.data[this.offset] = position.x;
+        this.data[this.offset + 1] = position.y;
+        this.data[this.offset + 2] = position.z;
+        this.data[this.offset + 3] = lineDistance;
+        this.offset += LineVertexAttributeLayout.strideFloats;
+        this.vertexCount += 1;
+        this.bounds = this.bounds
+            ? this.bounds.expandByPoint(position)
+            : new BBox3(position, position);
+    }
+
+    public toGeometryBuffer(): GeometryBuffer {
+        return new GeometryBuffer({
+            bounds: this.bounds,
+            interleaved: this.data,
+            layout: LineVertexAttributeLayout,
+            vertexCount: this.vertexCount,
+        });
     }
 }
 

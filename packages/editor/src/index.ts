@@ -89,6 +89,7 @@ export type {
 export { SelectCommand } from './commands/SelectCommand';
 export { EnterSketchCommand } from './commands/EnterSketchCommand';
 export { SketchAlignedRectangleCommand } from './commands/SketchAlignedRectangleCommand';
+export { SketchCenterPointArcCommand } from './commands/SketchCenterPointArcCommand';
 export { SketchCircleCommand } from './commands/SketchCircleCommand';
 export { SketchCenterRectangleCommand } from './commands/SketchCenterRectangleCommand';
 export { SketchEllipseCommand } from './commands/SketchEllipseCommand';

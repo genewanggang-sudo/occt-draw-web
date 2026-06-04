@@ -13,10 +13,16 @@ export interface RenderState {
 export interface RenderMaterial {
     readonly alpha: number;
     readonly color: Vector3;
+    readonly lineStipple: LineStipple;
     readonly pointSize: number;
     readonly renderState: RenderState;
     readonly shaderVariantKey: ShaderVariantKey;
 }
+
+export type LineStipple = readonly [number, number, number, number];
+
+const SOLID_LINE_STIPPLE: LineStipple = [12, 0, 12, 0];
+const CONSTRUCTION_LINE_STIPPLE: LineStipple = [4, 6, 30, 6];
 
 const OPAQUE_RENDER_STATE: RenderState = {
     blend: false,
@@ -45,6 +51,7 @@ export function resolveFaceMaterial(style: FaceStyle): RenderMaterial {
     return {
         alpha: style.opacity,
         color: style.color,
+        lineStipple: SOLID_LINE_STIPPLE,
         pointSize: 1,
         renderState: style.opacity < 1 ? TRANSPARENT_RENDER_STATE : OPAQUE_RENDER_STATE,
         shaderVariantKey: 'solid',
@@ -55,6 +62,8 @@ export function resolveEdgeMaterial(style: EdgeStyle): RenderMaterial {
     return {
         alpha: 1,
         color: style.color,
+        lineStipple:
+            style.lineStyle === 'construction' ? CONSTRUCTION_LINE_STIPPLE : SOLID_LINE_STIPPLE,
         pointSize: 1,
         renderState: OPAQUE_RENDER_STATE,
         shaderVariantKey: 'solid',
@@ -65,6 +74,7 @@ export function resolvePointMaterial(style: PointStyle): RenderMaterial {
     return {
         alpha: 1,
         color: style.color,
+        lineStipple: SOLID_LINE_STIPPLE,
         pointSize: style.sizePixels,
         renderState: TRANSPARENT_RENDER_STATE,
         shaderVariantKey: 'point',
@@ -75,6 +85,7 @@ export function resolveMarkerMaterial(_style: MarkerStyle): RenderMaterial {
     return {
         alpha: 1,
         color: DEFAULT_MATERIAL_COLOR,
+        lineStipple: SOLID_LINE_STIPPLE,
         pointSize: 1,
         renderState: TRANSPARENT_RENDER_STATE,
         shaderVariantKey: 'marker',
@@ -85,6 +96,7 @@ export function resolveTextMaterial(_style: TextStyle): RenderMaterial {
     return {
         alpha: 1,
         color: DEFAULT_MATERIAL_COLOR,
+        lineStipple: SOLID_LINE_STIPPLE,
         pointSize: 1,
         renderState: LABEL_RENDER_STATE,
         shaderVariantKey: 'label',
