@@ -3,19 +3,26 @@ in vec3 a_position;
 in vec3 a_color;
 in float a_alpha;
 in float a_line_distance;
-in vec3 a_line_opposite_position;
-in float a_line_side;
-in float a_line_along;
+in vec4 a_line_edge_data;
+in float a_line_edge_length;
+in float a_line_primitive_size;
+in vec4 a_line_primitive_style;
 uniform mat4 u_matrix;
+uniform float u_device_pixel_ratio;
+uniform float u_is_orthographic;
 uniform float u_line_distance_scale;
 uniform float u_line_filter_width;
 uniform float u_line_mode;
+uniform vec4 u_line_stipple;
 uniform float u_line_width;
 uniform float u_point_size;
+uniform float u_projection_scale;
 uniform vec2 u_viewport_size;
 out vec4 v_color;
 out float v_line_distance;
 out float v_line_center_distance;
+out vec4 v_line_stipple;
+out float v_line_width;
 flat out float v_line_mode;
 
 float safeClipW(float w) {
@@ -28,32 +35,115 @@ vec2 safeNormalize(vec2 value) {
     return lengthValue < 0.000001 ? vec2(1.0, 0.0) : value / lengthValue;
 }
 
+float impulse(float expected, float actual) {
+    return 1.0 - step(0.5, abs(actual - expected));
+}
+
+float edgeCornerIndex() {
+    return round(length(a_line_edge_data.xyz));
+}
+
+float edgeNormalDirectionFlag(float cornerIndex) {
+    return -impulse(1.0, cornerIndex) - impulse(2.0, cornerIndex) +
+        impulse(3.0, cornerIndex) + impulse(4.0, cornerIndex);
+}
+
+float edgeTangentDirectionFlag(float cornerIndex) {
+    return -impulse(1.0, cornerIndex) + impulse(2.0, cornerIndex) +
+        impulse(3.0, cornerIndex) - impulse(4.0, cornerIndex);
+}
+
+bool edgeIsInfinite() {
+    return a_line_edge_data.w < 0.0;
+}
+
+float edgeLength() {
+    return abs(a_line_edge_data.w) - 1.0;
+}
+
+void computeTangentAndNormalOffsets(
+    vec4 projectedPosition,
+    float lineWidth,
+    out vec2 tangentOffset,
+    out vec2 normalOffset
+) {
+    vec3 edgeDirection = normalize(a_line_edge_data.xyz);
+    float cornerIndex = edgeCornerIndex();
+    float normalDirectionFlag = edgeNormalDirectionFlag(cornerIndex);
+    float tangentDirectionFlag = edgeTangentDirectionFlag(cornerIndex);
+    vec4 projectedDirection = u_matrix * vec4(edgeDirection, 0.0);
+
+    tangentOffset = vec2(0.0, 0.0);
+
+    vec2 screenTangent;
+    if (u_is_orthographic > 0.5) {
+        vec2 screenNormal = safeNormalize(
+            vec2(u_viewport_size.y, u_viewport_size.x) *
+                vec2(-projectedDirection.y, projectedDirection.x)
+        );
+        screenTangent = vec2(screenNormal.y, -screenNormal.x);
+
+        if (edgeIsInfinite()) {
+            tangentOffset =
+                tangentDirectionFlag * (length(projectedPosition.xy) + 2.0) *
+                safeNormalize(projectedDirection.xy);
+        }
+    } else {
+        float flip = sign(projectedPosition.w + projectedDirection.w);
+        vec4 projectedEnd = projectedPosition + flip * projectedDirection;
+        vec2 positionNdc = projectedPosition.xy / safeClipW(projectedPosition.w);
+        vec2 endNdc = projectedEnd.xy / safeClipW(projectedEnd.w);
+        screenTangent = safeNormalize(flip * (endNdc - positionNdc) * u_viewport_size);
+
+        if (edgeIsInfinite()) {
+            vec2 positionNdc = projectedPosition.xy / safeClipW(projectedPosition.w);
+            vec2 screenPosition = (positionNdc + vec2(1.0, 1.0)) * u_viewport_size;
+            vec2 screenOffset =
+                tangentDirectionFlag * (length(screenPosition) + length(u_viewport_size)) *
+                screenTangent;
+            tangentOffset = projectedPosition.w * screenOffset / u_viewport_size;
+        }
+    }
+
+    vec2 screenNormal = vec2(-screenTangent.y, screenTangent.x);
+    normalOffset =
+        projectedPosition.w * lineWidth * normalDirectionFlag * screenNormal / u_viewport_size;
+}
+
 void main() {
     vec4 projectedPosition = u_matrix * vec4(a_position, 1.0);
     gl_PointSize = u_point_size;
     v_color = vec4(a_color, a_alpha);
     v_line_distance = a_line_distance * u_line_distance_scale;
+    if (u_line_mode < -0.5) {
+        v_line_distance = a_line_edge_length * u_line_distance_scale;
+    }
     v_line_center_distance = 0.0;
+    v_line_stipple = u_line_stipple;
+    v_line_width = u_line_width;
     v_line_mode = u_line_mode;
 
     if (u_line_mode > 0.5) {
-        vec4 projectedOppositePosition = u_matrix * vec4(a_line_opposite_position, 1.0);
-        vec2 positionNdc = projectedPosition.xy / safeClipW(projectedPosition.w);
-        vec2 oppositePositionNdc =
-            projectedOppositePosition.xy / safeClipW(projectedOppositePosition.w);
-        vec2 lineDirection = a_line_along < 0.0
-            ? safeNormalize(oppositePositionNdc - positionNdc)
-            : safeNormalize(positionNdc - oppositePositionNdc);
-        vec2 lineNormal = vec2(-lineDirection.y, lineDirection.x);
-        float halfWidth = max(u_line_width * 0.5, 0.001);
+        float lineWidth = max(u_device_pixel_ratio * a_line_primitive_size, 0.001);
         float filterWidth = max(u_line_filter_width, 0.0);
-        float lineExtent = halfWidth + filterWidth;
-        vec2 offsetPixels = lineNormal * a_line_side * lineExtent +
-            lineDirection * a_line_along * halfWidth;
-        vec2 offsetNdc = 2.0 * offsetPixels / max(u_viewport_size, vec2(1.0, 1.0));
+        float expandedLineWidth = lineWidth + filterWidth * 1.41421356237;
+        float worldToPixel =
+            abs(u_projection_scale / safeClipW(projectedPosition.w)) * 0.5 * u_viewport_size.x;
+        vec2 tangentOffset;
+        vec2 normalOffset;
 
-        projectedPosition.xy += offsetNdc * projectedPosition.w;
-        v_line_center_distance = a_line_side * lineExtent;
+        computeTangentAndNormalOffsets(
+            projectedPosition,
+            expandedLineWidth,
+            tangentOffset,
+            normalOffset
+        );
+        projectedPosition.xy += tangentOffset + normalOffset;
+
+        v_line_center_distance = 0.5 * expandedLineWidth * edgeNormalDirectionFlag(edgeCornerIndex());
+        v_line_distance = edgeIsInfinite() ? 0.0 : edgeLength() * worldToPixel;
+        v_line_stipple = a_line_primitive_style;
+        v_line_width = lineWidth;
     }
 
     gl_Position = projectedPosition;
@@ -63,21 +153,29 @@ void main() {
 const fragmentShaderSource = `#version 300 es
 precision highp float;
 uniform vec4 u_line_stipple;
+uniform lowp vec4 u_background_color;
+uniform mediump float u_background_mix_proportion;
 uniform float u_line_filter_width;
 uniform float u_line_width;
 uniform float u_point_shape;
 in vec4 v_color;
 in float v_line_distance;
 in float v_line_center_distance;
+in vec4 v_line_stipple;
+in float v_line_width;
 flat in float v_line_mode;
 out vec4 out_color;
+
+float impulse(float expected, float actual) {
+    return 1.0 - step(0.5, abs(actual - expected));
+}
 
 bool isLineGap(float lineDistance, vec4 lineStipple) {
     float gapStart1 = lineStipple.x;
     float gapStop1 = gapStart1 + lineStipple.y;
     float gapStart2 = gapStop1 + lineStipple.z;
-    float stippleLength = max(gapStart2 + lineStipple.w, 0.001);
-    float stippleDistance = mod(lineDistance, stippleLength);
+    float stippleLength = gapStart2 + lineStipple.w;
+    float stippleDistance = mod(lineDistance, stippleLength + impulse(0.0, stippleLength));
 
     return (stippleDistance > gapStart1 && stippleDistance < gapStop1) ||
         (stippleDistance > gapStart2 && stippleDistance < stippleLength);
@@ -141,12 +239,12 @@ void main() {
         return;
     }
 
-    if (isLineGap(v_line_distance, u_line_stipple)) {
+    if (isLineGap(v_line_distance, v_line_stipple)) {
         discard;
     }
 
     if (v_line_mode > 0.5) {
-        float halfWidth = max(u_line_width * 0.5, 0.001);
+        float halfWidth = max(v_line_width * 0.5, 0.001);
         float filterWidth = max(u_line_filter_width, 0.001);
         float edgeAlpha =
             1.0 - smoothstep(halfWidth, halfWidth + filterWidth, abs(v_line_center_distance));
@@ -155,7 +253,8 @@ void main() {
             discard;
         }
 
-        out_color = vec4(v_color.rgb, v_color.a * edgeAlpha);
+        vec3 edgeColor = mix(v_color.rgb, u_background_color.rgb, u_background_mix_proportion);
+        out_color = vec4(edgeColor, v_color.a * edgeAlpha);
         return;
     }
 

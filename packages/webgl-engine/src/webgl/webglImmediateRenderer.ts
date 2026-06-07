@@ -20,18 +20,24 @@ export interface WebGLRendererBindings {
     readonly labelPositionLocation: number;
     readonly labelTextureLocation: WebGLUniformLocation;
     readonly labelUvLocation: number;
-    readonly lineAlongLocation: number;
+    readonly backgroundColorLocation: WebGLUniformLocation;
+    readonly backgroundMixProportionLocation: WebGLUniformLocation;
+    readonly devicePixelRatioLocation: WebGLUniformLocation;
     readonly lineDistanceLocation: number;
     readonly lineDistanceScaleLocation: WebGLUniformLocation;
+    readonly lineEdgeDataLocation: number;
+    readonly lineEdgeLengthLocation: number;
     readonly lineFilterWidthLocation: WebGLUniformLocation;
+    readonly lineIsOrthographicLocation: WebGLUniformLocation;
     readonly lineModeLocation: WebGLUniformLocation;
-    readonly lineOppositePositionLocation: number;
-    readonly lineSideLocation: number;
+    readonly linePrimitiveSizeLocation: number;
+    readonly linePrimitiveStyleLocation: number;
     readonly lineStippleLocation: WebGLUniformLocation;
     readonly lineWidthLocation: WebGLUniformLocation;
     readonly matrixLocation: WebGLUniformLocation;
     readonly pointShapeLocation: WebGLUniformLocation;
     readonly pointSizeLocation: WebGLUniformLocation;
+    readonly projectionScaleLocation: WebGLUniformLocation;
     readonly positionLocation: number;
     readonly viewportSizeLocation: WebGLUniformLocation;
 }
@@ -95,9 +101,10 @@ export class WebGLImmediateRenderer {
         );
         this.context.uniform1f(bindings.pointSizeLocation, input.pointSize ?? 1);
         this.context.uniform1f(bindings.lineDistanceScaleLocation, 1);
-        this.context.uniform1f(bindings.lineFilterWidthLocation, 1);
+        this.context.uniform1f(bindings.lineFilterWidthLocation, window.devicePixelRatio || 1);
         this.context.uniform1f(bindings.lineModeLocation, 0);
         this.context.uniform1f(bindings.lineWidthLocation, 1);
+        this.context.uniform1f(bindings.backgroundMixProportionLocation, 0);
         const lineStipple = resolveSolidLineRenderStyle().stipple;
         this.context.uniform4f(
             bindings.lineStippleLocation,
@@ -149,9 +156,10 @@ export class WebGLImmediateRenderer {
             bindings.colorLocation,
             bindings.alphaLocation,
             bindings.lineDistanceLocation,
-            bindings.lineOppositePositionLocation,
-            bindings.lineSideLocation,
-            bindings.lineAlongLocation,
+            bindings.lineEdgeDataLocation,
+            bindings.lineEdgeLengthLocation,
+            bindings.linePrimitiveSizeLocation,
+            bindings.linePrimitiveStyleLocation,
         ]);
         this.context.bindBuffer(this.context.ARRAY_BUFFER, buffer);
         this.context.enableVertexAttribArray(bindings.labelPositionLocation);
@@ -202,9 +210,10 @@ export class WebGLImmediateRenderer {
             bindings.labelColorLocation,
             bindings.labelAlphaLocation,
             bindings.lineDistanceLocation,
-            bindings.lineOppositePositionLocation,
-            bindings.lineSideLocation,
-            bindings.lineAlongLocation,
+            bindings.lineEdgeDataLocation,
+            bindings.lineEdgeLengthLocation,
+            bindings.linePrimitiveSizeLocation,
+            bindings.linePrimitiveStyleLocation,
         ]);
         this.context.bindBuffer(this.context.ARRAY_BUFFER, buffer);
         this.context.enableVertexAttribArray(bindings.positionLocation);
@@ -235,9 +244,10 @@ export class WebGLImmediateRenderer {
             6 * Float32Array.BYTES_PER_ELEMENT,
         );
         this.context.vertexAttrib1f(bindings.lineDistanceLocation, 0);
-        this.context.vertexAttrib3f(bindings.lineOppositePositionLocation, 0, 0, 0);
-        this.context.vertexAttrib1f(bindings.lineSideLocation, 0);
-        this.context.vertexAttrib1f(bindings.lineAlongLocation, 0);
+        this.context.vertexAttrib4f(bindings.lineEdgeDataLocation, 1, 0, 0, 2);
+        this.context.vertexAttrib1f(bindings.lineEdgeLengthLocation, 0);
+        this.context.vertexAttrib1f(bindings.linePrimitiveSizeLocation, 1);
+        this.context.vertexAttrib4f(bindings.linePrimitiveStyleLocation, 12, 0, 12, 0);
     }
 }
 

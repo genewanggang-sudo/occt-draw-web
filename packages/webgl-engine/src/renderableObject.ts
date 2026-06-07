@@ -49,10 +49,15 @@ class RenderObjectPrimitiveBuilder implements RenderObjectBuilder {
     constructor(private readonly context: RenderableObjectBuildContext) {}
 
     public edges(segments: readonly LineSegment3[], style: EdgeStyle): void {
+        const material = this.context.materials.edge(style);
+
         this.setPrimitive({
             drawMode: 'triangles',
-            geometryBuffer: this.context.geometry.screenSpaceLineSegments(segments),
-            material: this.context.materials.edge(style),
+            geometryBuffer: this.context.geometry.screenSpaceLineSegments(segments, {
+                stipple: material.lineStipple,
+                widthPx: material.lineWidthPx,
+            }),
+            material,
             primitiveKind: 'edge',
         });
     }
@@ -71,10 +76,15 @@ class RenderObjectPrimitiveBuilder implements RenderObjectBuilder {
         style: EdgeStyle,
         input: { readonly primitiveKind?: DrawPrimitiveKind } = {},
     ): void {
+        const material = this.context.materials.edge(style);
+
         this.setPrimitive({
             drawMode: 'triangles',
-            geometryBuffer: this.context.geometry.screenSpaceLineSegments(segments),
-            material: this.context.materials.edge(style),
+            geometryBuffer: this.context.geometry.screenSpaceLineSegments(segments, {
+                stipple: material.lineStipple,
+                widthPx: material.lineWidthPx,
+            }),
+            material,
             primitiveKind: input.primitiveKind ?? 'edge',
         });
     }
@@ -219,7 +229,8 @@ export abstract class RenderableObject<TGeometry, TStyle> extends RenderObject {
         if (
             this.cachedGeometryBuffer &&
             this.cachedGeometry === this.currentGeometry &&
-            !this.dirtyFlags.geometry
+            !this.dirtyFlags.geometry &&
+            !this.dirtyFlags.style
         ) {
             this.build(builder);
             const primitive = builder.toPrimitive();

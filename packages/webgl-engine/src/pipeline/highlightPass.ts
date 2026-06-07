@@ -61,19 +61,24 @@ export class HighlightPass implements RenderPass {
         }
 
         for (const batch of lineBatches.values()) {
+            const material = resolveHighlightLineMaterial({
+                alpha: HIGHLIGHT_LINE_ALPHA,
+                color: batch.target.color,
+                depthMode: batch.depthMode,
+                widthPx:
+                    batch.depthMode === 'overlay'
+                        ? SKETCH_HIGHLIGHT_LINE_WIDTH_PIXELS
+                        : SCENE_HIGHLIGHT_LINE_WIDTH_PIXELS,
+            });
+
             resources.backend.drawImmediateGeometry({
                 cacheKey: `highlight:${batch.key}`,
                 drawMode: 'triangles',
-                geometryBuffer: geometryBuilder.screenSpaceLineSegments(batch.segments),
-                material: resolveHighlightLineMaterial({
-                    alpha: HIGHLIGHT_LINE_ALPHA,
-                    color: batch.target.color,
-                    depthMode: batch.depthMode,
-                    widthPx:
-                        batch.depthMode === 'overlay'
-                            ? SKETCH_HIGHLIGHT_LINE_WIDTH_PIXELS
-                            : SCENE_HIGHLIGHT_LINE_WIDTH_PIXELS,
+                geometryBuffer: geometryBuilder.screenSpaceLineSegments(batch.segments, {
+                    stipple: material.lineStipple,
+                    widthPx: material.lineWidthPx,
                 }),
+                material,
                 primitiveKind: 'edge',
             });
         }

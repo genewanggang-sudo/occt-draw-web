@@ -17,7 +17,7 @@ import type {
     VertexAttributeLayout,
 } from '../geometry';
 import { createProgram } from '../shaderProgram';
-import type { ViewportSize } from '../types';
+import type { CameraState, ViewportSize } from '../types';
 import type { RenderPipelineResources } from '../renderPipeline';
 import { LabelAtlasManager } from './labelAtlasManager';
 import { RenderBufferCache } from './renderBufferCache';
@@ -72,13 +72,36 @@ export class WebGLRenderer implements RenderBackend {
         const colorLocation = context.getAttribLocation(this.program, 'a_color');
         const alphaLocation = context.getAttribLocation(this.program, 'a_alpha');
         const lineDistanceLocation = context.getAttribLocation(this.program, 'a_line_distance');
-        const lineOppositePositionLocation = context.getAttribLocation(
+        const lineEdgeDataLocation = context.getAttribLocation(this.program, 'a_line_edge_data');
+        const lineEdgeLengthLocation = context.getAttribLocation(
             this.program,
-            'a_line_opposite_position',
+            'a_line_edge_length',
         );
-        const lineSideLocation = context.getAttribLocation(this.program, 'a_line_side');
-        const lineAlongLocation = context.getAttribLocation(this.program, 'a_line_along');
+        const linePrimitiveSizeLocation = context.getAttribLocation(
+            this.program,
+            'a_line_primitive_size',
+        );
+        const linePrimitiveStyleLocation = context.getAttribLocation(
+            this.program,
+            'a_line_primitive_style',
+        );
+        const backgroundColorLocation = context.getUniformLocation(
+            this.program,
+            'u_background_color',
+        );
+        const backgroundMixProportionLocation = context.getUniformLocation(
+            this.program,
+            'u_background_mix_proportion',
+        );
+        const devicePixelRatioLocation = context.getUniformLocation(
+            this.program,
+            'u_device_pixel_ratio',
+        );
         const matrixLocation = context.getUniformLocation(this.program, 'u_matrix');
+        const lineIsOrthographicLocation = context.getUniformLocation(
+            this.program,
+            'u_is_orthographic',
+        );
         const lineDistanceScaleLocation = context.getUniformLocation(
             this.program,
             'u_line_distance_scale',
@@ -92,6 +115,10 @@ export class WebGLRenderer implements RenderBackend {
         const lineWidthLocation = context.getUniformLocation(this.program, 'u_line_width');
         const pointShapeLocation = context.getUniformLocation(this.program, 'u_point_shape');
         const pointSizeLocation = context.getUniformLocation(this.program, 'u_point_size');
+        const projectionScaleLocation = context.getUniformLocation(
+            this.program,
+            'u_projection_scale',
+        );
         const viewportSizeLocation = context.getUniformLocation(this.program, 'u_viewport_size');
         const labelPositionLocation = context.getAttribLocation(this.labelProgram, 'a_position');
         const labelUvLocation = context.getAttribLocation(this.labelProgram, 'a_uv');
@@ -101,14 +128,19 @@ export class WebGLRenderer implements RenderBackend {
         const labelTextureLocation = context.getUniformLocation(this.labelProgram, 'u_texture');
 
         if (
+            !backgroundColorLocation ||
+            !backgroundMixProportionLocation ||
+            !devicePixelRatioLocation ||
             !lineDistanceScaleLocation ||
             !lineFilterWidthLocation ||
+            !lineIsOrthographicLocation ||
             !lineModeLocation ||
             !lineStippleLocation ||
             !lineWidthLocation ||
             !matrixLocation ||
             !pointShapeLocation ||
             !pointSizeLocation ||
+            !projectionScaleLocation ||
             !viewportSizeLocation
         ) {
             throw new Error('WebGL renderer initialization failed: missing render uniform.');
@@ -155,18 +187,24 @@ export class WebGLRenderer implements RenderBackend {
             labelPositionLocation,
             labelTextureLocation,
             labelUvLocation,
+            backgroundColorLocation,
+            backgroundMixProportionLocation,
+            devicePixelRatioLocation,
             lineDistanceLocation,
             lineDistanceScaleLocation,
+            lineEdgeDataLocation,
+            lineEdgeLengthLocation,
             lineFilterWidthLocation,
+            lineIsOrthographicLocation,
             lineModeLocation,
-            lineOppositePositionLocation,
-            lineSideLocation,
+            linePrimitiveSizeLocation,
+            linePrimitiveStyleLocation,
             lineStippleLocation,
             lineWidthLocation,
-            lineAlongLocation,
             matrixLocation,
             pointShapeLocation,
             pointSizeLocation,
+            projectionScaleLocation,
             positionLocation,
             viewportSizeLocation,
         };
@@ -198,11 +236,24 @@ export class WebGLRenderer implements RenderBackend {
             Math.max(input.viewportSize.height, 1) / Math.max(getCameraViewHeight(input.camera), 1);
         this.context.useProgram(this.program);
         this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
+        this.context.uniform1f(
+            this.bindings.devicePixelRatioLocation,
+            window.devicePixelRatio || 1,
+        );
+        this.context.uniform1f(
+            this.bindings.lineIsOrthographicLocation,
+            input.camera.projection === 'orthographic' ? 1 : 0,
+        );
         this.context.uniform2f(
             this.bindings.viewportSizeLocation,
-            input.viewportSize.width,
-            input.viewportSize.height,
+            this.canvas.width,
+            this.canvas.height,
         );
+        this.context.uniform1f(
+            this.bindings.projectionScaleLocation,
+            getProjectionScale(input.camera, input.viewportSize),
+        );
+        this.context.uniform4f(this.bindings.backgroundColorLocation, 0.035, 0.043, 0.055, 1);
         this.frameCameraKey = getLabelCacheCameraKey(input);
         this.context.bindFramebuffer(this.context.FRAMEBUFFER, null);
         this.renderBufferCache.beginFrame();
@@ -376,9 +427,10 @@ export class WebGLRenderer implements RenderBackend {
             this.bindings.colorLocation,
             this.bindings.alphaLocation,
             this.bindings.lineDistanceLocation,
-            this.bindings.lineOppositePositionLocation,
-            this.bindings.lineSideLocation,
-            this.bindings.lineAlongLocation,
+            this.bindings.lineEdgeDataLocation,
+            this.bindings.lineEdgeLengthLocation,
+            this.bindings.linePrimitiveSizeLocation,
+            this.bindings.linePrimitiveStyleLocation,
         ]);
         this.context.bindBuffer(this.context.ARRAY_BUFFER, buffer);
         this.context.enableVertexAttribArray(this.bindings.labelPositionLocation);
@@ -432,9 +484,10 @@ export class WebGLRenderer implements RenderBackend {
             this.bindings.colorLocation,
             this.bindings.alphaLocation,
             this.bindings.lineDistanceLocation,
-            this.bindings.lineOppositePositionLocation,
-            this.bindings.lineSideLocation,
-            this.bindings.lineAlongLocation,
+            this.bindings.lineEdgeDataLocation,
+            this.bindings.lineEdgeLengthLocation,
+            this.bindings.linePrimitiveSizeLocation,
+            this.bindings.linePrimitiveStyleLocation,
         ]);
 
         for (const attribute of layout.attributes) {
@@ -448,17 +501,18 @@ export class WebGLRenderer implements RenderBackend {
             this.context.vertexAttribPointer(
                 location,
                 attribute.components,
-                this.context.FLOAT,
-                false,
-                layout.strideFloats * Float32Array.BYTES_PER_ELEMENT,
-                attribute.offsetFloats * Float32Array.BYTES_PER_ELEMENT,
+                resolveAttributeType(this.context, attribute.type ?? 'float'),
+                attribute.normalized ?? false,
+                layout.strideBytes ?? layout.strideFloats * Float32Array.BYTES_PER_ELEMENT,
+                attribute.offsetBytes ?? attribute.offsetFloats * Float32Array.BYTES_PER_ELEMENT,
             );
         }
 
         this.context.vertexAttrib1f(this.bindings.lineDistanceLocation, 0);
-        this.context.vertexAttrib3f(this.bindings.lineOppositePositionLocation, 0, 0, 0);
-        this.context.vertexAttrib1f(this.bindings.lineSideLocation, 0);
-        this.context.vertexAttrib1f(this.bindings.lineAlongLocation, 0);
+        this.context.vertexAttrib4f(this.bindings.lineEdgeDataLocation, 1, 0, 0, 2);
+        this.context.vertexAttrib1f(this.bindings.lineEdgeLengthLocation, 0);
+        this.context.vertexAttrib1f(this.bindings.linePrimitiveSizeLocation, 1);
+        this.context.vertexAttrib4f(this.bindings.linePrimitiveStyleLocation, 12, 0, 12, 0);
     }
 
     private applyMaterialVertexAttributes(material: DrawCommand['material']): void {
@@ -470,7 +524,14 @@ export class WebGLRenderer implements RenderBackend {
         );
         this.context.vertexAttrib1f(this.bindings.alphaLocation, material.alpha);
         this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
-        this.context.uniform1f(this.bindings.lineFilterWidthLocation, material.lineFilterWidthPx);
+        this.context.uniform1f(
+            this.bindings.backgroundMixProportionLocation,
+            material.lineBackgroundMixProportion,
+        );
+        this.context.uniform1f(
+            this.bindings.lineFilterWidthLocation,
+            material.lineFilterWidthPx * (window.devicePixelRatio || 1),
+        );
         this.context.uniform1f(this.bindings.lineWidthLocation, material.lineWidthPx);
         this.context.uniform4f(
             this.bindings.lineStippleLocation,
@@ -510,7 +571,11 @@ export class WebGLRenderer implements RenderBackend {
             });
             this.context.uniform1f(this.bindings.pointSizeLocation, vertex.sizePixels);
             this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
-            this.context.uniform1f(this.bindings.lineFilterWidthLocation, 1);
+            this.context.uniform1f(this.bindings.backgroundMixProportionLocation, 0);
+            this.context.uniform1f(
+                this.bindings.lineFilterWidthLocation,
+                window.devicePixelRatio || 1,
+            );
             this.context.uniform1f(this.bindings.lineModeLocation, 0);
             this.context.uniform1f(this.bindings.lineWidthLocation, 1);
             const lineStipple = resolveSolidLineRenderStyle().stipple;
@@ -564,16 +629,20 @@ export class WebGLRenderer implements RenderBackend {
             return this.bindings.lineDistanceLocation;
         }
 
-        if (semantic === 'line-opposite-position') {
-            return this.bindings.lineOppositePositionLocation;
+        if (semantic === 'line-edge-data') {
+            return this.bindings.lineEdgeDataLocation;
         }
 
-        if (semantic === 'line-side') {
-            return this.bindings.lineSideLocation;
+        if (semantic === 'line-edge-length') {
+            return this.bindings.lineEdgeLengthLocation;
         }
 
-        if (semantic === 'line-along') {
-            return this.bindings.lineAlongLocation;
+        if (semantic === 'line-primitive-size') {
+            return this.bindings.linePrimitiveSizeLocation;
+        }
+
+        if (semantic === 'line-primitive-style') {
+            return this.bindings.linePrimitiveStyleLocation;
         }
 
         return this.bindings.alphaLocation;
@@ -581,7 +650,7 @@ export class WebGLRenderer implements RenderBackend {
 }
 
 function isScreenSpaceLineLayout(layout: VertexAttributeLayout): boolean {
-    return layout.attributes.some((attribute) => attribute.semantic === 'line-side');
+    return layout.attributes.some((attribute) => attribute.semantic === 'line-edge-data');
 }
 
 function disableVertexAttribs(context: WebGL2RenderingContext, locations: readonly number[]): void {
@@ -636,4 +705,18 @@ function resolveDepthFunc(context: WebGL2RenderingContext, depthFunc: 'lequal' |
 
 function resolveIndexType(context: WebGL2RenderingContext, type: BufferIndexType): number {
     return type === 'uint16' ? context.UNSIGNED_SHORT : context.UNSIGNED_INT;
+}
+
+function resolveAttributeType(context: WebGL2RenderingContext, type: 'float' | 'uint8'): number {
+    return type === 'uint8' ? context.UNSIGNED_BYTE : context.FLOAT;
+}
+
+function getProjectionScale(camera: CameraState, viewportSize: ViewportSize): number {
+    const aspect = viewportSize.width / viewportSize.height;
+
+    if (camera.projection === 'orthographic') {
+        return 2 / (camera.orthographicHeight * aspect);
+    }
+
+    return 1 / (Math.tan(camera.fovYRadians / 2) * aspect);
 }

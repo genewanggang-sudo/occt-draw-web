@@ -20,6 +20,7 @@ export interface RenderState {
 export interface RenderMaterial {
     readonly alpha: number;
     readonly color: Vector3;
+    readonly lineBackgroundMixProportion: number;
     readonly lineFilterWidthPx: number;
     readonly lineStipple: LineStipple;
     readonly lineWidthPx: number;
@@ -93,6 +94,7 @@ export function resolveFaceMaterial(style: FaceStyle): RenderMaterial {
     return {
         alpha: style.opacity,
         color: style.color,
+        lineBackgroundMixProportion: lineStyle.backgroundMixProportion,
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
@@ -108,6 +110,7 @@ export function resolveEdgeMaterial(style: EdgeStyle): RenderMaterial {
     return {
         alpha: 1,
         color: style.color,
+        lineBackgroundMixProportion: lineStyle.backgroundMixProportion,
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
@@ -123,6 +126,7 @@ export function resolvePointMaterial(style: PointStyle): RenderMaterial {
     return {
         alpha: 1,
         color: style.color,
+        lineBackgroundMixProportion: lineStyle.backgroundMixProportion,
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
@@ -138,6 +142,7 @@ export function resolveMarkerMaterial(_style: MarkerStyle): RenderMaterial {
     return {
         alpha: 1,
         color: DEFAULT_MATERIAL_COLOR,
+        lineBackgroundMixProportion: lineStyle.backgroundMixProportion,
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
@@ -153,6 +158,7 @@ export function resolveTextMaterial(_style: TextStyle): RenderMaterial {
     return {
         alpha: 1,
         color: DEFAULT_MATERIAL_COLOR,
+        lineBackgroundMixProportion: lineStyle.backgroundMixProportion,
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
@@ -168,6 +174,7 @@ export function resolveHighlightLineMaterial(input: HighlightLineMaterialInput):
     return {
         alpha: input.alpha,
         color: input.color,
+        lineBackgroundMixProportion: lineStyle.backgroundMixProportion,
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: input.widthPx,

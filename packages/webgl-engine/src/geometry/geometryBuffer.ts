@@ -5,10 +5,11 @@ import type { SurfaceTriangle } from '../types';
 export type BufferAttributeSemantic =
     | 'alpha'
     | 'color'
-    | 'line-along'
+    | 'line-edge-data'
+    | 'line-edge-length'
+    | 'line-primitive-size'
+    | 'line-primitive-style'
     | 'line-distance'
-    | 'line-opposite-position'
-    | 'line-side'
     | 'position';
 export type BufferIndexData = Uint16Array | Uint32Array;
 export const BufferIndexType = {
@@ -19,12 +20,16 @@ export type BufferIndexType = (typeof BufferIndexType)[keyof typeof BufferIndexT
 
 export interface BufferAttributeLayout {
     readonly components: number;
+    readonly normalized?: boolean;
+    readonly offsetBytes?: number;
     readonly offsetFloats: number;
     readonly semantic: BufferAttributeSemantic;
+    readonly type?: 'float' | 'uint8';
 }
 
 export interface VertexAttributeLayout {
     readonly attributes: readonly BufferAttributeLayout[];
+    readonly strideBytes?: number;
     readonly strideFloats: number;
 }
 
@@ -81,13 +86,26 @@ export const LineVertexAttributeLayout: VertexAttributeLayout = {
 export const ScreenSpaceLineVertexAttributeLayout: VertexAttributeLayout = {
     attributes: [
         { components: 3, offsetFloats: 0, semantic: 'position' },
-        { components: 3, offsetFloats: 3, semantic: 'line-opposite-position' },
-        { components: 1, offsetFloats: 6, semantic: 'line-distance' },
-        { components: 1, offsetFloats: 7, semantic: 'line-side' },
-        { components: 1, offsetFloats: 8, semantic: 'line-along' },
+        { components: 4, offsetFloats: 3, semantic: 'line-edge-data' },
+        { components: 1, offsetFloats: 7, semantic: 'line-edge-length' },
+        { components: 1, offsetFloats: 8, semantic: 'line-primitive-size' },
+        {
+            components: 4,
+            normalized: false,
+            offsetBytes: 9 * Float32Array.BYTES_PER_ELEMENT,
+            offsetFloats: 9,
+            semantic: 'line-primitive-style',
+            type: 'uint8',
+        },
     ],
-    strideFloats: 9,
+    strideBytes: 9 * Float32Array.BYTES_PER_ELEMENT + 4 * Uint8Array.BYTES_PER_ELEMENT,
+    strideFloats: 10,
 };
+
+export interface ScreenSpaceLineStyleInput {
+    readonly stipple: readonly [number, number, number, number];
+    readonly widthPx: number;
+}
 
 export class GeometryBufferBuilder {
     public points(points: readonly Vector3[]): GeometryBuffer {
@@ -113,7 +131,10 @@ export class GeometryBufferBuilder {
         return buffer.toGeometryBuffer();
     }
 
-    public screenSpaceLineSegments(segments: readonly LineSegment3[]): GeometryBuffer {
+    public screenSpaceLineSegments(
+        segments: readonly LineSegment3[],
+        style: ScreenSpaceLineStyleInput,
+    ): GeometryBuffer {
         const buffer = new ScreenSpaceLineBufferWriter(segments.length * 6);
         let distance = 0;
         let previousEnd: Vector3 | null = null;
@@ -133,7 +154,7 @@ export class GeometryBufferBuilder {
                 continue;
             }
 
-            buffer.writeSegment(segment.start, segment.end, startDistance, endDistance);
+            buffer.writeSegment(segment.start, segment.end, startDistance, endDistance, style);
         }
 
         return buffer.toGeometryBuffer();
@@ -198,12 +219,24 @@ class ScreenSpaceLineBufferWriter {
     private bounds: BBox3 | null = null;
     private offset = 0;
     private vertexCount = 0;
+    private readonly bytes: Uint8Array;
     private readonly data: Float32Array;
+    private readonly styleData: Uint8Array;
 
     constructor(vertexCapacity: number) {
+        const strideBytes = ScreenSpaceLineVertexAttributeLayout.strideBytes;
+
+        if (!strideBytes) {
+            throw new Error('Screen-space line layout requires a byte stride.');
+        }
+
+        this.bytes = new Uint8Array(vertexCapacity * strideBytes);
         this.data = new Float32Array(
+            this.bytes.buffer,
+            this.bytes.byteOffset,
             vertexCapacity * ScreenSpaceLineVertexAttributeLayout.strideFloats,
         );
+        this.styleData = new Uint8Array(this.bytes.buffer, this.bytes.byteOffset);
     }
 
     public writeSegment(
@@ -211,54 +244,80 @@ class ScreenSpaceLineBufferWriter {
         end: Vector3,
         startDistance: number,
         endDistance: number,
+        style: ScreenSpaceLineStyleInput,
     ): void {
-        this.write(start, end, startDistance, -1, -1);
-        this.write(end, start, endDistance, -1, 1);
-        this.write(end, start, endDistance, 1, 1);
-        this.write(start, end, startDistance, -1, -1);
-        this.write(end, start, endDistance, 1, 1);
-        this.write(start, end, startDistance, 1, -1);
+        const direction = Vec3.normalize(Vec3.subtract(end, start));
+        const segmentLength = Vec3.distance(start, end);
+
+        this.write(start, direction, segmentLength, startDistance, 1, style);
+        this.write(end, direction, segmentLength, endDistance, 2, style);
+        this.write(end, direction, segmentLength, endDistance, 3, style);
+        this.write(start, direction, segmentLength, startDistance, 1, style);
+        this.write(end, direction, segmentLength, endDistance, 3, style);
+        this.write(start, direction, segmentLength, startDistance, 4, style);
     }
 
     private write(
         position: Vector3,
-        oppositePosition: Vector3,
-        lineDistance: number,
-        side: number,
-        along: number,
+        direction: Vector3,
+        segmentLength: number,
+        edgeLength: number,
+        cornerIndex: number,
+        style: ScreenSpaceLineStyleInput,
     ): void {
         this.data[this.offset] = position.x;
         this.data[this.offset + 1] = position.y;
         this.data[this.offset + 2] = position.z;
-        this.data[this.offset + 3] = oppositePosition.x;
-        this.data[this.offset + 4] = oppositePosition.y;
-        this.data[this.offset + 5] = oppositePosition.z;
-        this.data[this.offset + 6] = lineDistance;
-        this.data[this.offset + 7] = side;
-        this.data[this.offset + 8] = along;
+        this.data[this.offset + 3] = direction.x * cornerIndex;
+        this.data[this.offset + 4] = direction.y * cornerIndex;
+        this.data[this.offset + 5] = direction.z * cornerIndex;
+        this.data[this.offset + 6] = edgeLength + 1;
+        this.data[this.offset + 7] = edgeLength;
+        this.data[this.offset + 8] = style.widthPx;
+        this.writeStyle(style);
         this.offset += ScreenSpaceLineVertexAttributeLayout.strideFloats;
         this.vertexCount += 1;
         this.bounds = this.bounds
             ? this.bounds.expandByPoint(position)
             : new BBox3(position, position);
-        this.bounds = this.bounds.expandByPoint(oppositePosition);
+    }
+
+    private writeStyle(style: ScreenSpaceLineStyleInput): void {
+        const strideBytes = ScreenSpaceLineVertexAttributeLayout.strideBytes;
+
+        if (!strideBytes) {
+            throw new Error('Screen-space line layout requires a byte stride.');
+        }
+
+        const offset = this.vertexCount * strideBytes + 9 * Float32Array.BYTES_PER_ELEMENT;
+
+        this.styleData[offset] = clampByte(style.stipple[0]);
+        this.styleData[offset + 1] = clampByte(style.stipple[1]);
+        this.styleData[offset + 2] = clampByte(style.stipple[2]);
+        this.styleData[offset + 3] = clampByte(style.stipple[3]);
     }
 
     public toGeometryBuffer(): GeometryBuffer {
         return new GeometryBuffer({
             bounds: this.bounds,
-            interleaved:
-                this.vertexCount * ScreenSpaceLineVertexAttributeLayout.strideFloats ===
-                this.data.length
-                    ? this.data
-                    : this.data.slice(
-                          0,
-                          this.vertexCount * ScreenSpaceLineVertexAttributeLayout.strideFloats,
-                      ),
+            interleaved: new Float32Array(
+                this.bytes.buffer.slice(
+                    this.bytes.byteOffset,
+                    this.bytes.byteOffset +
+                        this.vertexCount *
+                            (ScreenSpaceLineVertexAttributeLayout.strideBytes ??
+                                ScreenSpaceLineVertexAttributeLayout.strideFloats *
+                                    Float32Array.BYTES_PER_ELEMENT),
+                ),
+            ),
             layout: ScreenSpaceLineVertexAttributeLayout,
             vertexCount: this.vertexCount,
         });
     }
+}
+
+function clampByte(value: number): number {
+    return Math.max(0, Math.min(255, Math.round(value)));
 }
 
 class PositionBufferWriter {
