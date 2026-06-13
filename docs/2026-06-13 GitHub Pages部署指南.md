@@ -82,7 +82,7 @@ Deploy from a branch → docs
 apps/web/vite.config.ts
 ```
 
-将内容改成：
+在现有配置中增加 `base`，当前配置基础上的结果如下：
 
 ```ts
 import { defineConfig } from 'vite';
@@ -114,7 +114,7 @@ https://genewanggang-sudo.github.io/occt-draw-web/
 
 所以 Vite 需要知道所有 JS、CSS、图片、Wasm 等资源都应该从 `/occt-draw-web/` 下面加载。
 
-如果不配置：
+如果不配置该 `base`：
 
 ```ts
 base: '/occt-draw-web/',
@@ -140,79 +140,79 @@ base: '/occt-draw-web/',
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+    push:
+        branches:
+            - main
+    workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+    contents: read
+    pages: write
+    id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+    group: pages
+    cancel-in-progress: true
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+    build:
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.0.9
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 11.0.9
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24.15.0
-          cache: pnpm
+            - name: Setup Node
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 24.15.0
+                  cache: pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
 
-      - name: Build web app
-        run: pnpm --filter @occt-draw/web build
+            - name: Build web app
+              run: pnpm --filter @occt-draw/web build
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
+            - name: Setup Pages
+              uses: actions/configure-pages@v6
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: apps/web/dist
+            - name: Upload Pages artifact
+              uses: actions/upload-pages-artifact@v5
+              with:
+                  path: apps/web/dist
 
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    deploy:
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
 
-    runs-on: ubuntu-latest
-    needs: build
+        runs-on: ubuntu-latest
+        needs: build
 
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+        steps:
+            - name: Deploy to GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v5
 ```
 
 ### 这个 workflow 做了什么
 
-| 步骤 | 作用 |
-| --- | --- |
-| `Checkout` | 拉取仓库代码 |
-| `Setup pnpm` | 安装项目指定的 pnpm 版本 |
-| `Setup Node` | 使用项目指定的 Node.js 版本 |
-| `Install dependencies` | 安装依赖，严格使用 lockfile |
-| `Build web app` | 构建 `@occt-draw/web` 应用 |
-| `Setup Pages` | 初始化 GitHub Pages 部署环境 |
-| `Upload Pages artifact` | 上传 `apps/web/dist` |
-| `Deploy to GitHub Pages` | 发布到 GitHub Pages |
+| 步骤                     | 作用                         |
+| ------------------------ | ---------------------------- |
+| `Checkout`               | 拉取仓库代码                 |
+| `Setup pnpm`             | 安装项目指定的 pnpm 版本     |
+| `Setup Node`             | 使用项目指定的 Node.js 版本  |
+| `Install dependencies`   | 安装依赖，严格使用 lockfile  |
+| `Build web app`          | 构建 `@occt-draw/web` 应用   |
+| `Setup Pages`            | 初始化 GitHub Pages 部署环境 |
+| `Upload Pages artifact`  | 上传 `apps/web/dist`         |
+| `Deploy to GitHub Pages` | 发布到 GitHub Pages          |
 
 ## 6. 第三步：提交代码
 
@@ -290,12 +290,12 @@ deploy
 
 如果失败，先看失败的是哪一步：
 
-| 失败步骤 | 常见原因 | 处理方式 |
-| --- | --- | --- |
-| `Install dependencies` | `pnpm-lock.yaml` 和 `package.json` 不一致 | 本地运行 `pnpm install` 后提交新的 lockfile |
-| `Build web app` | TypeScript 或 Vite 构建错误 | 先本地执行 `pnpm --filter @occt-draw/web build` 修复错误 |
-| `Upload Pages artifact` | `apps/web/dist` 没生成 | 确认构建命令是否成功，确认输出目录是否仍是 `dist` |
-| `Deploy to GitHub Pages` | Pages 没启用或权限不足 | 检查 Settings → Pages → Source 是否为 GitHub Actions |
+| 失败步骤                 | 常见原因                                  | 处理方式                                                 |
+| ------------------------ | ----------------------------------------- | -------------------------------------------------------- |
+| `Install dependencies`   | `pnpm-lock.yaml` 和 `package.json` 不一致 | 本地运行 `pnpm install` 后提交新的 lockfile              |
+| `Build web app`          | TypeScript 或 Vite 构建错误               | 先本地执行 `pnpm --filter @occt-draw/web build` 修复错误 |
+| `Upload Pages artifact`  | `apps/web/dist` 没生成                    | 确认构建命令是否成功，确认输出目录是否仍是 `dist`        |
+| `Deploy to GitHub Pages` | Pages 没启用或权限不足                    | 检查 Settings → Pages → Source 是否为 GitHub Actions     |
 
 ## 9. 第六步：访问线上地址
 
