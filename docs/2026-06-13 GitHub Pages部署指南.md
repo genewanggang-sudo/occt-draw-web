@@ -162,16 +162,16 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v6
 
-            - name: Setup pnpm
-              uses: pnpm/action-setup@v4
-              with:
-                  version: 11.0.9
-
             - name: Setup Node
               uses: actions/setup-node@v6
               with:
                   node-version: 24.15.0
                   cache: pnpm
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 11.0.9
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
