@@ -144,6 +144,10 @@ function getCommandRunningMessage(commandId: CommandId): string {
         return 'Specify arc start point.';
     }
 
+    if (commandId === 'sketch-tangent-arc') {
+        return 'Select an existing sketch endpoint.';
+    }
+
     if (commandId === 'sketch-center-arc') {
         return 'Specify arc center point.';
     }
@@ -154,6 +158,14 @@ function getCommandRunningMessage(commandId: CommandId): string {
 
     if (commandId === 'sketch-ellipse') {
         return 'Specify ellipse center.';
+    }
+
+    if (commandId === 'sketch-elliptical-arc') {
+        return 'Specify elliptical arc center.';
+    }
+
+    if (commandId === 'sketch-conic') {
+        return 'Specify conic start point.';
     }
 
     if (commandId === 'extrude') {

@@ -56,6 +56,12 @@ export class Ellipse2 extends Curve2 {
             .normalize();
     }
 
+    public angleOfPoint(point: Vector2): number {
+        const localPoint = this.coord.worldToLocal(point);
+
+        return Math.atan2(localPoint.y / this.minorRadius, localPoint.x / this.majorRadius);
+    }
+
     public override bounds(): GeometryResult<BBox2> {
         if (!this.isValid()) {
             return GeometryResult.empty();
@@ -230,6 +236,27 @@ export class EllipticalArc2 extends Curve2 {
         );
     }
 
+    public static fromStartEndPoints(
+        ellipse: Ellipse2,
+        startPoint: Vector2,
+        endPoint: Vector2,
+        direction: 'negative' | 'positive' = 'positive',
+    ): EllipticalArc2 | null {
+        if (!ellipse.isValid()) {
+            return null;
+        }
+
+        const startAngle = ellipse.angleOfPoint(startPoint);
+        const endAngle = ellipse.angleOfPoint(endPoint);
+        const adjustedEndAngle =
+            direction === 'positive'
+                ? adjustAngleAbove(endAngle, startAngle)
+                : adjustAngleBelow(endAngle, startAngle);
+        const arc = new EllipticalArc2(ellipse, startAngle, adjustedEndAngle);
+
+        return arc.isValid() ? arc : null;
+    }
+
     private angleAt(parameter: number): number {
         return (
             this.startAngleRadians +
@@ -270,4 +297,26 @@ export class EllipticalArc2 extends Curve2 {
 
         return progress > 0 && progress < 1;
     }
+}
+
+function adjustAngleAbove(angle: number, floor: number): number {
+    const twoPi = Math.PI * 2;
+    let adjusted = angle;
+
+    while (adjusted <= floor) {
+        adjusted += twoPi;
+    }
+
+    return adjusted;
+}
+
+function adjustAngleBelow(angle: number, ceiling: number): number {
+    const twoPi = Math.PI * 2;
+    let adjusted = angle;
+
+    while (adjusted >= ceiling) {
+        adjusted -= twoPi;
+    }
+
+    return adjusted;
 }

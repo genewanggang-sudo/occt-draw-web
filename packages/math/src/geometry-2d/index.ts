@@ -3,6 +3,7 @@ export { Bezier2 } from './bezier2';
 export { BBox2 } from './bbox2';
 export { BSpline2, Nurbs2 } from './bspline2';
 export { Circle2 } from './circle2';
+export { Conic2, DEFAULT_CONIC_RHO } from './conic2';
 export { Curve2 } from './curve';
 export type { BoundedCurve2, CurveSamplingOptions } from './curve';
 export { sampleCurveSegments2, type CurveSegmentSamplingOptions } from './curveSampling';

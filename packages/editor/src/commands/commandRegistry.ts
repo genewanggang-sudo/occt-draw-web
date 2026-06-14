@@ -53,8 +53,23 @@ export const commandDefinitions: readonly CommandDefinition[] = [
         kind: 'modal',
     },
     {
+        id: 'sketch-tangent-arc',
+        label: 'Tangent arc',
+        kind: 'modal',
+    },
+    {
         id: 'sketch-center-arc',
         label: 'Center point arc',
+        kind: 'modal',
+    },
+    {
+        id: 'sketch-elliptical-arc',
+        label: 'Elliptical arc',
+        kind: 'modal',
+    },
+    {
+        id: 'sketch-conic',
+        label: 'Conic',
         kind: 'modal',
     },
     {
@@ -111,7 +126,10 @@ export function evaluateCommandAvailability(
         commandId === 'sketch-aligned-rectangle' ||
         commandId === 'sketch-circle' ||
         commandId === 'sketch-3-point-arc' ||
+        commandId === 'sketch-tangent-arc' ||
         commandId === 'sketch-center-arc' ||
+        commandId === 'sketch-elliptical-arc' ||
+        commandId === 'sketch-conic' ||
         commandId === 'sketch-3-point-circle' ||
         commandId === 'sketch-ellipse'
     ) {
@@ -150,7 +168,10 @@ export function evaluateCommandAvailabilityMap(
         ),
         'sketch-circle': evaluateCommandAvailability('sketch-circle', context),
         'sketch-3-point-arc': evaluateCommandAvailability('sketch-3-point-arc', context),
+        'sketch-tangent-arc': evaluateCommandAvailability('sketch-tangent-arc', context),
         'sketch-center-arc': evaluateCommandAvailability('sketch-center-arc', context),
+        'sketch-elliptical-arc': evaluateCommandAvailability('sketch-elliptical-arc', context),
+        'sketch-conic': evaluateCommandAvailability('sketch-conic', context),
         'sketch-3-point-circle': evaluateCommandAvailability('sketch-3-point-circle', context),
         'sketch-ellipse': evaluateCommandAvailability('sketch-ellipse', context),
         extrude: evaluateCommandAvailability('extrude', context),

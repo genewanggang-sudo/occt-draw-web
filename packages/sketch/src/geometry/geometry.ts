@@ -4,14 +4,26 @@ import {
     type ModelPropertyDefinition,
     type ModelPropertyValue,
 } from '@occt-draw/core';
-import { Angle, Arc2, Circle2, Coord2, Ellipse2, Vec2, type Vector2 } from '@occt-draw/math';
+import {
+    Angle,
+    Arc2,
+    Circle2,
+    Conic2,
+    Coord2,
+    Ellipse2,
+    EllipticalArc2,
+    Vec2,
+    type Vector2,
+} from '@occt-draw/math';
 import { recordSketchPropertySet } from '../changes/changeTracking';
 import {
     SketchEntityKind,
     type Arc2DSnapshot,
     type Circle2DSnapshot,
+    type Conic2DSnapshot,
     type Curve2DSnapshot,
     type Ellipse2DSnapshot,
+    type EllipticalArc2DSnapshot,
     type Line2DSnapshot,
     type Point2DSnapshot,
     type SketchCurveId,
@@ -96,6 +108,29 @@ const ARC_RADIUS_PROPERTY = defineModelProperty<number>({
 const ARC_START_ANGLE_PROPERTY = defineModelProperty<number>({
     key: 'startAngleRadians',
     defaultValue: 0,
+});
+
+const CONIC_START_POINT_PROPERTY = defineModelProperty<Vector2>({
+    key: 'startPoint',
+    defaultValue: Vec2.of(0, 0),
+    validate: assertVector2Property,
+});
+
+const CONIC_END_POINT_PROPERTY = defineModelProperty<Vector2>({
+    key: 'endPoint',
+    defaultValue: Vec2.of(0, 0),
+    validate: assertVector2Property,
+});
+
+const CONIC_SHOULDER_POINT_PROPERTY = defineModelProperty<Vector2>({
+    key: 'shoulderPoint',
+    defaultValue: Vec2.of(0, 0),
+    validate: assertVector2Property,
+});
+
+const CONIC_RHO_PROPERTY = defineModelProperty<number>({
+    key: 'rho',
+    defaultValue: 0.5,
 });
 
 export class Point2D extends BaseModelElement {
@@ -431,6 +466,136 @@ export class Ellipse2D extends Curve2D {
     }
 }
 
+export class EllipticalArc2D extends Curve2D {
+    public readonly kind = 'elliptical-arc' as const;
+
+    constructor(input: {
+        readonly center: Vector2;
+        readonly endAngleRadians: number;
+        readonly id: SketchCurveId;
+        readonly majorRadius: number;
+        readonly minorRadius: number;
+        readonly sketchId: SketchId;
+        readonly startAngleRadians: number;
+        readonly xAxis: Vector2;
+        readonly yAxis: Vector2;
+    }) {
+        const coord = new Coord2({
+            origin: input.center,
+            xAxis: input.xAxis,
+            yAxis: input.yAxis,
+        });
+
+        super({
+            id: input.id,
+            modelType: 'sketch.curve.elliptical-arc',
+            properties: new Map<string, ModelPropertyValue>([
+                [ELLIPSE_CENTER_PROPERTY.key, coord.origin],
+                [ELLIPSE_X_AXIS_PROPERTY.key, coord.xAxis],
+                [ELLIPSE_Y_AXIS_PROPERTY.key, coord.yAxis],
+                [ELLIPSE_MAJOR_RADIUS_PROPERTY.key, input.majorRadius],
+                [ELLIPSE_MINOR_RADIUS_PROPERTY.key, input.minorRadius],
+                [ARC_START_ANGLE_PROPERTY.key, input.startAngleRadians],
+                [ARC_END_ANGLE_PROPERTY.key, input.endAngleRadians],
+            ]),
+            sketchId: input.sketchId,
+        });
+    }
+
+    public get center(): Vector2 {
+        return this.getVector2Property(ELLIPSE_CENTER_PROPERTY);
+    }
+
+    public get xAxis(): Vector2 {
+        return this.getVector2Property(ELLIPSE_X_AXIS_PROPERTY);
+    }
+
+    public get yAxis(): Vector2 {
+        return this.getVector2Property(ELLIPSE_Y_AXIS_PROPERTY);
+    }
+
+    public get majorRadius(): number {
+        return this.getNumberProperty(ELLIPSE_MAJOR_RADIUS_PROPERTY.key);
+    }
+
+    public get minorRadius(): number {
+        return this.getNumberProperty(ELLIPSE_MINOR_RADIUS_PROPERTY.key);
+    }
+
+    public get startAngleRadians(): number {
+        return this.getNumberProperty(ARC_START_ANGLE_PROPERTY.key);
+    }
+
+    public get endAngleRadians(): number {
+        return this.getNumberProperty(ARC_END_ANGLE_PROPERTY.key);
+    }
+
+    public get ellipse(): Ellipse2 {
+        return new Ellipse2({
+            coord: new Coord2({
+                origin: this.center,
+                xAxis: this.xAxis,
+                yAxis: this.yAxis,
+            }),
+            majorRadius: this.majorRadius,
+            minorRadius: this.minorRadius,
+        });
+    }
+
+    public get arc(): EllipticalArc2 {
+        return new EllipticalArc2(this.ellipse, this.startAngleRadians, this.endAngleRadians);
+    }
+
+    public snapshot(): EllipticalArc2DSnapshot {
+        return {
+            center: this.center,
+            endAngleRadians: this.endAngleRadians,
+            id: this.id,
+            kind: this.kind,
+            majorRadius: this.majorRadius,
+            minorRadius: this.minorRadius,
+            startAngleRadians: this.startAngleRadians,
+            xAxis: this.xAxis,
+            yAxis: this.yAxis,
+        };
+    }
+
+    public static fromEllipticalArc(input: {
+        readonly arc: EllipticalArc2;
+        readonly id: SketchCurveId;
+        readonly sketchId: SketchId;
+    }): EllipticalArc2D {
+        return new EllipticalArc2D({
+            center: input.arc.ellipse.center,
+            endAngleRadians: input.arc.endAngleRadians,
+            id: input.id,
+            majorRadius: input.arc.ellipse.majorRadius,
+            minorRadius: input.arc.ellipse.minorRadius,
+            sketchId: input.sketchId,
+            startAngleRadians: input.arc.startAngleRadians,
+            xAxis: input.arc.ellipse.coord.xAxis,
+            yAxis: input.arc.ellipse.coord.yAxis,
+        });
+    }
+
+    public static fromSnapshot(
+        sketchId: SketchId,
+        snapshot: EllipticalArc2DSnapshot,
+    ): EllipticalArc2D {
+        return new EllipticalArc2D({
+            center: snapshot.center,
+            endAngleRadians: snapshot.endAngleRadians,
+            id: snapshot.id,
+            majorRadius: snapshot.majorRadius,
+            minorRadius: snapshot.minorRadius,
+            sketchId,
+            startAngleRadians: snapshot.startAngleRadians,
+            xAxis: snapshot.xAxis,
+            yAxis: snapshot.yAxis,
+        });
+    }
+}
+
 export class Arc2D extends Curve2D {
     public readonly kind = 'arc' as const;
 
@@ -502,6 +667,93 @@ export class Arc2D extends Curve2D {
     }
 }
 
+export class Conic2D extends Curve2D {
+    public readonly kind = 'conic' as const;
+
+    constructor(input: {
+        readonly endPoint: Vector2;
+        readonly id: SketchCurveId;
+        readonly rho: number;
+        readonly shoulderPoint: Vector2;
+        readonly sketchId: SketchId;
+        readonly startPoint: Vector2;
+    }) {
+        super({
+            id: input.id,
+            modelType: 'sketch.curve.conic',
+            properties: new Map<string, ModelPropertyValue>([
+                [CONIC_START_POINT_PROPERTY.key, copyVector2(input.startPoint)],
+                [CONIC_END_POINT_PROPERTY.key, copyVector2(input.endPoint)],
+                [CONIC_SHOULDER_POINT_PROPERTY.key, copyVector2(input.shoulderPoint)],
+                [CONIC_RHO_PROPERTY.key, input.rho],
+            ]),
+            sketchId: input.sketchId,
+        });
+    }
+
+    public get startPoint(): Vector2 {
+        return this.getVector2Property(CONIC_START_POINT_PROPERTY);
+    }
+
+    public get endPoint(): Vector2 {
+        return this.getVector2Property(CONIC_END_POINT_PROPERTY);
+    }
+
+    public get shoulderPoint(): Vector2 {
+        return this.getVector2Property(CONIC_SHOULDER_POINT_PROPERTY);
+    }
+
+    public get rho(): number {
+        return this.getNumberProperty(CONIC_RHO_PROPERTY.key);
+    }
+
+    public get conic(): Conic2 {
+        return new Conic2({
+            endPoint: this.endPoint,
+            rho: this.rho,
+            shoulderPoint: this.shoulderPoint,
+            startPoint: this.startPoint,
+        });
+    }
+
+    public snapshot(): Conic2DSnapshot {
+        return {
+            endPoint: this.endPoint,
+            id: this.id,
+            kind: this.kind,
+            rho: this.rho,
+            shoulderPoint: this.shoulderPoint,
+            startPoint: this.startPoint,
+        };
+    }
+
+    public static fromConic(input: {
+        readonly conic: Conic2;
+        readonly id: SketchCurveId;
+        readonly sketchId: SketchId;
+    }): Conic2D {
+        return new Conic2D({
+            endPoint: input.conic.endPoint,
+            id: input.id,
+            rho: input.conic.rho,
+            shoulderPoint: input.conic.shoulderPoint,
+            sketchId: input.sketchId,
+            startPoint: input.conic.startPoint,
+        });
+    }
+
+    public static fromSnapshot(sketchId: SketchId, snapshot: Conic2DSnapshot): Conic2D {
+        return new Conic2D({
+            endPoint: snapshot.endPoint,
+            id: snapshot.id,
+            rho: snapshot.rho,
+            shoulderPoint: snapshot.shoulderPoint,
+            sketchId,
+            startPoint: snapshot.startPoint,
+        });
+    }
+}
+
 export function curveFromSnapshot(sketchId: SketchId, snapshot: Curve2DSnapshot): Curve2D {
     if (snapshot.kind === 'line') {
         return Line2D.fromSnapshot(sketchId, snapshot);
@@ -513,6 +765,14 @@ export function curveFromSnapshot(sketchId: SketchId, snapshot: Curve2DSnapshot)
 
     if (snapshot.kind === 'ellipse') {
         return Ellipse2D.fromSnapshot(sketchId, snapshot);
+    }
+
+    if (snapshot.kind === 'elliptical-arc') {
+        return EllipticalArc2D.fromSnapshot(sketchId, snapshot);
+    }
+
+    if (snapshot.kind === 'conic') {
+        return Conic2D.fromSnapshot(sketchId, snapshot);
     }
 
     return Arc2D.fromSnapshot(sketchId, snapshot);

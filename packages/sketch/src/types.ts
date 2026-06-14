@@ -103,7 +103,34 @@ export interface Arc2DSnapshot {
     readonly startAngleRadians: number;
 }
 
-export type Curve2DSnapshot = Arc2DSnapshot | Circle2DSnapshot | Ellipse2DSnapshot | Line2DSnapshot;
+export interface EllipticalArc2DSnapshot {
+    readonly center: Vector2;
+    readonly endAngleRadians: number;
+    readonly id: SketchCurveId;
+    readonly kind: 'elliptical-arc';
+    readonly majorRadius: number;
+    readonly minorRadius: number;
+    readonly startAngleRadians: number;
+    readonly xAxis: Vector2;
+    readonly yAxis: Vector2;
+}
+
+export interface Conic2DSnapshot {
+    readonly endPoint: Vector2;
+    readonly id: SketchCurveId;
+    readonly kind: 'conic';
+    readonly rho: number;
+    readonly shoulderPoint: Vector2;
+    readonly startPoint: Vector2;
+}
+
+export type Curve2DSnapshot =
+    | Arc2DSnapshot
+    | Circle2DSnapshot
+    | Conic2DSnapshot
+    | Ellipse2DSnapshot
+    | EllipticalArc2DSnapshot
+    | Line2DSnapshot;
 
 export interface VertexSnapshot {
     readonly id: SketchVertexId;

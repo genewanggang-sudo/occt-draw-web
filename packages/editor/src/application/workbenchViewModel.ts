@@ -316,6 +316,10 @@ function getSketchToolLabel(tool: SketchToolKind): string {
         return '3 point arc';
     }
 
+    if (tool === 'tangent-arc') {
+        return 'Tangent arc';
+    }
+
     if (tool === 'center-arc') {
         return 'Center point arc';
     }
@@ -326,6 +330,14 @@ function getSketchToolLabel(tool: SketchToolKind): string {
 
     if (tool === 'ellipse') {
         return 'Ellipse';
+    }
+
+    if (tool === 'elliptical-arc') {
+        return 'Elliptical arc';
+    }
+
+    if (tool === 'conic') {
+        return 'Conic';
     }
 
     return 'Select';

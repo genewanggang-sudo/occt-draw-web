@@ -18,10 +18,13 @@ import { SketchAlignedRectangleCommand } from '../commands/SketchAlignedRectangl
 import { SketchCenterPointArcCommand } from '../commands/SketchCenterPointArcCommand';
 import { SketchCenterRectangleCommand } from '../commands/SketchCenterRectangleCommand';
 import { SketchCircleCommand } from '../commands/SketchCircleCommand';
+import { SketchConicCommand } from '../commands/SketchConicCommand';
 import { SketchEllipseCommand } from '../commands/SketchEllipseCommand';
+import { SketchEllipticalArcCommand } from '../commands/SketchEllipticalArcCommand';
 import { SketchLineCommand } from '../commands/SketchLineCommand';
 import { SketchMidpointLineCommand } from '../commands/SketchMidpointLineCommand';
 import { SketchRectangleCommand } from '../commands/SketchRectangleCommand';
+import { SketchTangentArcCommand } from '../commands/SketchTangentArcCommand';
 import { SketchThreePointArcCommand } from '../commands/SketchThreePointArcCommand';
 import { SketchThreePointCircleCommand } from '../commands/SketchThreePointCircleCommand';
 import type { CommandId } from '../commands/commandTypes';
@@ -63,8 +66,11 @@ type EditorCommand =
     | SketchCenterPointArcCommand
     | SketchCircleCommand
     | SketchThreePointArcCommand
+    | SketchTangentArcCommand
     | SketchThreePointCircleCommand
-    | SketchEllipseCommand;
+    | SketchEllipseCommand
+    | SketchEllipticalArcCommand
+    | SketchConicCommand;
 
 export class Application {
     public readonly commandManager: CommandManager<
@@ -95,8 +101,11 @@ export class Application {
                 new SketchCenterPointArcCommand(),
                 new SketchCircleCommand(),
                 new SketchThreePointArcCommand(),
+                new SketchTangentArcCommand(),
                 new SketchThreePointCircleCommand(),
                 new SketchEllipseCommand(),
+                new SketchEllipticalArcCommand(),
+                new SketchConicCommand(),
             ],
             createUnhandledResult: createUnhandledCommandResult,
             getActiveCommandId: () => this.getState().commandSession.id,

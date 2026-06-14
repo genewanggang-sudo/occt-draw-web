@@ -1,8 +1,10 @@
 export {
     Arc2D,
     Circle2D,
+    Conic2D,
     Curve2D,
     Ellipse2D,
+    EllipticalArc2D,
     Line2D,
     Point2D,
     curveFromSnapshot,
@@ -50,9 +52,11 @@ export {
 export type {
     Arc2DSnapshot,
     Circle2DSnapshot,
+    Conic2DSnapshot,
     Curve2DSnapshot,
     EdgeSnapshot,
     Ellipse2DSnapshot,
+    EllipticalArc2DSnapshot,
     Line2DSnapshot,
     Point2DSnapshot,
     SketchCurveId,

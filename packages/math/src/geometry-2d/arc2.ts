@@ -124,6 +124,51 @@ export class Arc2 extends Curve2 {
         return arc.isValid() ? arc : null;
     }
 
+    public static fromStartEndTangent(
+        startPoint: Vector2,
+        endPoint: Vector2,
+        startTangent: Vector2,
+        tolerance = DEFAULT_TOLERANCE.distance,
+    ): Arc2 | null {
+        const start = Vec2.from(startPoint);
+        const end = Vec2.from(endPoint);
+        const tangent = Vec2.normalize(startTangent);
+
+        if (!start.isFinite() || !end.isFinite() || !tangent.isFinite()) {
+            return null;
+        }
+
+        const chord = start.vectorTo(end);
+
+        if (chord.length() <= tolerance || tangent.length() <= tolerance) {
+            return null;
+        }
+
+        const normal = tangent.perpendicularLeft();
+        const normalProjection = chord.dot(normal);
+
+        if (Math.abs(normalProjection) <= tolerance) {
+            return null;
+        }
+
+        const signedRadius = chord.lengthSquared() / (2 * normalProjection);
+        const center = start.translated(normal.scale(signedRadius));
+        const radius = Math.abs(signedRadius);
+        const startAngle = Math.atan2(start.y - center.y, start.x - center.x);
+        const endAngle = Math.atan2(end.y - center.y, end.x - center.x);
+        const adjustedEndAngle =
+            signedRadius > 0
+                ? adjustAngleAbove(endAngle, startAngle)
+                : adjustAngleBelow(endAngle, startAngle);
+        const arc = new Arc2(
+            new Circle2(center, radius),
+            Angle.fromRadians(startAngle),
+            Angle.fromRadians(adjustedEndAngle),
+        );
+
+        return arc.isValid() ? arc : null;
+    }
+
     private angleAt(parameter: number): Angle {
         return Angle.lerp(this.startAngle, this.endAngle, this.domain.clamp(parameter));
     }

@@ -34,10 +34,30 @@ export type SketchToolState =
           readonly kind: 'ellipse';
           readonly primaryAxisPoint: Vector2 | null;
       }
+    | {
+          readonly centerPoint: Vector2 | null;
+          readonly endAngleRadians: number | null;
+          readonly kind: 'elliptical-arc';
+          readonly primaryAxisPoint: Vector2 | null;
+          readonly secondaryPoint: Vector2 | null;
+          readonly startAngleRadians: number | null;
+          readonly startPoint: Vector2 | null;
+      }
     | { readonly firstCorner: Vector2 | null; readonly kind: 'rectangle' }
     | { readonly kind: 'line'; readonly start: SketchLineStart | null }
     | { readonly kind: 'midpoint-line'; readonly midpoint: Vector2 | null }
     | { readonly kind: 'select' }
+    | {
+          readonly endPoint: Vector2 | null;
+          readonly kind: 'conic';
+          readonly startPoint: Vector2 | null;
+      }
+    | {
+          readonly kind: 'tangent-arc';
+          readonly startPoint: Vector2 | null;
+          readonly startTangent: Vector2 | null;
+          readonly startVertexId: SketchVertexId | null;
+      }
     | {
           readonly endPoint: Vector2 | null;
           readonly kind: 'three-point-arc';

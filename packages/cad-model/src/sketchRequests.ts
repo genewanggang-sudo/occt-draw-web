@@ -350,6 +350,175 @@ export class AddCenterPointArcRequest
     }
 }
 
+export interface AddTangentArcRequestResult extends SketchDocumentRequestContext {
+    readonly createdCurveId: string | null;
+    readonly createdEdgeId: SketchEdgeId | null;
+    readonly createdEndVertexId: SketchVertexId | null;
+    readonly payloadId: FeaturePayloadId;
+}
+
+export class AddTangentArcRequest
+    extends SketchDocumentRequest<AddTangentArcRequestResult>
+    implements DocumentRequest<CadDocument, AddTangentArcRequestResult, CadDocumentWriteContext>
+{
+    private readonly endPoint: Vector2;
+    private readonly startTangent: Vector2;
+    private readonly startVertexId: SketchVertexId;
+
+    constructor(
+        input: SketchDocumentRequestContext & {
+            readonly endPoint: Vector2;
+            readonly startTangent: Vector2;
+            readonly startVertexId: SketchVertexId;
+        },
+    ) {
+        super({
+            label: 'Add sketch tangent arc',
+            partStudioId: input.partStudioId,
+            sketchFeatureId: input.sketchFeatureId,
+            transactionId: `add-sketch-tangent-arc:${input.sketchFeatureId}`,
+        });
+        this.endPoint = input.endPoint;
+        this.startTangent = input.startTangent;
+        this.startVertexId = input.startVertexId;
+    }
+
+    protected apply(target: SketchWriteTarget): AddTangentArcRequestResult {
+        const result = target.primitives.addArcByStartVertexTangentEndPoint(
+            this.startVertexId,
+            this.startTangent,
+            this.endPoint,
+        );
+
+        return {
+            createdCurveId: result?.createdCurveId ?? null,
+            createdEdgeId: result?.createdEdgeId ?? null,
+            createdEndVertexId: result?.createdVertexId ?? null,
+            partStudioId: this.partStudioId,
+            payloadId: target.payloadId,
+            sketchFeatureId: this.sketchFeatureId,
+        };
+    }
+}
+
+export interface AddEllipticalArcRequestResult extends SketchDocumentRequestContext {
+    readonly createdCurveId: string | null;
+    readonly createdEdgeId: SketchEdgeId | null;
+    readonly payloadId: FeaturePayloadId;
+}
+
+export class AddEllipticalArcRequest
+    extends SketchDocumentRequest<AddEllipticalArcRequestResult>
+    implements DocumentRequest<CadDocument, AddEllipticalArcRequestResult, CadDocumentWriteContext>
+{
+    private readonly centerPoint: Vector2;
+    private readonly endAngleRadians: number;
+    private readonly endPoint: Vector2;
+    private readonly primaryAxisPoint: Vector2;
+    private readonly secondaryPoint: Vector2;
+    private readonly startAngleRadians: number;
+    private readonly startPoint: Vector2;
+
+    constructor(
+        input: SketchDocumentRequestContext & {
+            readonly centerPoint: Vector2;
+            readonly endAngleRadians: number;
+            readonly endPoint: Vector2;
+            readonly primaryAxisPoint: Vector2;
+            readonly secondaryPoint: Vector2;
+            readonly startAngleRadians: number;
+            readonly startPoint: Vector2;
+        },
+    ) {
+        super({
+            label: 'Add sketch elliptical arc',
+            partStudioId: input.partStudioId,
+            sketchFeatureId: input.sketchFeatureId,
+            transactionId: `add-sketch-elliptical-arc:${input.sketchFeatureId}`,
+        });
+        this.centerPoint = input.centerPoint;
+        this.endAngleRadians = input.endAngleRadians;
+        this.endPoint = input.endPoint;
+        this.primaryAxisPoint = input.primaryAxisPoint;
+        this.secondaryPoint = input.secondaryPoint;
+        this.startAngleRadians = input.startAngleRadians;
+        this.startPoint = input.startPoint;
+    }
+
+    protected apply(target: SketchWriteTarget): AddEllipticalArcRequestResult {
+        const result = target.primitives.addEllipticalArcByCenterAxes(
+            this.centerPoint,
+            this.primaryAxisPoint,
+            this.secondaryPoint,
+            this.startPoint,
+            this.endPoint,
+            this.startAngleRadians,
+            this.endAngleRadians,
+        );
+
+        return {
+            createdCurveId: result?.createdCurveId ?? null,
+            createdEdgeId: result?.createdEdgeId ?? null,
+            partStudioId: this.partStudioId,
+            payloadId: target.payloadId,
+            sketchFeatureId: this.sketchFeatureId,
+        };
+    }
+}
+
+export interface AddConicRequestResult extends SketchDocumentRequestContext {
+    readonly createdCurveId: string | null;
+    readonly createdEdgeId: SketchEdgeId | null;
+    readonly payloadId: FeaturePayloadId;
+}
+
+export class AddConicRequest
+    extends SketchDocumentRequest<AddConicRequestResult>
+    implements DocumentRequest<CadDocument, AddConicRequestResult, CadDocumentWriteContext>
+{
+    private readonly endPoint: Vector2;
+    private readonly rho: number | undefined;
+    private readonly shoulderPoint: Vector2;
+    private readonly startPoint: Vector2;
+
+    constructor(
+        input: SketchDocumentRequestContext & {
+            readonly endPoint: Vector2;
+            readonly rho?: number;
+            readonly shoulderPoint: Vector2;
+            readonly startPoint: Vector2;
+        },
+    ) {
+        super({
+            label: 'Add sketch conic',
+            partStudioId: input.partStudioId,
+            sketchFeatureId: input.sketchFeatureId,
+            transactionId: `add-sketch-conic:${input.sketchFeatureId}`,
+        });
+        this.endPoint = input.endPoint;
+        this.rho = input.rho;
+        this.shoulderPoint = input.shoulderPoint;
+        this.startPoint = input.startPoint;
+    }
+
+    protected apply(target: SketchWriteTarget): AddConicRequestResult {
+        const result = target.primitives.addConicByThreePoints(
+            this.startPoint,
+            this.endPoint,
+            this.shoulderPoint,
+            this.rho,
+        );
+
+        return {
+            createdCurveId: result?.createdCurveId ?? null,
+            createdEdgeId: result?.createdEdgeId ?? null,
+            partStudioId: this.partStudioId,
+            payloadId: target.payloadId,
+            sketchFeatureId: this.sketchFeatureId,
+        };
+    }
+}
+
 export interface AddEllipseRequestResult extends SketchDocumentRequestContext {
     readonly createdCurveId: string | null;
     readonly payloadId: FeaturePayloadId;

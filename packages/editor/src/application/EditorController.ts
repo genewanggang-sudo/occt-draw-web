@@ -368,6 +368,25 @@ function shouldExitSketchSession(state: EditorState): boolean {
         return tool.centerPoint === null && tool.primaryAxisPoint === null;
     }
 
+    if (tool.kind === 'elliptical-arc') {
+        return (
+            tool.centerPoint === null &&
+            tool.primaryAxisPoint === null &&
+            tool.secondaryPoint === null &&
+            tool.startPoint === null
+        );
+    }
+
+    if (tool.kind === 'conic') {
+        return tool.startPoint === null && tool.endPoint === null;
+    }
+
+    if (tool.kind === 'tangent-arc') {
+        return (
+            tool.startPoint === null && tool.startTangent === null && tool.startVertexId === null
+        );
+    }
+
     if (tool.kind === 'line') {
         return tool.start === null;
     }

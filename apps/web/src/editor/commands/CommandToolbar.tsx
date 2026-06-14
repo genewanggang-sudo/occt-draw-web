@@ -84,9 +84,24 @@ const sketchDrawingToolGroups: readonly SketchToolbarGroup[] = [
                 shortcut: 'A',
             },
             {
+                commandId: 'sketch-tangent-arc',
+                icon: ToolbarIconId.TangentArc,
+                label: '相切圆弧',
+            },
+            {
                 commandId: 'sketch-center-arc',
                 icon: ToolbarIconId.CenterArc,
                 label: '圆心圆弧',
+            },
+            {
+                commandId: 'sketch-elliptical-arc',
+                icon: ToolbarIconId.EllipseArc,
+                label: '椭圆弧',
+            },
+            {
+                commandId: 'sketch-conic',
+                icon: ToolbarIconId.CircleConic,
+                label: '圆锥',
             },
         ],
     },

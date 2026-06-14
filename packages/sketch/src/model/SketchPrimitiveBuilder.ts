@@ -1,7 +1,15 @@
-import { Arc2, Circle2, Ellipse2, type Vector2 } from '@occt-draw/math';
+import { Arc2, Circle2, Conic2, Ellipse2, EllipticalArc2, type Vector2 } from '@occt-draw/math';
 import type { SketchChangeRecorder } from '../changes/changeTracking';
 import { withActiveSketchChangeRecorder } from '../changes/changeTracking';
-import { Arc2D, Circle2D, Ellipse2D, Line2D, Point2D } from '../geometry/geometry';
+import {
+    Arc2D,
+    Circle2D,
+    Conic2D,
+    Ellipse2D,
+    EllipticalArc2D,
+    Line2D,
+    Point2D,
+} from '../geometry/geometry';
 import type { Sketch } from './sketch';
 import { Edge, Vertex } from '../topology/topology';
 import {
@@ -108,6 +116,49 @@ export class SketchPrimitiveBuilder {
     ): SketchPrimitiveResult | null {
         return this.capture(() =>
             this.addArcByCenterStartEndPointCore(centerPoint, startPoint, endDirectionPoint),
+        );
+    }
+
+    public addArcByStartVertexTangentEndPoint(
+        startVertexId: SketchVertexId,
+        startTangent: Vector2,
+        endPoint: Vector2,
+    ): SketchPrimitiveResult | null {
+        return this.capture(() =>
+            this.addArcByStartVertexTangentEndPointCore(startVertexId, startTangent, endPoint),
+        );
+    }
+
+    public addEllipticalArcByCenterAxes(
+        centerPoint: Vector2,
+        primaryAxisPoint: Vector2,
+        secondaryPoint: Vector2,
+        startPoint: Vector2,
+        endPoint: Vector2,
+        startAngleRadians: number,
+        endAngleRadians: number,
+    ): SketchPrimitiveResult | null {
+        return this.capture(() =>
+            this.addEllipticalArcByCenterAxesCore(
+                centerPoint,
+                primaryAxisPoint,
+                secondaryPoint,
+                startPoint,
+                endPoint,
+                startAngleRadians,
+                endAngleRadians,
+            ),
+        );
+    }
+
+    public addConicByThreePoints(
+        startPoint: Vector2,
+        endPoint: Vector2,
+        shoulderPoint: Vector2,
+        rho?: number,
+    ): SketchPrimitiveResult | null {
+        return this.capture(() =>
+            this.addConicByThreePointsCore(startPoint, endPoint, shoulderPoint, rho),
         );
     }
 
@@ -329,6 +380,152 @@ export class SketchPrimitiveBuilder {
             radius: arc.circle.radius,
             sketchId: this.sketch.id,
             startAngleRadians: arc.startAngle.radians,
+        });
+        const edge = new Edge({
+            curveId,
+            endVertexId: endVertex.vertex.id,
+            id: edgeId,
+            sketchId: this.sketch.id,
+            startVertexId: startVertex.vertex.id,
+        });
+
+        this.sketch.entities.geometry.curves.add(curve);
+        this.sketch.entities.topology.edges.add(edge);
+
+        return {
+            createdCurveId: curveId,
+            createdEdgeId: edgeId,
+            touchedEntityRefs: [
+                ...startVertex.touchedEntityRefs,
+                ...endVertex.touchedEntityRefs,
+                curve.ref,
+                edge.ref,
+            ],
+        };
+    }
+
+    private addArcByStartVertexTangentEndPointCore(
+        startVertexId: SketchVertexId,
+        startTangent: Vector2,
+        endPoint: Vector2,
+    ): SketchPrimitiveResult | null {
+        const startVertex = this.sketch.entities.topology.vertices.get(startVertexId);
+        const startPoint = this.sketch.findPointForVertex(startVertexId);
+
+        if (!startVertex || !startPoint) {
+            return null;
+        }
+
+        const arc = Arc2.fromStartEndTangent(startPoint.position, endPoint, startTangent);
+
+        if (!arc) {
+            return null;
+        }
+
+        const endVertex = this.addVertexAtPosition(arc.pointAt(1));
+        const curveId = this.sketch.state.allocateCurveId();
+        const edgeId = this.sketch.state.allocateEdgeId();
+        const curve = new Arc2D({
+            center: arc.circle.center,
+            endAngleRadians: arc.endAngle.radians,
+            id: curveId,
+            radius: arc.circle.radius,
+            sketchId: this.sketch.id,
+            startAngleRadians: arc.startAngle.radians,
+        });
+        const edge = new Edge({
+            curveId,
+            endVertexId: endVertex.vertex.id,
+            id: edgeId,
+            sketchId: this.sketch.id,
+            startVertexId,
+        });
+
+        this.sketch.entities.geometry.curves.add(curve);
+        this.sketch.entities.topology.edges.add(edge);
+
+        return {
+            createdCurveId: curveId,
+            createdEdgeId: edgeId,
+            createdVertexId: endVertex.vertex.id,
+            touchedEntityRefs: [...endVertex.touchedEntityRefs, curve.ref, edge.ref],
+        };
+    }
+
+    private addEllipticalArcByCenterAxesCore(
+        centerPoint: Vector2,
+        primaryAxisPoint: Vector2,
+        secondaryPoint: Vector2,
+        startPoint: Vector2,
+        endPoint: Vector2,
+        startAngleRadians: number,
+        endAngleRadians: number,
+    ): SketchPrimitiveResult | null {
+        const ellipse = Ellipse2.fromCenterAxisPoints(
+            centerPoint,
+            primaryAxisPoint,
+            secondaryPoint,
+        );
+        const arc = ellipse
+            ? createEllipticalArcFromAngles(ellipse, startAngleRadians, endAngleRadians)
+            : null;
+
+        if (!arc) {
+            return null;
+        }
+
+        const startVertex = this.addVertexAtPosition(arc.pointAt(0));
+        const endVertex = this.addVertexAtPosition(arc.pointAt(1));
+        const curveId = this.sketch.state.allocateCurveId();
+        const edgeId = this.sketch.state.allocateEdgeId();
+        const curve = EllipticalArc2D.fromEllipticalArc({
+            arc,
+            id: curveId,
+            sketchId: this.sketch.id,
+        });
+        const edge = new Edge({
+            curveId,
+            endVertexId: endVertex.vertex.id,
+            id: edgeId,
+            sketchId: this.sketch.id,
+            startVertexId: startVertex.vertex.id,
+        });
+
+        this.sketch.entities.geometry.curves.add(curve);
+        this.sketch.entities.topology.edges.add(edge);
+
+        return {
+            createdCurveId: curveId,
+            createdEdgeId: edgeId,
+            touchedEntityRefs: [
+                ...startVertex.touchedEntityRefs,
+                ...endVertex.touchedEntityRefs,
+                curve.ref,
+                edge.ref,
+            ],
+        };
+    }
+
+    private addConicByThreePointsCore(
+        startPoint: Vector2,
+        endPoint: Vector2,
+        shoulderPoint: Vector2,
+        rho?: number,
+    ): SketchPrimitiveResult | null {
+        const conic = Conic2.fromThreePoints(startPoint, endPoint, shoulderPoint, rho);
+
+        if (!conic) {
+            return null;
+        }
+
+        const startVertex = this.addVertexAtPosition(conic.startPoint);
+        const endVertex = this.addVertexAtPosition(conic.endPoint);
+        const curveId = this.sketch.state.allocateCurveId();
+        const edgeId = this.sketch.state.allocateEdgeId();
+        const curve = Conic2D.fromConic({
+            conic,
+            id: curveId,
+            sketchId: this.sketch.id,
         });
         const edge = new Edge({
             curveId,
@@ -665,4 +862,18 @@ function isValidRectangle(firstCorner: Vector2, oppositeCorner: Vector2): boolea
 
 function isValidEdgeLength(start: Vector2, end: Vector2): boolean {
     return Math.hypot(end.x - start.x, end.y - start.y) > MIN_SKETCH_EDGE_LENGTH;
+}
+
+function createEllipticalArcFromAngles(
+    ellipse: Ellipse2,
+    startAngleRadians: number,
+    endAngleRadians: number,
+): EllipticalArc2 | null {
+    if (!ellipse.isValid()) {
+        return null;
+    }
+
+    const arc = new EllipticalArc2(ellipse, startAngleRadians, endAngleRadians);
+
+    return arc.isValid() ? arc : null;
 }

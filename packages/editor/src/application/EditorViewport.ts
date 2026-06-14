@@ -82,6 +82,7 @@ export class EditorViewport {
     private currentGraph: RenderGraph;
     private currentDisplayBounds: BoundingBox3;
     private currentDisplaySphere: BoundingSphere;
+    private hasObservedViewportSize = false;
     private hoveredViewCubeTargetId: ViewCubeTargetId | null = null;
     private navigationAnimationFrame: number | null = null;
     private resizeObserver: ResizeObserver | null = null;
@@ -132,9 +133,9 @@ export class EditorViewport {
 
         options.hostElement.append(this.canvas);
         this.inputAdapter.attach(this.canvas);
+        this.syncViewportSizeFromCanvas();
         this.attachResizeObserver();
         this.initializeRenderer();
-        this.sync();
     }
 
     public dispose(): void {
@@ -156,6 +157,15 @@ export class EditorViewport {
     }
 
     public sync(): void {
+        if (this.syncViewportSizeFromCanvas()) {
+            return;
+        }
+
+        if (!this.hasObservedViewportSize) {
+            this.emitStatus();
+            return;
+        }
+
         this.currentGraph = this.createRenderGraphWithOverlay();
         this.currentDisplayBounds = this.currentGraph.navigationBounds;
         this.currentDisplaySphere = calculateBoundingSphere(this.currentDisplayBounds);
@@ -265,7 +275,13 @@ export class EditorViewport {
                 return;
             }
 
-            const viewportSize = getContentRectViewportSize(entry.contentRect);
+            const viewportSize = getViewportSizeFromRect(entry.contentRect);
+
+            if (!viewportSize) {
+                return;
+            }
+
+            this.hasObservedViewportSize = true;
 
             this.options.updateState((current) => {
                 const navigation = new ViewNavigationController(current.navigation).updateViewport(
@@ -279,6 +295,44 @@ export class EditorViewport {
             });
         });
         this.resizeObserver.observe(this.canvas);
+    }
+
+    private syncViewportSizeFromCanvas(): boolean {
+        const viewportSize = getElementViewportSize(this.canvas);
+
+        if (!viewportSize) {
+            return false;
+        }
+
+        this.hasObservedViewportSize = true;
+        const state = this.options.getState();
+
+        if (
+            state.navigation.viewportSize.height === viewportSize.height &&
+            state.navigation.viewportSize.width === viewportSize.width
+        ) {
+            return false;
+        }
+
+        this.options.updateState((current) => {
+            if (
+                current.navigation.viewportSize.height === viewportSize.height &&
+                current.navigation.viewportSize.width === viewportSize.width
+            ) {
+                return current;
+            }
+
+            const navigation = new ViewNavigationController(current.navigation).updateViewport(
+                viewportSize,
+            );
+
+            return {
+                ...current,
+                navigation,
+            };
+        });
+
+        return true;
     }
 
     private createRenderGraphWithOverlay(): RenderGraph {
@@ -452,11 +506,21 @@ function countSceneRenderObjects(graph: RenderGraph): number {
     }, 0);
 }
 
-function getContentRectViewportSize(rect: Pick<DOMRectReadOnly, 'height' | 'width'>) {
+function getViewportSizeFromRect(
+    rect: Pick<DOMRectReadOnly, 'height' | 'width'>,
+): EditorState['navigation']['viewportSize'] | null {
+    if (rect.height <= 0 || rect.width <= 0) {
+        return null;
+    }
+
     return {
         height: Math.max(1, Math.round(rect.height)),
         width: Math.max(1, Math.round(rect.width)),
     };
+}
+
+function getElementViewportSize(element: HTMLElement) {
+    return getViewportSizeFromRect(element.getBoundingClientRect());
 }
 
 function isViewCubeArrowTarget(targetId: ViewCubeTargetId): targetId is ViewCubeArrowCommand {
