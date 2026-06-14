@@ -1,7 +1,6 @@
 export {
     ViewportInput,
     ViewportInputAdapter,
-    ViewportInputHandler,
     type ViewportContextMenuInputEvent,
     type ViewportInputEvent,
     type ViewportInputModifiers,

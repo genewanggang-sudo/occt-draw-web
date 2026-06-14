@@ -1,25 +1,24 @@
-import type { DocumentRequest, EditDraft, SelectionTarget } from '@occt-draw/core';
+﻿import type { DocumentRequest, EditDraft, SelectionTarget } from '@occt-draw/core';
 import type { CadDocument, CadDocumentWriteContext } from '@occt-draw/cad-model';
 import {
-    ViewportInputHandler,
+    BaseViewportEventHandler,
     createHandledPlatformCommandResult,
     createUnhandledPlatformCommandResult,
     type PlatformCommandResult,
     type ScreenPoint,
     type SelectionState,
-    type ViewportKeyInputEvent,
-    type ViewportPointerInputEvent,
-    type ViewportWheelInputEvent,
+    type ViewportKeyboardEvent,
+    type ViewportMouseEvent,
     type ViewNavigationState,
 } from '@occt-draw/platform';
 import type { EditorState, SketchEditSession } from '../state/editorState';
 import type { CommandId, CommandSession } from './commandTypes';
 
-export type CommandPointerEvent = ViewportPointerInputEvent;
+export type CommandPointerEvent = ViewportMouseEvent;
 
-export type CommandKeyEvent = ViewportKeyInputEvent;
+export type CommandKeyEvent = ViewportKeyboardEvent;
 
-export type CommandWheelEvent = ViewportWheelInputEvent;
+export type CommandWheelEvent = ViewportMouseEvent;
 
 export interface CommandContext {
     getDraft(): EditDraft<CadDocument> | null;
@@ -39,7 +38,7 @@ export interface CommandResult extends PlatformCommandResult {
     readonly activeSketchSession?: SketchEditSession | null;
 }
 
-export abstract class CadCommand extends ViewportInputHandler<CommandContext, CommandResult> {
+export abstract class CadCommand extends BaseViewportEventHandler<CommandContext, CommandResult> {
     public abstract readonly id: CommandId;
 
     public enter(_context: CommandContext): CommandResult {
@@ -56,6 +55,24 @@ export abstract class CadCommand extends ViewportInputHandler<CommandContext, Co
 
     protected unhandled(): CommandResult {
         return createUnhandledCommandResult();
+    }
+
+    public override onLeftDrag(event: CommandPointerEvent, context: CommandContext): CommandResult {
+        return this.onPointerMove(event, context);
+    }
+
+    public override onLeftDragCancel(
+        _event: CommandPointerEvent,
+        _context: CommandContext,
+    ): CommandResult {
+        return createHandledCommandResult({ draft: null });
+    }
+
+    public override onLeftDragStop(
+        event: CommandPointerEvent,
+        context: CommandContext,
+    ): CommandResult {
+        return this.onPointerUp(event, context);
     }
 }
 

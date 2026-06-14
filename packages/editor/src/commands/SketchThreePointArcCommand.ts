@@ -25,7 +25,6 @@ import { projectScreenPointToSketch2 } from './sketchProjection';
 import { resolveActiveSketchTarget } from './sketchTargetContext';
 
 const THREE_POINT_ARC_PREVIEW_SEGMENTS = 32;
-const THREE_POINT_ARC_DRAG_THRESHOLD_PIXELS = 3;
 const MIN_THREE_POINT_ARC_PREVIEW_RADIUS = 1e-6;
 const DRAFT_COLOR = Vec3.of(0.1, 0.55, 1);
 
@@ -120,7 +119,10 @@ export class SketchThreePointArcCommand extends CadCommand {
         });
     }
 
-    protected override onPointerCancel(): CommandResult {
+    public override onLeftDragCancel(
+        _event: CommandPointerEvent,
+        _context: CommandContext,
+    ): CommandResult {
         this.pendingDrag = null;
 
         return createHandledCommandResult({
@@ -128,7 +130,7 @@ export class SketchThreePointArcCommand extends CadCommand {
         });
     }
 
-    protected override onPointerDown(
+    public override onPointerDown(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -198,16 +200,14 @@ export class SketchThreePointArcCommand extends CadCommand {
         return this.createArcResult(context, session, tool.startPoint, tool.endPoint, point);
     }
 
-    protected override onPointerMove(
+    public override onPointerMove(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
         if (this.pendingDrag?.pointerId === event.pointerId && !this.pendingDrag.moved) {
             this.pendingDrag = {
                 ...this.pendingDrag,
-                moved:
-                    distanceScreenPoints(this.pendingDrag.startPoint, event.point) >
-                    THREE_POINT_ARC_DRAG_THRESHOLD_PIXELS,
+                moved: true,
             };
         }
 
@@ -249,7 +249,7 @@ export class SketchThreePointArcCommand extends CadCommand {
         });
     }
 
-    protected override onPointerUp(
+    public override onPointerUp(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -402,11 +402,4 @@ function normalizeAngleDelta(delta: number): number {
     }
 
     return normalized;
-}
-
-function distanceScreenPoints(
-    first: CommandPointerEvent['point'],
-    second: CommandPointerEvent['point'],
-): number {
-    return Math.hypot(second.x - first.x, second.y - first.y);
 }

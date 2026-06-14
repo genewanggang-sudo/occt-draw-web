@@ -90,7 +90,7 @@ export class SelectCommand extends CadCommand {
         return createHandledCommandResult();
     }
 
-    protected override onPointerDown(
+    public override onPointerDown(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -130,12 +130,15 @@ export class SelectCommand extends CadCommand {
         return createHandledCommandResult();
     }
 
-    protected override onPointerCancel(): CommandResult {
+    public override onLeftDragCancel(
+        _event: CommandPointerEvent,
+        _context: CommandContext,
+    ): CommandResult {
         this.pendingSelectionPointer = null;
         return createHandledCommandResult({ draft: null });
     }
 
-    protected override onPointerMove(
+    public override onPointerMove(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -155,7 +158,7 @@ export class SelectCommand extends CadCommand {
         });
     }
 
-    protected override onPointerUp(
+    public override onPointerUp(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -257,7 +260,7 @@ export class SelectCommand extends CadCommand {
         });
     }
 
-    protected override onKeyDown(event: CommandKeyEvent, context: CommandContext): CommandResult {
+    public override onKeyDown(event: CommandKeyEvent, context: CommandContext): CommandResult {
         if (event.key !== 'Delete' && event.key !== 'Backspace') {
             return createUnhandledCommandResult();
         }

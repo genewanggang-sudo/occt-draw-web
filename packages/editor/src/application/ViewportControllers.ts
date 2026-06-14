@@ -18,123 +18,42 @@ import {
     type Vector3,
 } from '@occt-draw/math';
 import {
-    CommandManager,
+    BaseViewportEventHandler,
     ViewNavigationController,
-    type PickService,
-    type ScreenPoint,
-    type ViewportInputEvent,
-    type ViewportKeyInputEvent,
-    type ViewportPointerInputEvent,
-    type ViewportWheelInputEvent,
+    type ViewportKeyboardEvent,
+    type ViewportMouseEvent,
 } from '@occt-draw/platform';
-import {
-    mergeCommandResults,
-    createUnhandledCommandResult,
-    type CommandContext,
-    type CommandResult,
-} from '../commands/CadCommand';
-import { SelectCommand } from '../commands/SelectCommand';
-import { EnterSketchCommand } from '../commands/EnterSketchCommand';
-import { SketchAlignedRectangleCommand } from '../commands/SketchAlignedRectangleCommand';
-import { SketchCenterPointArcCommand } from '../commands/SketchCenterPointArcCommand';
-import { SketchCircleCommand } from '../commands/SketchCircleCommand';
-import { SketchCenterRectangleCommand } from '../commands/SketchCenterRectangleCommand';
-import { SketchEllipseCommand } from '../commands/SketchEllipseCommand';
-import { SketchLineCommand } from '../commands/SketchLineCommand';
-import { SketchMidpointLineCommand } from '../commands/SketchMidpointLineCommand';
-import { SketchRectangleCommand } from '../commands/SketchRectangleCommand';
-import { SketchThreePointArcCommand } from '../commands/SketchThreePointArcCommand';
-import { SketchThreePointCircleCommand } from '../commands/SketchThreePointCircleCommand';
-import type { CommandId } from '../commands/commandTypes';
 import type { EditorState } from '../state/editorState';
 import { EditorController } from './EditorController';
 
-export interface ViewportInteractionContext {
-    readonly getActiveCommandId: () => CommandId;
+export interface ViewportControllerContext {
     readonly getDisplayBounds: () => BoundingBox3;
-    readonly getRenderGraph: () => RenderGraph;
     readonly getDisplaySphere: () => BoundingSphere;
+    readonly getRenderGraph: () => RenderGraph;
     readonly getState: () => EditorState;
-    readonly pickService: PickService;
     readonly sampleNavigationDepths: (
         input: NavigationDepthSampleInput,
     ) => readonly NavigationDepthSample[];
     readonly updateState: (updater: (current: EditorState) => EditorState) => void;
 }
 
-export type EditorKeyInput = ViewportKeyInputEvent;
+export type EditorKeyInput = ViewportKeyboardEvent;
 
-export type EditorPointerInput = ViewportPointerInputEvent;
+export type EditorPointerInput = ViewportMouseEvent;
 
-export type EditorWheelInput = ViewportWheelInputEvent;
+export type EditorWheelInput = ViewportMouseEvent;
 
-const PICK_THRESHOLD_PIXELS = 9;
 const ORBIT_UNDER_POINTER_RADIUS_PIXELS = 12;
 const ORBIT_WINDOW_TARGET_SAMPLE_COUNT = 2000;
 const MIN_WINDOW_DEPTH_SAMPLES = 3;
 const BOUNDS_FIT_ROTATE_FACTOR = 2;
 
-export class ViewportInteractionController {
-    private readonly commandManager: CommandManager<
-        CommandId,
-        CommandContext,
-        CommandResult,
-        | SelectCommand
-        | EnterSketchCommand
-        | SketchLineCommand
-        | SketchMidpointLineCommand
-        | SketchRectangleCommand
-        | SketchCenterRectangleCommand
-        | SketchAlignedRectangleCommand
-        | SketchCenterPointArcCommand
-        | SketchCircleCommand
-        | SketchThreePointArcCommand
-        | SketchThreePointCircleCommand
-        | SketchEllipseCommand
-    >;
-    private readonly context: ViewportInteractionContext;
+export class CameraNavigationController extends BaseViewportEventHandler {
+    private readonly context: ViewportControllerContext;
 
-    constructor(context: ViewportInteractionContext) {
+    constructor(context: ViewportControllerContext) {
+        super();
         this.context = context;
-        this.commandManager = new CommandManager({
-            activeCommandId: context.getActiveCommandId(),
-            commands: [
-                new SelectCommand(),
-                new EnterSketchCommand(),
-                new SketchLineCommand(),
-                new SketchMidpointLineCommand(),
-                new SketchRectangleCommand(),
-                new SketchCenterRectangleCommand(),
-                new SketchAlignedRectangleCommand(),
-                new SketchCenterPointArcCommand(),
-                new SketchCircleCommand(),
-                new SketchThreePointArcCommand(),
-                new SketchThreePointCircleCommand(),
-                new SketchEllipseCommand(),
-            ],
-            createUnhandledResult: createUnhandledCommandResult,
-            mergeResults: mergeCommandResults,
-        });
-    }
-
-    public activateCommand(commandId: CommandId): void {
-        this.context.updateState((current) => {
-            const nextState = new EditorController(current).activateCommand(commandId);
-
-            if (
-                nextState.commandSession.id === commandId &&
-                nextState.commandSession.status !== 'blocked'
-            ) {
-                const result = this.commandManager.activate(
-                    commandId,
-                    this.createCommandContext(nextState),
-                );
-
-                return new EditorController(nextState).applyCommandResult(result);
-            }
-
-            return nextState;
-        });
     }
 
     public fitView(): void {
@@ -148,69 +67,81 @@ export class ViewportInteractionController {
         });
     }
 
-    public handleInput(event: ViewportInputEvent): boolean {
-        this.commandManager.setActiveCommandId(this.context.getActiveCommandId());
+    public handleStandardView(view: StandardCameraView): void {
+        this.context.updateState((current) => {
+            const navigation = new ViewNavigationController(current.navigation).setStandardView(
+                this.context.getDisplayBounds(),
+                this.context.getDisplaySphere(),
+                view,
+            );
 
-        if (event.kind === 'key') {
-            return this.handleKeyInput(event);
-        }
-
-        if (event.kind === 'wheel') {
-            return this.handleWheel(event);
-        }
-
-        if (event.kind === 'pointer') {
-            return this.handlePointerInput(event);
-        }
-
-        return false;
+            return new EditorController(current).applyNavigation(navigation);
+        });
     }
 
-    private handleKeyInput(event: EditorKeyInput): boolean {
+    public override onKeyDown(event: EditorKeyInput): boolean {
         if (shouldIgnoreShortcut(event)) {
             return false;
         }
 
-        if (event.key === 'f' || event.key === 'F') {
-            this.fitView();
-            return true;
+        if (event.key !== 'f' && event.key !== 'F') {
+            return false;
         }
 
-        if (event.key === 'Escape') {
-            this.context.updateState((current) => {
-                const cancelResult = this.commandManager.cancel(this.createCommandContext(current));
-
-                if (cancelResult.handled) {
-                    return new EditorController(current).applyCommandResult(cancelResult);
-                }
-
-                return new EditorController(current).resetToSelectCommand();
-            });
-            return true;
-        }
-
-        const result = this.commandManager.handleInput(event, this.createCommandContext());
-        this.applyCommandResult(result);
-        return result.handled;
+        this.fitView();
+        return true;
     }
 
-    private handlePointerInput(event: EditorPointerInput): boolean {
-        const commandResult = this.commandManager.handleInput(event, this.createCommandContext());
-        this.applyCommandResult(commandResult);
+    public override onMiddleDrag(event: EditorPointerInput): boolean {
+        return this.handleNavigationPointerMove(event);
+    }
 
-        if (commandResult.handled) {
-            return true;
-        }
+    public override onMiddleDragStart(event: EditorPointerInput): boolean {
+        return this.handleNavigationPointerDown(event);
+    }
 
-        if (event.phase === 'down') {
-            return this.handleNavigationPointerDown(event);
-        }
-
-        if (event.phase === 'move') {
-            return this.handleNavigationPointerMove(event);
-        }
-
+    public override onMiddleDragStop(event: EditorPointerInput): boolean {
         return this.handleNavigationPointerEnd(event);
+    }
+
+    public override onPointerDown(event: EditorPointerInput): boolean {
+        return isViewNavigationPointer(event);
+    }
+
+    public override onPointerUp(event: EditorPointerInput): boolean {
+        return isViewNavigationPointer(event);
+    }
+
+    public override onRightDrag(event: EditorPointerInput): boolean {
+        return this.handleNavigationPointerMove(event);
+    }
+
+    public override onRightDragStart(event: EditorPointerInput): boolean {
+        return this.handleNavigationPointerDown(event);
+    }
+
+    public override onRightDragStop(event: EditorPointerInput): boolean {
+        return this.handleNavigationPointerEnd(event);
+    }
+
+    public override onWheel(event: EditorWheelInput): boolean {
+        this.context.updateState((current) => {
+            const navigation = new ViewNavigationController(current.navigation).zoom(
+                {
+                    deltaY: event.deltaY ?? 0,
+                    point: event.point,
+                    zoomAnchor: current.navigation.camera.target,
+                },
+                this.context.getDisplayBounds(),
+            );
+
+            return new EditorController(current).applyNavigation(navigation);
+        });
+        return true;
+    }
+
+    protected unhandled(): boolean {
+        return false;
     }
 
     private handleNavigationPointerDown(event: EditorPointerInput): boolean {
@@ -232,7 +163,10 @@ export class ViewportInteractionController {
         return true;
     }
 
-    private resolveNavigationCenter(state: EditorState, point: ScreenPoint): Vector3 {
+    private resolveNavigationCenter(
+        state: EditorState,
+        point: EditorPointerInput['point'],
+    ): Vector3 {
         return (
             this.getRotateCenterUnderPoint(state, point) ??
             this.getRotateCenterBasedOnWindowDepths(state, false) ??
@@ -243,7 +177,10 @@ export class ViewportInteractionController {
         );
     }
 
-    private getRotateCenterUnderPoint(state: EditorState, point: ScreenPoint): Vector3 | null {
+    private getRotateCenterUnderPoint(
+        state: EditorState,
+        point: EditorPointerInput['point'],
+    ): Vector3 | null {
         const radius = ORBIT_UNDER_POINTER_RADIUS_PIXELS;
         const sampleInput = {
             area: {
@@ -344,7 +281,7 @@ export class ViewportInteractionController {
 
     private getRotateCenterBasedOnCanvasLocationAndBoundsDepth(
         state: EditorState,
-        point: ScreenPoint,
+        point: EditorPointerInput['point'],
     ): Vector3 | null {
         const bounds = this.context.getDisplayBounds();
         const bbox = BBox3.fromBoundsLike(bounds);
@@ -367,6 +304,8 @@ export class ViewportInteractionController {
     }
 
     private handleNavigationPointerMove(event: EditorPointerInput): boolean {
+        const handled = isViewNavigationPointer(event);
+
         this.context.updateState((current) => {
             const navigation = new ViewNavigationController(current.navigation).update(
                 {
@@ -384,10 +323,12 @@ export class ViewportInteractionController {
 
             return new EditorController(current).applyNavigation(navigation);
         });
-        return this.context.getState().navigation.drag !== null;
+        return handled;
     }
 
     private handleNavigationPointerEnd(event: EditorPointerInput): boolean {
+        const handled = isViewNavigationPointer(event);
+
         this.context.updateState((current) => {
             const navigation = new ViewNavigationController(current.navigation).end(
                 event.pointerId,
@@ -399,64 +340,18 @@ export class ViewportInteractionController {
 
             return new EditorController(current).applyNavigation(navigation);
         });
-        return this.context.getState().navigation.drag !== null;
+        return handled;
     }
+}
 
-    public handleStandardView(view: StandardCameraView): void {
-        this.context.updateState((current) => {
-            const navigation = new ViewNavigationController(current.navigation).setStandardView(
-                this.context.getDisplayBounds(),
-                this.context.getDisplaySphere(),
-                view,
-            );
-
-            return new EditorController(current).applyNavigation(navigation);
-        });
+export class EditorDefaultController extends BaseViewportEventHandler {
+    protected unhandled(): boolean {
+        return false;
     }
+}
 
-    private handleWheel(event: EditorWheelInput): boolean {
-        this.context.updateState((current) => {
-            const navigation = new ViewNavigationController(current.navigation).zoom(
-                {
-                    deltaY: event.deltaY,
-                    point: event.point,
-                    zoomAnchor: current.navigation.camera.target,
-                },
-                this.context.getDisplayBounds(),
-            );
-
-            return new EditorController(current).applyNavigation(navigation);
-        });
-        return true;
-    }
-
-    private applyCommandResult(result: CommandResult): void {
-        if (!result.handled) {
-            return;
-        }
-
-        this.context.updateState((current) =>
-            new EditorController(current).applyCommandResult(result),
-        );
-    }
-
-    private createCommandContext(stateOverride?: EditorState): CommandContext {
-        return {
-            getDraft: () => (stateOverride ?? this.context.getState()).draft,
-            getState: () => stateOverride ?? this.context.getState(),
-            pick: (point: ScreenPoint) => {
-                const state = stateOverride ?? this.context.getState();
-
-                return this.context.pickService.pickSelectionTarget({
-                    camera: state.navigation.camera,
-                    graph: this.context.getRenderGraph(),
-                    point,
-                    thresholdPixels: PICK_THRESHOLD_PIXELS,
-                    viewportSize: state.navigation.viewportSize,
-                });
-            },
-        };
-    }
+export function isCancelCommandInput(event: EditorKeyInput): boolean {
+    return !shouldIgnoreShortcut(event) && event.key === 'Escape';
 }
 
 function isViewNavigationPointer(event: EditorPointerInput): boolean {

@@ -1,6 +1,5 @@
-import {
+﻿import {
     calculateBoundingSphere,
-    createStandardCameraState,
     RenderEngine,
     RenderLayer,
     ViewCube,
@@ -12,44 +11,39 @@ import {
     type ViewCubeTargetId,
 } from '@occt-draw/canvas';
 import { Measurement } from '@occt-draw/math';
-import { createDefaultCadDocument } from '@occt-draw/cad-model';
 import {
+    BaseViewportEventHandler,
     PickService,
     ViewNavigationController,
-    ViewportInput,
-    createViewNavigationState,
+    ViewportInteractor,
     interpolateCameraState,
     rotateCameraByViewCubeArrow,
     type ScreenPoint,
-    type ViewportInputEvent,
-    type ViewportPointerInputEvent,
+    type ViewportEventHandler,
+    type ViewportMouseEvent,
     type ViewCubeRotationStep,
 } from '@occt-draw/platform';
-import { ViewportInteractionController } from './ViewportInteractionController';
+import {
+    CameraNavigationController,
+    EditorDefaultController,
+    type ViewportControllerContext,
+} from './ViewportControllers';
 import { createEditorRenderGraph, createEditorRenderHighlight } from './editorRendering';
-import { createInitialEditorState } from '../state/createInitialEditorState';
 import type { EditorState } from '../state/editorState';
 
-export interface EditorViewportRuntimeOptions {
+export interface EditorViewportOptions {
+    readonly commandManager: ViewportEventHandler;
     readonly getState: () => EditorState;
     readonly hostElement: HTMLElement;
-    readonly onStatusChange?: (status: EditorViewportRuntimeStatus) => void;
+    readonly onStatusChange?: (status: EditorViewportStatus) => void;
     readonly updateState: (updater: (current: EditorState) => EditorState) => void;
 }
 
-export interface EditorViewportRuntimeStatus {
+export interface EditorViewportStatus {
     readonly displayObjectCount: number;
     readonly rendererStatus: string;
 }
 
-export interface CreateDefaultEditorStateOptions {
-    readonly viewportSize?: {
-        readonly height: number;
-        readonly width: number;
-    };
-}
-
-const INITIAL_VIEWPORT_SIZE = { width: 1, height: 1 } as const;
 const VIEW_CUBE_CLICK_DISTANCE = 4;
 const VIEW_CUBE_STANDARD_VIEWS: Readonly<Partial<Record<ViewCubeTargetId, StandardCameraView>>> = {
     back: 'back',
@@ -76,52 +70,11 @@ const VIEW_CUBE_ARROW_TARGETS = new Set<ViewCubeTargetId>([
     'arrow-up',
 ]);
 
-export function createDefaultEditorState(
-    options: CreateDefaultEditorStateOptions = {},
-): EditorState {
-    const document = createDefaultCadDocument();
-    const graph = createEditorRenderGraphForDocument(document);
-    const displayBounds = graph.navigationBounds;
-    const displaySphere = calculateBoundingSphere(displayBounds);
-    const camera = createStandardCameraState(
-        displayBounds,
-        'trimetric',
-        options.viewportSize ?? INITIAL_VIEWPORT_SIZE,
-    );
-    const navigation = createViewNavigationState(
-        camera,
-        displaySphere,
-        options.viewportSize ?? INITIAL_VIEWPORT_SIZE,
-    );
-
-    return createInitialEditorState({
-        document,
-        navigation,
-    });
-}
-
-function createEditorRenderGraphForDocument(document: EditorState['document']): RenderGraph {
-    return createEditorRenderGraph(
-        createInitialEditorState({
-            document,
-            navigation: createViewNavigationState(
-                createStandardCameraState(
-                    { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } },
-                    'trimetric',
-                    INITIAL_VIEWPORT_SIZE,
-                ),
-                { center: { x: 0, y: 0, z: 0 }, radius: 1 },
-                INITIAL_VIEWPORT_SIZE,
-            ),
-        }),
-    );
-}
-
-export class EditorViewportRuntime {
+export class EditorViewport {
     private readonly canvas: HTMLCanvasElement;
-    private readonly inputAdapter: ViewportInput;
-    private readonly interactionController: ViewportInteractionController;
-    private readonly options: EditorViewportRuntimeOptions;
+    private readonly cameraNavigationController: CameraNavigationController;
+    private readonly inputAdapter: ViewportInteractor;
+    private readonly options: EditorViewportOptions;
     private readonly pickService = new PickService();
     private renderer: RenderEngine | null = null;
     private rendererStatus = 'Initializing WebGL2';
@@ -132,33 +85,49 @@ export class EditorViewportRuntime {
     private hoveredViewCubeTargetId: ViewCubeTargetId | null = null;
     private navigationAnimationFrame: number | null = null;
     private resizeObserver: ResizeObserver | null = null;
-    private viewCubePointer: null | {
-        readonly pointerId: number;
-        readonly point: ScreenPoint;
-        readonly targetId: ViewCubeTargetId;
-    } = null;
 
-    constructor(options: EditorViewportRuntimeOptions) {
+    constructor(options: EditorViewportOptions) {
         this.options = options;
         this.canvas = document.createElement('canvas');
         this.canvas.className = 'cad-workbench__canvas';
         this.currentGraph = this.createRenderGraphWithOverlay();
         this.currentDisplayBounds = this.currentGraph.navigationBounds;
         this.currentDisplaySphere = calculateBoundingSphere(this.currentDisplayBounds);
-        this.interactionController = new ViewportInteractionController({
-            getActiveCommandId: () => this.options.getState().commandSession.id,
+        const controllerContext: ViewportControllerContext = {
             getDisplayBounds: () => this.currentDisplayBounds,
             getDisplaySphere: () => this.currentDisplaySphere,
             getRenderGraph: () => this.currentGraph,
             getState: () => this.options.getState(),
-            pickService: this.pickService,
             sampleNavigationDepths: (input) => this.renderer?.sampleNavigationDepths(input) ?? [],
             updateState: this.options.updateState,
-        });
-        this.inputAdapter = new ViewportInput({
-            onInput: (event) => {
-                this.handleViewportInput(event);
-            },
+        };
+        this.cameraNavigationController = new CameraNavigationController(controllerContext);
+        this.inputAdapter = new ViewportInteractor({
+            handlers: [
+                new ViewCubeController({
+                    animateStandardView: (view) => {
+                        this.animateStandardView(view);
+                    },
+                    animateViewCubeArrow: (command, step) => {
+                        this.animateViewCubeArrow(command, step);
+                    },
+                    getCamera: () => this.options.getState().navigation.camera,
+                    getHoveredTargetId: () => this.hoveredViewCubeTargetId,
+                    getViewportSize: () => this.options.getState().navigation.viewportSize,
+                    setHoveredTargetId: (targetId) => {
+                        this.hoveredViewCubeTargetId = targetId;
+                    },
+                    stopNavigationAnimation: () => {
+                        this.stopNavigationAnimation();
+                    },
+                    sync: () => {
+                        this.sync();
+                    },
+                }),
+                this.options.commandManager,
+                new EditorDefaultController(),
+                this.cameraNavigationController,
+            ],
         });
 
         options.hostElement.append(this.canvas);
@@ -166,48 +135,6 @@ export class EditorViewportRuntime {
         this.attachResizeObserver();
         this.initializeRenderer();
         this.sync();
-    }
-
-    private handleViewportInput(event: ViewportInputEvent): void {
-        if (event.kind === 'context-menu') {
-            event.preventDefault();
-            return;
-        }
-
-        if (event.kind === 'key' || event.kind === 'wheel') {
-            this.stopNavigationAnimation();
-
-            if (this.interactionController.handleInput(event)) {
-                event.preventDefault();
-            }
-            return;
-        }
-
-        if (this.handleViewCubePointerInput(event)) {
-            event.preventDefault();
-            return;
-        }
-
-        if (event.buttons !== 0) {
-            this.stopNavigationAnimation();
-        }
-
-        if (this.interactionController.handleInput(event)) {
-            if (event.phase === 'down') {
-                event.capturePointer();
-            }
-            event.preventDefault();
-        }
-
-        if (event.phase === 'up' || event.phase === 'cancel') {
-            event.releasePointer();
-        }
-    }
-
-    public activateCommand(
-        commandId: Parameters<ViewportInteractionController['activateCommand']>[0],
-    ): void {
-        this.interactionController.activateCommand(commandId);
     }
 
     public dispose(): void {
@@ -221,7 +148,7 @@ export class EditorViewportRuntime {
     }
 
     public fitView(): void {
-        this.animateFitView();
+        this.cameraNavigationController.fitView();
     }
 
     public setStandardView(view: StandardCameraView): void {
@@ -247,14 +174,19 @@ export class EditorViewportRuntime {
         this.renderer.render(state.navigation.camera);
     }
 
-    private animateFitView(durationMs = 140): void {
-        const state = this.options.getState();
-        const navigation = new ViewNavigationController(state.navigation).fit(
-            this.currentDisplayBounds,
-            this.currentDisplaySphere,
-        );
-
-        this.animateNavigationCamera(navigation.camera, durationMs);
+    public pickSelectionTarget(input: {
+        readonly camera: EditorState['navigation']['camera'];
+        readonly point: ScreenPoint;
+        readonly thresholdPixels: number;
+        readonly viewportSize: EditorState['navigation']['viewportSize'];
+    }) {
+        return this.pickService.pickSelectionTarget({
+            camera: input.camera,
+            graph: this.currentGraph,
+            point: input.point,
+            thresholdPixels: input.thresholdPixels,
+            viewportSize: input.viewportSize,
+        });
     }
 
     private animateNavigationCamera(
@@ -370,110 +302,6 @@ export class EditorViewportRuntime {
         });
     }
 
-    private handleViewCubePointerInput(event: ViewportPointerInputEvent): boolean {
-        if (event.phase === 'cancel') {
-            return this.handleViewCubePointerCancel(event);
-        }
-
-        if (event.phase === 'down') {
-            return this.handleViewCubePointerDown(event);
-        }
-
-        if (event.phase === 'move') {
-            return this.handleViewCubePointerMove(event);
-        }
-
-        return this.handleViewCubePointerUp(event);
-    }
-
-    private handleViewCubePointerCancel(event: ViewportPointerInputEvent): boolean {
-        const handled = this.viewCubePointer?.pointerId === event.pointerId;
-
-        if (handled) {
-            this.viewCubePointer = null;
-            this.hoveredViewCubeTargetId = null;
-            event.releasePointer();
-            this.sync();
-        }
-
-        return handled;
-    }
-
-    private handleViewCubePointerDown(event: ViewportPointerInputEvent): boolean {
-        if (event.button !== 0) {
-            return false;
-        }
-
-        const targetId = this.hitTestCurrentViewCube(event.point);
-
-        if (!targetId) {
-            this.viewCubePointer = null;
-            this.hoveredViewCubeTargetId = null;
-            this.sync();
-            return false;
-        }
-
-        this.viewCubePointer = {
-            pointerId: event.pointerId,
-            point: event.point,
-            targetId,
-        };
-        this.hoveredViewCubeTargetId = targetId;
-        this.stopNavigationAnimation();
-        event.capturePointer();
-        this.sync();
-
-        return true;
-    }
-
-    private handleViewCubePointerMove(event: ViewportPointerInputEvent): boolean {
-        const targetId = this.hitTestCurrentViewCube(event.point);
-
-        if (targetId !== this.hoveredViewCubeTargetId) {
-            this.hoveredViewCubeTargetId = targetId;
-            this.sync();
-        }
-
-        return targetId !== null || this.viewCubePointer !== null;
-    }
-
-    private handleViewCubePointerUp(event: ViewportPointerInputEvent): boolean {
-        const down = this.viewCubePointer;
-
-        if (down?.pointerId !== event.pointerId) {
-            return false;
-        }
-
-        this.viewCubePointer = null;
-        const targetId = down.targetId;
-
-        if (Measurement.distance2(event.point, down.point).value <= VIEW_CUBE_CLICK_DISTANCE) {
-            if (isViewCubeArrowTarget(targetId)) {
-                this.animateViewCubeArrow(targetId, getViewCubeRotationStep(event));
-            } else {
-                const view = VIEW_CUBE_STANDARD_VIEWS[targetId];
-
-                if (view) {
-                    this.animateStandardView(view);
-                }
-            }
-        }
-
-        this.hoveredViewCubeTargetId = this.hitTestCurrentViewCube(event.point);
-        event.releasePointer();
-        this.sync();
-
-        return true;
-    }
-
-    private hitTestCurrentViewCube(point: ScreenPoint): ViewCubeTargetId | null {
-        return new ViewCube().hitTest({
-            camera: this.options.getState().navigation.camera,
-            point,
-            viewportSize: this.options.getState().navigation.viewportSize,
-        });
-    }
-
     private initializeRenderer(): void {
         try {
             this.renderer = new RenderEngine(this.canvas);
@@ -492,6 +320,125 @@ export class EditorViewportRuntime {
             window.cancelAnimationFrame(animationFrame);
             this.navigationAnimationFrame = null;
         }
+    }
+}
+
+interface ViewCubeControllerOptions {
+    readonly animateStandardView: (view: StandardCameraView) => void;
+    readonly animateViewCubeArrow: (
+        command: ViewCubeArrowCommand,
+        step: ViewCubeRotationStep,
+    ) => void;
+    readonly getCamera: () => EditorState['navigation']['camera'];
+    readonly getHoveredTargetId: () => ViewCubeTargetId | null;
+    readonly getViewportSize: () => EditorState['navigation']['viewportSize'];
+    readonly setHoveredTargetId: (targetId: ViewCubeTargetId | null) => void;
+    readonly stopNavigationAnimation: () => void;
+    readonly sync: () => void;
+}
+
+class ViewCubeController extends BaseViewportEventHandler {
+    private pointer: null | {
+        readonly pointerId: number;
+        readonly point: ScreenPoint;
+        readonly targetId: ViewCubeTargetId;
+    } = null;
+
+    constructor(private readonly options: ViewCubeControllerOptions) {
+        super();
+    }
+
+    public override onLeftDragCancel(event: ViewportMouseEvent): boolean {
+        return this.clearPointer(event);
+    }
+
+    public override onPointerDown(event: ViewportMouseEvent): boolean {
+        if (event.button !== 0) {
+            return false;
+        }
+
+        const targetId = this.hitTest(event.point);
+
+        if (!targetId) {
+            this.pointer = null;
+            this.setHoveredTargetId(null);
+            return false;
+        }
+
+        this.pointer = {
+            pointerId: event.pointerId,
+            point: event.point,
+            targetId,
+        };
+        this.setHoveredTargetId(targetId);
+        this.options.stopNavigationAnimation();
+
+        return true;
+    }
+
+    public override onPointerMove(event: ViewportMouseEvent): boolean {
+        const targetId = this.hitTest(event.point);
+
+        if (targetId !== this.options.getHoveredTargetId()) {
+            this.setHoveredTargetId(targetId);
+        }
+
+        return targetId !== null || this.pointer !== null;
+    }
+
+    public override onPointerUp(event: ViewportMouseEvent): boolean {
+        const down = this.pointer;
+
+        if (down?.pointerId !== event.pointerId) {
+            return false;
+        }
+
+        this.pointer = null;
+        const targetId = down.targetId;
+
+        if (Measurement.distance2(event.point, down.point).value <= VIEW_CUBE_CLICK_DISTANCE) {
+            if (isViewCubeArrowTarget(targetId)) {
+                this.options.animateViewCubeArrow(targetId, getViewCubeRotationStep(event));
+            } else {
+                const view = VIEW_CUBE_STANDARD_VIEWS[targetId];
+
+                if (view) {
+                    this.options.animateStandardView(view);
+                }
+            }
+        }
+
+        this.setHoveredTargetId(this.hitTest(event.point));
+
+        return true;
+    }
+
+    protected unhandled(): boolean {
+        return false;
+    }
+
+    private clearPointer(event: ViewportMouseEvent): boolean {
+        const handled = this.pointer?.pointerId === event.pointerId;
+
+        if (handled) {
+            this.pointer = null;
+            this.setHoveredTargetId(null);
+        }
+
+        return handled;
+    }
+
+    private hitTest(point: ScreenPoint): ViewCubeTargetId | null {
+        return new ViewCube().hitTest({
+            camera: this.options.getCamera(),
+            point,
+            viewportSize: this.options.getViewportSize(),
+        });
+    }
+
+    private setHoveredTargetId(targetId: ViewCubeTargetId | null): void {
+        this.options.setHoveredTargetId(targetId);
+        this.options.sync();
     }
 }
 
@@ -516,7 +463,7 @@ function isViewCubeArrowTarget(targetId: ViewCubeTargetId): targetId is ViewCube
     return VIEW_CUBE_ARROW_TARGETS.has(targetId);
 }
 
-function getViewCubeRotationStep(event: ViewportPointerInputEvent): ViewCubeRotationStep {
+function getViewCubeRotationStep(event: ViewportMouseEvent): ViewCubeRotationStep {
     if (event.modifiers.shift) {
         return 'coarse';
     }

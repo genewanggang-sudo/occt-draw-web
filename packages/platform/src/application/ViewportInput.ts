@@ -62,66 +62,6 @@ export interface ViewportInputOptions {
     readonly onInput: (event: ViewportInputEvent) => void;
 }
 
-export abstract class ViewportInputHandler<TContext, TResult> {
-    public handleInput(event: ViewportInputEvent, context: TContext): TResult {
-        if (event.kind === 'pointer') {
-            if (event.phase === 'down') {
-                return this.onPointerDown(event, context);
-            }
-
-            if (event.phase === 'move') {
-                return this.onPointerMove(event, context);
-            }
-
-            if (event.phase === 'up') {
-                return this.onPointerUp(event, context);
-            }
-
-            return this.onPointerCancel(event, context);
-        }
-
-        if (event.kind === 'wheel') {
-            return this.onWheel(event, context);
-        }
-
-        if (event.kind === 'key') {
-            return this.onKeyDown(event, context);
-        }
-
-        return this.onContextMenu(event, context);
-    }
-
-    protected abstract unhandled(): TResult;
-
-    protected onContextMenu(_event: ViewportContextMenuInputEvent, _context: TContext): TResult {
-        return this.unhandled();
-    }
-
-    protected onKeyDown(_event: ViewportKeyInputEvent, _context: TContext): TResult {
-        return this.unhandled();
-    }
-
-    protected onPointerCancel(_event: ViewportPointerInputEvent, _context: TContext): TResult {
-        return this.unhandled();
-    }
-
-    protected onPointerDown(_event: ViewportPointerInputEvent, _context: TContext): TResult {
-        return this.unhandled();
-    }
-
-    protected onPointerMove(_event: ViewportPointerInputEvent, _context: TContext): TResult {
-        return this.unhandled();
-    }
-
-    protected onPointerUp(_event: ViewportPointerInputEvent, _context: TContext): TResult {
-        return this.unhandled();
-    }
-
-    protected onWheel(_event: ViewportWheelInputEvent, _context: TContext): TResult {
-        return this.unhandled();
-    }
-}
-
 export class ViewportInput {
     private canvas: HTMLCanvasElement | null = null;
 

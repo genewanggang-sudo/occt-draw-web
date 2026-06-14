@@ -1,10 +1,16 @@
-export { CommandManager } from './application/CommandManager';
+﻿export { CommandManager } from './application/CommandManager';
 export { PickService, type PickSelectionTargetInput } from './application/PickService';
 export { SelectionManager } from './application/SelectionManager';
 export {
+    BaseViewportEventHandler,
+    type ViewportEventHandler,
+    type ViewportKeyboardEvent,
+    type ViewportMouseEvent,
+    type ViewportRawInputEvent,
+} from './application/ViewportEvents';
+export {
     ViewportInput,
     ViewportInputAdapter,
-    ViewportInputHandler,
     type ViewportContextMenuInputEvent,
     type ViewportInputEvent,
     type ViewportInputModifiers,
@@ -13,6 +19,10 @@ export {
     type ViewportPointerInputEvent,
     type ViewportWheelInputEvent,
 } from './application/ViewportInput';
+export {
+    ViewportInteractor,
+    type ViewportInteractorOptions,
+} from './application/ViewportInteractor';
 export {
     PlatformCommand,
     createHandledPlatformCommandResult,

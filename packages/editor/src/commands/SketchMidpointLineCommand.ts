@@ -14,7 +14,6 @@ import {
 import { projectScreenPointToSketch2 } from './sketchProjection';
 import { resolveActiveSketchTarget } from './sketchTargetContext';
 
-const MIDPOINT_LINE_DRAG_THRESHOLD_PIXELS = 3;
 const MIN_LINE_LENGTH = 1e-6;
 
 interface PendingMidpointLineDrag {
@@ -104,14 +103,17 @@ export class SketchMidpointLineCommand extends CadCommand {
         });
     }
 
-    protected override onPointerCancel(): CommandResult {
+    public override onLeftDragCancel(
+        _event: CommandPointerEvent,
+        _context: CommandContext,
+    ): CommandResult {
         this.pendingDrag = null;
         return createHandledCommandResult({
             draft: null,
         });
     }
 
-    protected override onPointerDown(
+    public override onPointerDown(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -161,16 +163,14 @@ export class SketchMidpointLineCommand extends CadCommand {
         return this.createMidpointLineResult(context, session, point);
     }
 
-    protected override onPointerMove(
+    public override onPointerMove(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
         if (this.pendingDrag?.pointerId === event.pointerId && !this.pendingDrag.moved) {
             this.pendingDrag = {
                 ...this.pendingDrag,
-                moved:
-                    distanceScreenPoints(this.pendingDrag.startPoint, event.point) >
-                    MIDPOINT_LINE_DRAG_THRESHOLD_PIXELS,
+                moved: true,
             };
         }
 
@@ -202,7 +202,7 @@ export class SketchMidpointLineCommand extends CadCommand {
         });
     }
 
-    protected override onPointerUp(
+    public override onPointerUp(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -340,11 +340,4 @@ function projectPointerToSketch(
         point: event.point,
         viewportSize: state.navigation.viewportSize,
     });
-}
-
-function distanceScreenPoints(
-    first: CommandPointerEvent['point'],
-    second: CommandPointerEvent['point'],
-): number {
-    return Math.hypot(second.x - first.x, second.y - first.y);
 }

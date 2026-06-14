@@ -107,13 +107,16 @@ export class SketchEllipseCommand extends CadCommand {
         });
     }
 
-    protected override onPointerCancel(): CommandResult {
+    public override onLeftDragCancel(
+        _event: CommandPointerEvent,
+        _context: CommandContext,
+    ): CommandResult {
         return createHandledCommandResult({
             draft: null,
         });
     }
 
-    protected override onPointerDown(
+    public override onPointerDown(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -192,7 +195,7 @@ export class SketchEllipseCommand extends CadCommand {
         );
     }
 
-    protected override onPointerMove(
+    public override onPointerMove(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {

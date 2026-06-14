@@ -96,13 +96,16 @@ export class SketchThreePointCircleCommand extends CadCommand {
         });
     }
 
-    protected override onPointerCancel(): CommandResult {
+    public override onLeftDragCancel(
+        _event: CommandPointerEvent,
+        _context: CommandContext,
+    ): CommandResult {
         return createHandledCommandResult({
             draft: null,
         });
     }
 
-    protected override onPointerDown(
+    public override onPointerDown(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {
@@ -176,7 +179,7 @@ export class SketchThreePointCircleCommand extends CadCommand {
         return this.createCircleResult(context, session, tool.firstPoint, tool.secondPoint, point);
     }
 
-    protected override onPointerMove(
+    public override onPointerMove(
         event: CommandPointerEvent,
         context: CommandContext,
     ): CommandResult {

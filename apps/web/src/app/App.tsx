@@ -1,11 +1,11 @@
 import {
+    Application,
     createEditorWorkbenchViewModel,
     createDefaultEditorState,
     EditorController,
-    EditorViewportRuntime,
     getCommandLabel,
     type EditorState,
-    type EditorViewportRuntimeStatus,
+    type EditorViewportStatus,
 } from '@occt-draw/editor';
 import { ToolbarIcon, ToolbarIconId, ToolbarIconSprite } from '@occt-draw/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -21,11 +21,11 @@ const DEFAULT_APP_NAME = 'occt-draw-web';
 
 export function App() {
     const appTitle = import.meta.env.VITE_APP_TITLE || DEFAULT_APP_NAME;
+    const applicationRef = useRef<Application | null>(null);
     const viewportHostRef = useRef<HTMLDivElement | null>(null);
-    const runtimeRef = useRef<EditorViewportRuntime | null>(null);
     const editorStateRef = useRef<EditorState | null>(null);
     const [editorState, setEditorState] = useState<EditorState>(() => createDefaultEditorState());
-    const [viewportStatus, setViewportStatus] = useState<EditorViewportRuntimeStatus>({
+    const [viewportStatus, setViewportStatus] = useState<EditorViewportStatus>({
         displayObjectCount: 0,
         rendererStatus: 'Initializing WebGL2',
     });
@@ -42,11 +42,11 @@ export function App() {
     useEffect(() => {
         const hostElement = viewportHostRef.current;
 
-        if (!hostElement || runtimeRef.current) {
+        if (!hostElement || applicationRef.current) {
             return;
         }
 
-        const runtime = new EditorViewportRuntime({
+        const application = new Application({
             getState: () => {
                 if (!editorStateRef.current) {
                     throw new Error('Editor state is not initialized.');
@@ -54,22 +54,24 @@ export function App() {
 
                 return editorStateRef.current;
             },
-            hostElement,
-            onStatusChange: setViewportStatus,
             updateState: (updater) => {
                 setEditorState(updater);
             },
         });
-        runtimeRef.current = runtime;
+        application.initCanvas({
+            hostElement,
+            onStatusChange: setViewportStatus,
+        });
+        applicationRef.current = application;
 
         return () => {
-            runtime.dispose();
-            runtimeRef.current = null;
+            application.dispose();
+            applicationRef.current = null;
         };
     }, []);
 
     useEffect(() => {
-        runtimeRef.current?.sync();
+        applicationRef.current?.syncViewport();
     }, [editorState]);
 
     return (
@@ -142,16 +144,16 @@ export function App() {
                     commandAvailability={commandAvailability}
                     isEditingSketch={isEditingSketch}
                     onActivateCommand={(commandId) => {
-                        runtimeRef.current?.activateCommand(commandId);
+                        applicationRef.current?.activateCommand(commandId);
                     }}
                 />
                 {isEditingSketch ? null : (
                     <ViewToolbar
                         onFitView={() => {
-                            runtimeRef.current?.fitView();
+                            applicationRef.current?.fitView();
                         }}
                         onStandardView={(view) => {
-                            runtimeRef.current?.setStandardView(view);
+                            applicationRef.current?.setStandardView(view);
                         }}
                     />
                 )}
