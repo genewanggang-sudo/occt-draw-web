@@ -1,4 +1,5 @@
 ﻿import type {
+    ViewportEvent,
     ViewportEventHandler,
     ViewportKeyboardEvent,
     ViewportMouseEvent,
@@ -182,46 +183,44 @@ export class ViewportInteractor {
     }
 
     private dispatchClick(event: ViewportMouseEvent): boolean {
-        return dispatch(this.handlers, (handler) => handler.onClick(event, undefined));
+        return dispatch(this.handlers, { ...event, type: 'click' });
     }
 
     private dispatchDoubleClick(event: ViewportMouseEvent): boolean {
-        return dispatch(this.handlers, (handler) => handler.onDoubleClick(event, undefined));
+        return dispatch(this.handlers, { ...event, type: 'doubleClick' });
     }
 
     private dispatchKeyDown(event: ViewportKeyboardEvent): boolean {
-        return dispatch(this.handlers, (handler) => handler.onKeyDown(event, undefined));
+        return dispatch(this.handlers, { ...event, type: 'keyDown' });
     }
 
     private dispatchPointerDown(event: ViewportMouseEvent): boolean {
-        return dispatch(this.handlers, (handler) => handler.onPointerDown(event, undefined));
+        return dispatch(this.handlers, { ...event, type: 'pointerDown' });
     }
 
     private dispatchPointerMove(event: ViewportMouseEvent): boolean {
-        return dispatch(this.handlers, (handler) => handler.onPointerMove(event, undefined));
+        return dispatch(this.handlers, { ...event, type: 'pointerMove' });
     }
 
     private dispatchPointerUp(event: ViewportMouseEvent): boolean {
-        return dispatch(this.handlers, (handler) => handler.onPointerUp(event, undefined));
+        return dispatch(this.handlers, { ...event, type: 'pointerUp' });
     }
 
     private dispatchWheel(event: ViewportMouseEvent): boolean {
-        return dispatch(this.handlers, (handler) => handler.onWheel(event, undefined));
+        return dispatch(this.handlers, { ...event, type: 'wheel' });
     }
 
     private dispatchDragStart(button: number, event: ViewportMouseEvent): boolean {
         if (button === 0) {
-            return dispatch(this.handlers, (handler) => handler.onLeftDragStart(event, undefined));
+            return dispatch(this.handlers, { ...event, type: 'leftDragStart' });
         }
 
         if (button === 1) {
-            return dispatch(this.handlers, (handler) =>
-                handler.onMiddleDragStart(event, undefined),
-            );
+            return dispatch(this.handlers, { ...event, type: 'middleDragStart' });
         }
 
         if (button === 2) {
-            return dispatch(this.handlers, (handler) => handler.onRightDragStart(event, undefined));
+            return dispatch(this.handlers, { ...event, type: 'rightDragStart' });
         }
 
         return false;
@@ -229,15 +228,15 @@ export class ViewportInteractor {
 
     private dispatchDrag(button: number, event: ViewportMouseEvent): boolean {
         if (button === 0) {
-            return dispatch(this.handlers, (handler) => handler.onLeftDrag(event, undefined));
+            return dispatch(this.handlers, { ...event, type: 'leftDrag' });
         }
 
         if (button === 1) {
-            return dispatch(this.handlers, (handler) => handler.onMiddleDrag(event, undefined));
+            return dispatch(this.handlers, { ...event, type: 'middleDrag' });
         }
 
         if (button === 2) {
-            return dispatch(this.handlers, (handler) => handler.onRightDrag(event, undefined));
+            return dispatch(this.handlers, { ...event, type: 'rightDrag' });
         }
 
         return false;
@@ -245,15 +244,15 @@ export class ViewportInteractor {
 
     private dispatchDragStop(button: number, event: ViewportMouseEvent): boolean {
         if (button === 0) {
-            return dispatch(this.handlers, (handler) => handler.onLeftDragStop(event, undefined));
+            return dispatch(this.handlers, { ...event, type: 'leftDragStop' });
         }
 
         if (button === 1) {
-            return dispatch(this.handlers, (handler) => handler.onMiddleDragStop(event, undefined));
+            return dispatch(this.handlers, { ...event, type: 'middleDragStop' });
         }
 
         if (button === 2) {
-            return dispatch(this.handlers, (handler) => handler.onRightDragStop(event, undefined));
+            return dispatch(this.handlers, { ...event, type: 'rightDragStop' });
         }
 
         return false;
@@ -261,31 +260,24 @@ export class ViewportInteractor {
 
     private dispatchDragCancel(button: number, event: ViewportMouseEvent): boolean {
         if (button === 0) {
-            return dispatch(this.handlers, (handler) => handler.onLeftDragCancel(event, undefined));
+            return dispatch(this.handlers, { ...event, type: 'leftDragCancel' });
         }
 
         if (button === 1) {
-            return dispatch(this.handlers, (handler) =>
-                handler.onMiddleDragCancel(event, undefined),
-            );
+            return dispatch(this.handlers, { ...event, type: 'middleDragCancel' });
         }
 
         if (button === 2) {
-            return dispatch(this.handlers, (handler) =>
-                handler.onRightDragCancel(event, undefined),
-            );
+            return dispatch(this.handlers, { ...event, type: 'rightDragCancel' });
         }
 
         return false;
     }
 }
 
-function dispatch(
-    handlers: readonly ViewportEventHandler[],
-    call: (handler: ViewportEventHandler) => boolean,
-): boolean {
+function dispatch(handlers: readonly ViewportEventHandler[], event: ViewportEvent): boolean {
     for (const handler of handlers) {
-        if (call(handler)) {
+        if (handler.handleEvent(event, undefined)) {
             return true;
         }
     }

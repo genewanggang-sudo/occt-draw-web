@@ -74,26 +74,29 @@ export interface ViewportKeyboardEvent {
     readonly targetIsTextInput: boolean;
 }
 
+export type ViewportEvent =
+    | (ViewportMouseEvent & { readonly type: 'click' })
+    | (ViewportMouseEvent & { readonly type: 'doubleClick' })
+    | (ViewportKeyboardEvent & { readonly type: 'keyDown' })
+    | (ViewportMouseEvent & { readonly type: 'leftDrag' })
+    | (ViewportMouseEvent & { readonly type: 'leftDragCancel' })
+    | (ViewportMouseEvent & { readonly type: 'leftDragStart' })
+    | (ViewportMouseEvent & { readonly type: 'leftDragStop' })
+    | (ViewportMouseEvent & { readonly type: 'middleDrag' })
+    | (ViewportMouseEvent & { readonly type: 'middleDragCancel' })
+    | (ViewportMouseEvent & { readonly type: 'middleDragStart' })
+    | (ViewportMouseEvent & { readonly type: 'middleDragStop' })
+    | (ViewportMouseEvent & { readonly type: 'pointerDown' })
+    | (ViewportMouseEvent & { readonly type: 'pointerMove' })
+    | (ViewportMouseEvent & { readonly type: 'pointerUp' })
+    | (ViewportMouseEvent & { readonly type: 'rightDrag' })
+    | (ViewportMouseEvent & { readonly type: 'rightDragCancel' })
+    | (ViewportMouseEvent & { readonly type: 'rightDragStart' })
+    | (ViewportMouseEvent & { readonly type: 'rightDragStop' })
+    | (ViewportMouseEvent & { readonly type: 'wheel' });
+
 export interface ViewportEventHandler<TContext = void, TResult = boolean> {
-    onClick(event: ViewportMouseEvent, context: TContext): TResult;
-    onDoubleClick(event: ViewportMouseEvent, context: TContext): TResult;
-    onKeyDown(event: ViewportKeyboardEvent, context: TContext): TResult;
-    onLeftDrag(event: ViewportMouseEvent, context: TContext): TResult;
-    onLeftDragCancel(event: ViewportMouseEvent, context: TContext): TResult;
-    onLeftDragStart(event: ViewportMouseEvent, context: TContext): TResult;
-    onLeftDragStop(event: ViewportMouseEvent, context: TContext): TResult;
-    onMiddleDrag(event: ViewportMouseEvent, context: TContext): TResult;
-    onMiddleDragCancel(event: ViewportMouseEvent, context: TContext): TResult;
-    onMiddleDragStart(event: ViewportMouseEvent, context: TContext): TResult;
-    onMiddleDragStop(event: ViewportMouseEvent, context: TContext): TResult;
-    onPointerDown(event: ViewportMouseEvent, context: TContext): TResult;
-    onPointerMove(event: ViewportMouseEvent, context: TContext): TResult;
-    onPointerUp(event: ViewportMouseEvent, context: TContext): TResult;
-    onRightDrag(event: ViewportMouseEvent, context: TContext): TResult;
-    onRightDragCancel(event: ViewportMouseEvent, context: TContext): TResult;
-    onRightDragStart(event: ViewportMouseEvent, context: TContext): TResult;
-    onRightDragStop(event: ViewportMouseEvent, context: TContext): TResult;
-    onWheel(event: ViewportMouseEvent, context: TContext): TResult;
+    handleEvent(event: ViewportEvent, context: TContext): TResult;
 }
 
 export abstract class BaseViewportEventHandler<
@@ -101,6 +104,49 @@ export abstract class BaseViewportEventHandler<
     TResult = boolean,
 > implements ViewportEventHandler<TContext, TResult> {
     protected abstract unhandled(): TResult;
+
+    public handleEvent(event: ViewportEvent, context: TContext): TResult {
+        switch (event.type) {
+            case 'click':
+                return this.onClick(event, context);
+            case 'doubleClick':
+                return this.onDoubleClick(event, context);
+            case 'keyDown':
+                return this.onKeyDown(event, context);
+            case 'leftDrag':
+                return this.onLeftDrag(event, context);
+            case 'leftDragCancel':
+                return this.onLeftDragCancel(event, context);
+            case 'leftDragStart':
+                return this.onLeftDragStart(event, context);
+            case 'leftDragStop':
+                return this.onLeftDragStop(event, context);
+            case 'middleDrag':
+                return this.onMiddleDrag(event, context);
+            case 'middleDragCancel':
+                return this.onMiddleDragCancel(event, context);
+            case 'middleDragStart':
+                return this.onMiddleDragStart(event, context);
+            case 'middleDragStop':
+                return this.onMiddleDragStop(event, context);
+            case 'pointerDown':
+                return this.onPointerDown(event, context);
+            case 'pointerMove':
+                return this.onPointerMove(event, context);
+            case 'pointerUp':
+                return this.onPointerUp(event, context);
+            case 'rightDrag':
+                return this.onRightDrag(event, context);
+            case 'rightDragCancel':
+                return this.onRightDragCancel(event, context);
+            case 'rightDragStart':
+                return this.onRightDragStart(event, context);
+            case 'rightDragStop':
+                return this.onRightDragStop(event, context);
+            case 'wheel':
+                return this.onWheel(event, context);
+        }
+    }
 
     public onClick(_event: ViewportMouseEvent, _context: TContext): TResult {
         return this.unhandled();

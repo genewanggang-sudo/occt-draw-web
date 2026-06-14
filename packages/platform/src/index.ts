@@ -3,6 +3,7 @@ export { PickService, type PickSelectionTargetInput } from './application/PickSe
 export { SelectionManager } from './application/SelectionManager';
 export {
     BaseViewportEventHandler,
+    type ViewportEvent,
     type ViewportEventHandler,
     type ViewportKeyboardEvent,
     type ViewportMouseEvent,

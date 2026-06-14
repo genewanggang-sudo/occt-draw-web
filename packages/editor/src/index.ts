@@ -22,6 +22,7 @@ export {
     type PickSelectionTargetInput,
     type ScreenPoint,
     type SelectionState,
+    type ViewportEvent,
     type ViewCubeRotationStep,
     type ViewNavigationPointer,
     type ViewNavigationState,
@@ -96,10 +97,13 @@ export { SketchAlignedRectangleCommand } from './commands/SketchAlignedRectangle
 export { SketchCenterPointArcCommand } from './commands/SketchCenterPointArcCommand';
 export { SketchCircleCommand } from './commands/SketchCircleCommand';
 export { SketchCenterRectangleCommand } from './commands/SketchCenterRectangleCommand';
+export { SketchConicCommand } from './commands/SketchConicCommand';
 export { SketchEllipseCommand } from './commands/SketchEllipseCommand';
+export { SketchEllipticalArcCommand } from './commands/SketchEllipticalArcCommand';
 export { SketchLineCommand } from './commands/SketchLineCommand';
 export { SketchMidpointLineCommand } from './commands/SketchMidpointLineCommand';
 export { SketchRectangleCommand } from './commands/SketchRectangleCommand';
+export { SketchTangentArcCommand } from './commands/SketchTangentArcCommand';
 export { SketchThreePointArcCommand } from './commands/SketchThreePointArcCommand';
 export { SketchThreePointCircleCommand } from './commands/SketchThreePointCircleCommand';
 export { createInitialEditorState } from './state/createInitialEditorState';
