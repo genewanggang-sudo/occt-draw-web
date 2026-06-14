@@ -170,8 +170,10 @@ export class SketchEllipticalArcCommand extends CadCommand {
                 tool.primaryAxisPoint,
                 point,
             );
+            const ellipse = resolved?.ellipse ?? null;
             const secondaryPoint = resolved?.secondaryAxisPoint ?? point;
-            const startAngle = resolved?.ellipse.angleOfPoint(secondaryPoint) ?? null;
+            const startPoint = ellipse ? projectPointToEllipse(ellipse, point) : secondaryPoint;
+            const startAngle = ellipse?.angleOfPoint(startPoint) ?? null;
 
             return createHandledCommandResult({
                 activeSketchSession: {
@@ -183,17 +185,15 @@ export class SketchEllipticalArcCommand extends CadCommand {
                         primaryAxisPoint: tool.primaryAxisPoint,
                         secondaryPoint,
                         startAngleRadians: startAngle,
-                        startPoint: secondaryPoint,
+                        startPoint,
                     },
                 },
                 commandSession: createRunningSession(state),
-                draft: createEllipticalArcDraft(
-                    target.plane,
-                    resolved?.ellipse ?? null,
-                    null,
-                    [tool.centerPoint, tool.primaryAxisPoint, secondaryPoint],
-                    [[tool.centerPoint, secondaryPoint]],
-                ),
+                draft: createEllipticalArcDraft(target.plane, ellipse, null, [
+                    tool.centerPoint,
+                    tool.primaryAxisPoint,
+                    startPoint,
+                ]),
             });
         }
 
@@ -246,15 +246,16 @@ export class SketchEllipticalArcCommand extends CadCommand {
                 tool.primaryAxisPoint,
                 point,
             );
-            const secondaryPoint = resolved?.secondaryAxisPoint ?? point;
+            const ellipse = resolved?.ellipse ?? null;
+            const previewPoint = ellipse ? projectPointToEllipse(ellipse, point) : point;
 
             return createHandledCommandResult({
                 draft: createEllipticalArcDraft(
                     target.plane,
-                    resolved?.ellipse ?? null,
+                    ellipse,
                     null,
-                    [tool.centerPoint, tool.primaryAxisPoint, secondaryPoint],
-                    [[tool.centerPoint, secondaryPoint]],
+                    [tool.centerPoint, tool.primaryAxisPoint, previewPoint],
+                    [[tool.centerPoint, previewPoint]],
                 ),
             });
         }
@@ -289,13 +290,12 @@ export class SketchEllipticalArcCommand extends CadCommand {
                     startAngleRadians: startAngle,
                 },
             },
-            draft: createEllipticalArcDraft(
-                target.plane,
-                ellipse,
-                arc,
-                [tool.centerPoint, tool.primaryAxisPoint, tool.secondaryPoint, endPoint],
-                [[tool.centerPoint, tool.secondaryPoint]],
-            ),
+            draft: createEllipticalArcDraft(target.plane, ellipse, arc, [
+                tool.centerPoint,
+                tool.primaryAxisPoint,
+                startPoint,
+                endPoint,
+            ]),
         });
     }
 
