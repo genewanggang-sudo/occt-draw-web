@@ -1,11 +1,13 @@
 import type { DocumentRequest } from '@occt-draw/core';
-import type { RegularPolygonMode, Vector2 } from '@occt-draw/math';
+import type { FitSplineParameterization, RegularPolygonMode, Vector2 } from '@occt-draw/math';
 import { SketchEntityKind } from '@occt-draw/sketch';
 import type {
     Sketch,
     SketchEdgeId,
     SketchEntityRef,
+    SketchFitSplineInput,
     SketchLineSegmentInput,
+    SketchPointId,
     SketchVertexId,
 } from '@occt-draw/sketch';
 import type { CadDocument } from './document';
@@ -86,6 +88,39 @@ export class AddLineSegmentRequest
     }
 }
 
+export interface AddSketchPointRequestResult extends SketchDocumentRequestContext {
+    readonly createdPointId: SketchPointId | null;
+    readonly payloadId: FeaturePayloadId;
+}
+
+export class AddSketchPointRequest
+    extends SketchDocumentRequest<AddSketchPointRequestResult>
+    implements DocumentRequest<CadDocument, AddSketchPointRequestResult, CadDocumentWriteContext>
+{
+    private readonly position: Vector2;
+
+    constructor(input: SketchDocumentRequestContext & { readonly position: Vector2 }) {
+        super({
+            label: 'Add sketch point',
+            partStudioId: input.partStudioId,
+            sketchFeatureId: input.sketchFeatureId,
+            transactionId: `add-sketch-point:${input.sketchFeatureId}`,
+        });
+        this.position = input.position;
+    }
+
+    protected apply(target: SketchWriteTarget): AddSketchPointRequestResult {
+        const result = target.primitives.addSketchPoint(this.position);
+
+        return {
+            createdPointId: result.createdPointId,
+            partStudioId: this.partStudioId,
+            payloadId: target.payloadId,
+            sketchFeatureId: this.sketchFeatureId,
+        };
+    }
+}
+
 export interface AddClosedLineSegmentsRequestResult extends SketchDocumentRequestContext {
     readonly createdEdgeIds: readonly SketchEdgeId[];
     readonly payloadId: FeaturePayloadId;
@@ -112,7 +147,55 @@ export class AddClosedLineSegmentsRequest
         const result = target.primitives.addClosedPolyline(this.points);
 
         return {
-            createdEdgeIds: result?.createdEdgeIds ?? [],
+            createdEdgeIds: result.createdEdgeIds,
+            partStudioId: this.partStudioId,
+            payloadId: target.payloadId,
+            sketchFeatureId: this.sketchFeatureId,
+        };
+    }
+}
+
+export interface AddFitSplineRequestResult extends SketchDocumentRequestContext {
+    readonly createdCurveId: string | null;
+    readonly createdEdgeId: SketchEdgeId | null;
+    readonly createdEndVertexId: SketchVertexId | null;
+    readonly createdStartVertexId: SketchVertexId | null;
+    readonly payloadId: FeaturePayloadId;
+}
+
+export class AddFitSplineRequest
+    extends SketchDocumentRequest<AddFitSplineRequestResult>
+    implements DocumentRequest<CadDocument, AddFitSplineRequestResult, CadDocumentWriteContext>
+{
+    private readonly input: SketchFitSplineInput;
+
+    constructor(
+        input: SketchDocumentRequestContext & {
+            readonly closed?: boolean;
+            readonly degree?: number;
+            readonly endTangent?: Vector2 | undefined;
+            readonly fitPoints: readonly Vector2[];
+            readonly parameterization?: FitSplineParameterization;
+            readonly startTangent?: Vector2 | undefined;
+        },
+    ) {
+        super({
+            label: 'Add sketch fit spline',
+            partStudioId: input.partStudioId,
+            sketchFeatureId: input.sketchFeatureId,
+            transactionId: `add-sketch-fit-spline:${input.sketchFeatureId}`,
+        });
+        this.input = input;
+    }
+
+    protected apply(target: SketchWriteTarget): AddFitSplineRequestResult {
+        const result = target.primitives.addFitSpline(this.input);
+
+        return {
+            createdCurveId: result?.createdCurveId ?? null,
+            createdEdgeId: result?.createdEdgeId ?? null,
+            createdEndVertexId: result?.createdEndVertexId ?? null,
+            createdStartVertexId: result?.createdStartVertexId ?? null,
             partStudioId: this.partStudioId,
             payloadId: target.payloadId,
             sketchFeatureId: this.sketchFeatureId,
@@ -713,6 +796,7 @@ export function isEditableSketchEntityRef(ref: SketchEntityRef): boolean {
     return (
         ref.kind === SketchEntityKind.Curve ||
         ref.kind === SketchEntityKind.Edge ||
+        ref.kind === SketchEntityKind.Point ||
         ref.kind === SketchEntityKind.Vertex
     );
 }

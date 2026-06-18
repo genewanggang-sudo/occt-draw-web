@@ -5,10 +5,13 @@ import {
     AddConicRequest,
     AddCornerRectangleRequest,
     AddEllipticalArcRequest,
+    AddFitSplineRequest,
     AddLineSegmentRequest,
     AddRegularPolygonRequest,
+    AddSketchPointRequest,
     AddTangentArcRequest,
     CreateFeaturePayloadRequest,
+    DeleteSketchEntityRequest,
     Feature,
     MoveVertexRequest,
     type CadDocument,
@@ -262,6 +265,85 @@ run('regular polygon request creates closed line loop edges', () => {
             'expected polygon edges to form a closed loop',
         );
     }
+});
+
+run('point and fit spline requests create sketch semantic entities', () => {
+    const pointDocument = createEditableSketchDocument('sketch:point');
+
+    pointDocument.editor.execute(
+        new AddSketchPointRequest({
+            partStudioId: pointDocument.partStudioId,
+            position: Vec2.of(1, 2),
+            sketchFeatureId: pointDocument.featureId,
+        }),
+    );
+
+    const pointSketch = requireSketchPayload(pointDocument.editor.document, pointDocument.sketchId);
+
+    expectEqual(pointSketch.entities.geometry.points.list().length, 1, 'expected one free point');
+    expectEqual(
+        pointSketch.entities.topology.vertices.list().length,
+        0,
+        'expected free point not to create topology vertex',
+    );
+
+    const point = pointSketch.entities.geometry.points.list()[0];
+
+    if (!point) {
+        throw new Error('Expected free point entity.');
+    }
+
+    pointDocument.editor.execute(
+        new DeleteSketchEntityRequest({
+            entityRef: point.ref,
+            partStudioId: pointDocument.partStudioId,
+            sketchFeatureId: pointDocument.featureId,
+        }),
+    );
+
+    expectEqual(
+        requireSketchPayload(
+            pointDocument.editor.document,
+            pointDocument.sketchId,
+        ).entities.geometry.points.list().length,
+        0,
+        'expected free point delete request to remove point',
+    );
+
+    const splineDocument = createEditableSketchDocument('sketch:spline');
+
+    splineDocument.editor.execute(
+        new AddFitSplineRequest({
+            fitPoints: [Vec2.of(0, 0), Vec2.of(1, 1), Vec2.of(2, 0)],
+            partStudioId: splineDocument.partStudioId,
+            sketchFeatureId: splineDocument.featureId,
+        }),
+    );
+
+    const splineSketch = requireSketchPayload(
+        splineDocument.editor.document,
+        splineDocument.sketchId,
+    );
+    const splineCurve = splineSketch.entities.geometry.curves.list()[0];
+    const splineSnapshot = splineCurve?.snapshot();
+
+    expectEqual(splineSnapshot?.kind, 'spline', 'expected spline curve');
+    expectEqual(
+        splineSnapshot?.kind === 'spline' ? splineSnapshot.fitPoints.length : 0,
+        3,
+        'expected spline to preserve fit points',
+    );
+    expectEqual(splineSketch.entities.topology.edges.list().length, 1, 'expected spline edge');
+    expectEqual(
+        splineSketch.entities.topology.vertices.list().length,
+        2,
+        'expected spline endpoints',
+    );
+    expectEqual(
+        splineSketch.entities.geometry.points.list().length,
+        2,
+        'expected spline not to create fit point entities',
+    );
 });
 
 function requireSketchPayload(document: CadDocument, sketchId: string): Sketch {

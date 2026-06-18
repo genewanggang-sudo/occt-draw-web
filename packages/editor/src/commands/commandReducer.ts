@@ -124,6 +124,14 @@ function getCommandRunningMessage(commandId: CommandId): string {
         return 'Specify midpoint line center point.';
     }
 
+    if (commandId === 'sketch-point') {
+        return 'Specify sketch point.';
+    }
+
+    if (commandId === 'sketch-spline') {
+        return 'Specify spline fit points.';
+    }
+
     if (commandId === 'sketch-rectangle') {
         return 'Specify rectangle first corner.';
     }

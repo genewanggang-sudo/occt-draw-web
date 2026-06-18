@@ -5,7 +5,15 @@ import {
     type LineSegment2,
     type Vector2,
 } from '@occt-draw/math';
-import { Arc2D, Circle2D, Conic2D, Ellipse2D, EllipticalArc2D, type Curve2D } from './geometry';
+import {
+    Arc2D,
+    Circle2D,
+    Conic2D,
+    Ellipse2D,
+    EllipticalArc2D,
+    Spline2D,
+    type Curve2D,
+} from './geometry';
 
 const DEFAULT_SKETCH_CURVE_SEGMENTS = 64;
 
@@ -57,6 +65,17 @@ export function sampleSketchCurveSegments(
             closed: false,
             segments: options.segments ?? DEFAULT_SKETCH_CURVE_SEGMENTS,
         });
+    }
+
+    if (input instanceof Spline2D) {
+        const spline = input.fitSpline;
+
+        return spline
+            ? sampleCurveSegments2(spline, {
+                  closed: input.closed,
+                  segments: options.segments ?? DEFAULT_SKETCH_CURVE_SEGMENTS,
+              })
+            : [];
     }
 
     return [];

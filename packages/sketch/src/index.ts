@@ -7,6 +7,7 @@ export {
     EllipticalArc2D,
     Line2D,
     Point2D,
+    Spline2D,
     curveFromSnapshot,
 } from './geometry/geometry';
 export {
@@ -36,6 +37,7 @@ export {
 } from './model/sketch';
 export {
     SketchPrimitiveBuilder,
+    type SketchFitSplineInput,
     type SketchLineSegmentInput,
     type SketchPrimitiveBuilderOptions,
     type SketchPrimitiveResult,
@@ -46,6 +48,7 @@ export {
     SketchDisplayBuilder,
     SketchDisplayModel,
     type SketchDisplayEdge,
+    type SketchDisplayPoint,
     type SketchDisplayProfile,
     type SketchDisplayVertex,
 } from './display/display';
@@ -75,5 +78,6 @@ export type {
     SketchPropertyValue,
     SketchStateSnapshot,
     SketchVertexId,
+    Spline2DSnapshot,
     VertexSnapshot,
 } from './types';

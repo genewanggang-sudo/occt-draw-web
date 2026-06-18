@@ -24,6 +24,7 @@ export enum ToolbarIconId {
     Left = 'left',
     Line = 'line',
     MidpointLine = 'midpoint-line',
+    Point = 'point',
     Redo = 'redo',
     Right = 'right',
     Spline = 'spline',

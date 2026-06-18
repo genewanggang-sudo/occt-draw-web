@@ -12,7 +12,9 @@ import {
     Coord2,
     Ellipse2,
     EllipticalArc2,
+    FitSpline2,
     Vec2,
+    type FitSplineParameterization,
     type Vector2,
 } from '@occt-draw/math';
 import { recordSketchPropertySet } from '../changes/changeTracking';
@@ -30,6 +32,7 @@ import {
     type SketchEntityRef,
     type SketchId,
     type SketchPointId,
+    type Spline2DSnapshot,
 } from '../types';
 
 const POINT_POSITION_PROPERTY = defineModelProperty<Vector2>({
@@ -754,6 +757,76 @@ export class Conic2D extends Curve2D {
     }
 }
 
+export class Spline2D extends Curve2D {
+    public readonly closed: boolean;
+    public readonly degree: number;
+    public readonly endTangent: Vector2 | null;
+    public readonly fitPoints: readonly Vector2[];
+    public readonly kind = 'spline' as const;
+    public readonly parameterization: FitSplineParameterization;
+    public readonly startTangent: Vector2 | null;
+
+    constructor(input: {
+        readonly closed?: boolean;
+        readonly degree?: number;
+        readonly endTangent?: Vector2 | undefined;
+        readonly fitPoints: readonly Vector2[];
+        readonly id: SketchCurveId;
+        readonly parameterization?: FitSplineParameterization;
+        readonly sketchId: SketchId;
+        readonly startTangent?: Vector2 | undefined;
+    }) {
+        super({
+            id: input.id,
+            modelType: 'sketch.curve.spline',
+            sketchId: input.sketchId,
+        });
+        this.closed = input.closed ?? false;
+        this.degree = input.degree ?? 3;
+        this.endTangent = input.endTangent ? copyVector2(input.endTangent) : null;
+        this.fitPoints = input.fitPoints.map(copyVector2);
+        this.parameterization = input.parameterization ?? 'centripetal';
+        this.startTangent = input.startTangent ? copyVector2(input.startTangent) : null;
+    }
+
+    public get fitSpline(): FitSpline2 | null {
+        return FitSpline2.fromFitPoints({
+            closed: this.closed,
+            degree: this.degree,
+            ...(this.endTangent ? { endTangent: this.endTangent } : {}),
+            fitPoints: this.fitPoints,
+            parameterization: this.parameterization,
+            ...(this.startTangent ? { startTangent: this.startTangent } : {}),
+        }).value;
+    }
+
+    public snapshot(): Spline2DSnapshot {
+        return {
+            closed: this.closed,
+            degree: this.degree,
+            ...(this.endTangent ? { endTangent: this.endTangent } : {}),
+            fitPoints: this.fitPoints.map(copyVector2),
+            id: this.id,
+            kind: this.kind,
+            parameterization: this.parameterization,
+            ...(this.startTangent ? { startTangent: this.startTangent } : {}),
+        };
+    }
+
+    public static fromSnapshot(sketchId: SketchId, snapshot: Spline2DSnapshot): Spline2D {
+        return new Spline2D({
+            closed: snapshot.closed,
+            degree: snapshot.degree,
+            endTangent: snapshot.endTangent,
+            fitPoints: snapshot.fitPoints,
+            id: snapshot.id,
+            parameterization: snapshot.parameterization,
+            sketchId,
+            startTangent: snapshot.startTangent,
+        });
+    }
+}
+
 export function curveFromSnapshot(sketchId: SketchId, snapshot: Curve2DSnapshot): Curve2D {
     if (snapshot.kind === 'line') {
         return Line2D.fromSnapshot(sketchId, snapshot);
@@ -773,6 +846,10 @@ export function curveFromSnapshot(sketchId: SketchId, snapshot: Curve2DSnapshot)
 
     if (snapshot.kind === 'conic') {
         return Conic2D.fromSnapshot(sketchId, snapshot);
+    }
+
+    if (snapshot.kind === 'spline') {
+        return Spline2D.fromSnapshot(sketchId, snapshot);
     }
 
     return Arc2D.fromSnapshot(sketchId, snapshot);

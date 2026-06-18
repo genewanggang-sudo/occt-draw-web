@@ -4,7 +4,9 @@ import {
     Conic2,
     Ellipse2,
     EllipticalArc2,
+    FitSpline2,
     createRegularPolygonPoints,
+    type FitSplineParameterization,
     type RegularPolygonMode,
     type Vector2,
 } from '@occt-draw/math';
@@ -18,6 +20,7 @@ import {
     EllipticalArc2D,
     Line2D,
     Point2D,
+    Spline2D,
 } from '../geometry/geometry';
 import type { Sketch } from './sketch';
 import { Edge, Vertex } from '../topology/topology';
@@ -42,9 +45,20 @@ export interface SketchPrimitiveResult {
     readonly createdCurveId?: SketchCurveId | undefined;
     readonly createdEdgeId?: SketchEdgeId | undefined;
     readonly createdEdgeIds?: readonly SketchEdgeId[] | undefined;
+    readonly createdEndVertexId?: SketchVertexId | undefined;
     readonly createdPointId?: SketchPointId | undefined;
+    readonly createdStartVertexId?: SketchVertexId | undefined;
     readonly createdVertexId?: SketchVertexId | undefined;
     readonly touchedEntityRefs: readonly SketchEntityRef[];
+}
+
+export interface SketchFitSplineInput {
+    readonly closed?: boolean;
+    readonly degree?: number;
+    readonly endTangent?: Vector2 | undefined;
+    readonly fitPoints: readonly Vector2[];
+    readonly parameterization?: FitSplineParameterization;
+    readonly startTangent?: Vector2 | undefined;
 }
 
 export interface SketchPrimitiveBuilderOptions {
@@ -62,6 +76,10 @@ export class SketchPrimitiveBuilder {
 
     public addPoint(position: Vector2): SketchPrimitiveResult {
         return this.capture(() => this.addPointCore(position));
+    }
+
+    public addSketchPoint(position: Vector2): SketchPrimitiveResult {
+        return this.capture(() => this.addSketchPointCore(position));
     }
 
     public addLineSegment(input: SketchLineSegmentInput): SketchPrimitiveResult | null {
@@ -94,6 +112,10 @@ export class SketchPrimitiveBuilder {
 
             return points ? this.addLineLoop(points) : null;
         });
+    }
+
+    public addFitSpline(input: SketchFitSplineInput): SketchPrimitiveResult | null {
+        return this.capture(() => this.addFitSplineCore(input));
     }
 
     public addRectangleFromCorners(
@@ -223,6 +245,10 @@ export class SketchPrimitiveBuilder {
                 return this.deleteCurve(entityRef.id);
             }
 
+            if (entityRef.kind === SketchEntityKind.Point) {
+                return this.deletePoint(entityRef.id);
+            }
+
             return null;
         });
     }
@@ -252,6 +278,70 @@ export class SketchPrimitiveBuilder {
             createdPointId: pointId,
             createdVertexId: vertexId,
             touchedEntityRefs: [point.ref, vertex.ref],
+        };
+    }
+
+    private addSketchPointCore(position: Vector2): SketchPrimitiveResult {
+        const pointId = this.sketch.state.allocatePointId();
+        const point = new Point2D({
+            id: pointId,
+            position,
+            sketchId: this.sketch.id,
+        });
+
+        this.sketch.entities.geometry.points.add(point);
+
+        return {
+            createdPointId: pointId,
+            touchedEntityRefs: [point.ref],
+        };
+    }
+
+    private addFitSplineCore(input: SketchFitSplineInput): SketchPrimitiveResult | null {
+        const fitSpline = FitSpline2.fromFitPoints(input).value;
+        const startPoint = input.fitPoints[0];
+        const endPoint = input.fitPoints[input.fitPoints.length - 1];
+
+        if (!fitSpline || !startPoint || !endPoint) {
+            return null;
+        }
+
+        const startVertex = this.addVertexAtPosition(startPoint);
+        const endVertex = this.addVertexAtPosition(endPoint);
+        const curveId = this.sketch.state.allocateCurveId();
+        const edgeId = this.sketch.state.allocateEdgeId();
+        const curve = new Spline2D({
+            closed: input.closed ?? false,
+            degree: fitSpline.degree,
+            endTangent: input.endTangent,
+            fitPoints: input.fitPoints,
+            id: curveId,
+            parameterization: fitSpline.parameterization,
+            sketchId: this.sketch.id,
+            startTangent: input.startTangent,
+        });
+        const edge = new Edge({
+            curveId,
+            endVertexId: endVertex.vertex.id,
+            id: edgeId,
+            sketchId: this.sketch.id,
+            startVertexId: startVertex.vertex.id,
+        });
+
+        this.sketch.entities.geometry.curves.add(curve);
+        this.sketch.entities.topology.edges.add(edge);
+
+        return {
+            createdCurveId: curveId,
+            createdEdgeId: edgeId,
+            createdEndVertexId: endVertex.vertex.id,
+            createdStartVertexId: startVertex.vertex.id,
+            touchedEntityRefs: [
+                ...startVertex.touchedEntityRefs,
+                ...endVertex.touchedEntityRefs,
+                curve.ref,
+                edge.ref,
+            ],
         };
     }
 
@@ -814,6 +904,24 @@ export class SketchPrimitiveBuilder {
         return touchedEntityRefs.length > 0
             ? {
                   touchedEntityRefs,
+              }
+            : null;
+    }
+
+    private deletePoint(pointId: SketchPointId): SketchPrimitiveResult | null {
+        const isUsedByVertex = this.sketch.entities.topology.vertices
+            .list()
+            .some((vertex) => vertex.pointId === pointId);
+
+        if (isUsedByVertex) {
+            return null;
+        }
+
+        const point = this.sketch.entities.geometry.points.remove(pointId);
+
+        return point
+            ? {
+                  touchedEntityRefs: [point.ref],
               }
             : null;
     }

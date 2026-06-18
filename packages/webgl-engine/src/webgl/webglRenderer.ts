@@ -115,6 +115,14 @@ export class WebGLRenderer implements RenderBackend {
         const lineWidthLocation = context.getUniformLocation(this.program, 'u_line_width');
         const pointShapeLocation = context.getUniformLocation(this.program, 'u_point_shape');
         const pointSizeLocation = context.getUniformLocation(this.program, 'u_point_size');
+        const pointStrokeColorLocation = context.getUniformLocation(
+            this.program,
+            'u_point_stroke_color',
+        );
+        const pointStrokeWidthLocation = context.getUniformLocation(
+            this.program,
+            'u_point_stroke_width',
+        );
         const projectionScaleLocation = context.getUniformLocation(
             this.program,
             'u_projection_scale',
@@ -140,6 +148,8 @@ export class WebGLRenderer implements RenderBackend {
             !matrixLocation ||
             !pointShapeLocation ||
             !pointSizeLocation ||
+            !pointStrokeColorLocation ||
+            !pointStrokeWidthLocation ||
             !projectionScaleLocation ||
             !viewportSizeLocation
         ) {
@@ -204,6 +214,8 @@ export class WebGLRenderer implements RenderBackend {
             matrixLocation,
             pointShapeLocation,
             pointSizeLocation,
+            pointStrokeColorLocation,
+            pointStrokeWidthLocation,
             projectionScaleLocation,
             positionLocation,
             viewportSizeLocation,
@@ -294,7 +306,7 @@ export class WebGLRenderer implements RenderBackend {
         this.context.uniform1f(this.bindings.pointSizeLocation, command.material.pointSize);
         this.context.uniform1f(
             this.bindings.pointShapeLocation,
-            command.primitiveKind === 'point' ? 1 : 0,
+            command.primitiveKind === 'point' ? command.material.pointShape : 0,
         );
         this.context.uniform1f(
             this.bindings.lineModeLocation,
@@ -325,7 +337,7 @@ export class WebGLRenderer implements RenderBackend {
         this.context.uniform1f(this.bindings.pointSizeLocation, input.material.pointSize);
         this.context.uniform1f(
             this.bindings.pointShapeLocation,
-            input.primitiveKind === 'point' ? 1 : 0,
+            input.primitiveKind === 'point' ? input.material.pointShape : 0,
         );
         this.context.uniform1f(
             this.bindings.lineModeLocation,
@@ -523,6 +535,13 @@ export class WebGLRenderer implements RenderBackend {
             material.color.z,
         );
         this.context.vertexAttrib1f(this.bindings.alphaLocation, material.alpha);
+        this.context.uniform3f(
+            this.bindings.pointStrokeColorLocation,
+            material.pointStrokeColor.x,
+            material.pointStrokeColor.y,
+            material.pointStrokeColor.z,
+        );
+        this.context.uniform1f(this.bindings.pointStrokeWidthLocation, material.pointStrokeWidthPx);
         this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
         this.context.uniform1f(
             this.bindings.backgroundMixProportionLocation,
@@ -570,6 +589,8 @@ export class WebGLRenderer implements RenderBackend {
                 strideFloats: 7,
             });
             this.context.uniform1f(this.bindings.pointSizeLocation, vertex.sizePixels);
+            this.context.uniform3f(this.bindings.pointStrokeColorLocation, 1, 1, 1);
+            this.context.uniform1f(this.bindings.pointStrokeWidthLocation, 0);
             this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
             this.context.uniform1f(this.bindings.backgroundMixProportionLocation, 0);
             this.context.uniform1f(
@@ -644,7 +665,6 @@ export class WebGLRenderer implements RenderBackend {
         if (semantic === 'line-primitive-style') {
             return this.bindings.linePrimitiveStyleLocation;
         }
-
         return this.bindings.alphaLocation;
     }
 }

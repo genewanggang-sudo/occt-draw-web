@@ -56,7 +56,9 @@ export type SketchToolState =
       }
     | { readonly kind: 'line'; readonly start: SketchLineStart | null }
     | { readonly kind: 'midpoint-line'; readonly midpoint: Vector2 | null }
+    | { readonly kind: 'point' }
     | { readonly kind: 'select' }
+    | { readonly fitPoints: readonly Vector2[]; readonly kind: 'spline' }
     | {
           readonly endPoint: Vector2 | null;
           readonly kind: 'conic';

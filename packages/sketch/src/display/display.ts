@@ -15,23 +15,31 @@ export interface SketchDisplayVertex {
     readonly ref: SketchEntityRef;
 }
 
+export interface SketchDisplayPoint {
+    readonly point: Vector3;
+    readonly ref: SketchEntityRef;
+}
+
 export interface SketchDisplayProfile {
     readonly ref: SketchEntityRef;
 }
 
 export class SketchDisplayModel {
     public readonly edges: readonly SketchDisplayEdge[];
+    public readonly points: readonly SketchDisplayPoint[];
     public readonly profiles: readonly SketchDisplayProfile[];
     public readonly vertices: readonly SketchDisplayVertex[];
 
     constructor(
         input: {
             readonly edges?: readonly SketchDisplayEdge[];
+            readonly points?: readonly SketchDisplayPoint[];
             readonly profiles?: readonly SketchDisplayProfile[];
             readonly vertices?: readonly SketchDisplayVertex[];
         } = {},
     ) {
         this.edges = [...(input.edges ?? [])];
+        this.points = [...(input.points ?? [])];
         this.profiles = [...(input.profiles ?? [])];
         this.vertices = [...(input.vertices ?? [])];
     }
@@ -51,6 +59,16 @@ export class SketchDisplayBuilder {
                   ]
                 : [];
         });
+        const vertexPointIds = new Set(
+            sketch.entities.topology.vertices.list().map((vertex) => vertex.pointId),
+        );
+        const points = sketch.entities.geometry.points
+            .list()
+            .filter((point) => !vertexPointIds.has(point.id))
+            .map((point) => ({
+                point: plane.localToWorld(point.position),
+                ref: point.ref,
+            }));
         const edgeCurveIds = new Set<string>();
         const edges = sketch.entities.topology.edges.list().flatMap((edge) => {
             const curve = sketch.entities.geometry.curves.get(edge.curveId);
@@ -101,6 +119,7 @@ export class SketchDisplayBuilder {
 
         return new SketchDisplayModel({
             edges: [...edges, ...sampledCurveEdges],
+            points,
             vertices,
         });
     }

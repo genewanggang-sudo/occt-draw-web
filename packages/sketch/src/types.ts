@@ -1,5 +1,5 @@
 import type { ModelRef, ObjectRef } from '@occt-draw/core';
-import type { Vector2 } from '@occt-draw/math';
+import type { FitSplineParameterization, Vector2 } from '@occt-draw/math';
 
 export type SketchId = string;
 export type SketchPointId = string;
@@ -124,13 +124,25 @@ export interface Conic2DSnapshot {
     readonly startPoint: Vector2;
 }
 
+export interface Spline2DSnapshot {
+    readonly closed: boolean;
+    readonly degree: number;
+    readonly endTangent?: Vector2 | undefined;
+    readonly fitPoints: readonly Vector2[];
+    readonly id: SketchCurveId;
+    readonly kind: 'spline';
+    readonly parameterization: FitSplineParameterization;
+    readonly startTangent?: Vector2 | undefined;
+}
+
 export type Curve2DSnapshot =
     | Arc2DSnapshot
     | Circle2DSnapshot
     | Conic2DSnapshot
     | Ellipse2DSnapshot
     | EllipticalArc2DSnapshot
-    | Line2DSnapshot;
+    | Line2DSnapshot
+    | Spline2DSnapshot;
 
 export interface VertexSnapshot {
     readonly id: SketchVertexId;

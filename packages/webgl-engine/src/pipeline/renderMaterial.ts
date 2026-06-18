@@ -24,7 +24,10 @@ export interface RenderMaterial {
     readonly lineFilterWidthPx: number;
     readonly lineStipple: LineStipple;
     readonly lineWidthPx: number;
+    readonly pointShape: number;
     readonly pointSize: number;
+    readonly pointStrokeColor: Vector3;
+    readonly pointStrokeWidthPx: number;
     readonly renderState: RenderState;
     readonly shaderVariantKey: ShaderVariantKey;
 }
@@ -98,7 +101,10 @@ export function resolveFaceMaterial(style: FaceStyle): RenderMaterial {
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
+        pointShape: 0,
         pointSize: 1,
+        pointStrokeColor: style.color,
+        pointStrokeWidthPx: 0,
         renderState: style.opacity < 1 ? TRANSPARENT_RENDER_STATE : OPAQUE_RENDER_STATE,
         shaderVariantKey: 'solid',
     };
@@ -114,7 +120,10 @@ export function resolveEdgeMaterial(style: EdgeStyle): RenderMaterial {
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
+        pointShape: 0,
         pointSize: 1,
+        pointStrokeColor: style.color,
+        pointStrokeWidthPx: 0,
         renderState: EDGE_RENDER_STATE,
         shaderVariantKey: 'solid',
     };
@@ -130,7 +139,10 @@ export function resolvePointMaterial(style: PointStyle): RenderMaterial {
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
+        pointShape: resolvePointShape(style.pointShape),
         pointSize: style.sizePixels,
+        pointStrokeColor: style.strokeColor,
+        pointStrokeWidthPx: style.strokeWidthPixels,
         renderState: TRANSPARENT_RENDER_STATE,
         shaderVariantKey: 'point',
     };
@@ -146,7 +158,10 @@ export function resolveMarkerMaterial(_style: MarkerStyle): RenderMaterial {
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
+        pointShape: 0,
         pointSize: 1,
+        pointStrokeColor: DEFAULT_MATERIAL_COLOR,
+        pointStrokeWidthPx: 0,
         renderState: TRANSPARENT_RENDER_STATE,
         shaderVariantKey: 'marker',
     };
@@ -162,7 +177,10 @@ export function resolveTextMaterial(_style: TextStyle): RenderMaterial {
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
+        pointShape: 0,
         pointSize: 1,
+        pointStrokeColor: DEFAULT_MATERIAL_COLOR,
+        pointStrokeWidthPx: 0,
         renderState: LABEL_RENDER_STATE,
         shaderVariantKey: 'label',
     };
@@ -178,11 +196,18 @@ export function resolveHighlightLineMaterial(input: HighlightLineMaterialInput):
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: input.widthPx,
+        pointShape: 0,
         pointSize: 1,
+        pointStrokeColor: input.color,
+        pointStrokeWidthPx: 0,
         renderState:
             input.depthMode === 'overlay' ? OVERLAY_HIGHLIGHT_RENDER_STATE : HIGHLIGHT_RENDER_STATE,
         shaderVariantKey: 'solid',
     };
+}
+
+function resolvePointShape(pointShape: PointStyle['pointShape']): number {
+    return pointShape === 'ring' ? 3 : 1;
 }
 
 export class RenderMaterialResolver {

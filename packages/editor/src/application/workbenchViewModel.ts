@@ -296,6 +296,14 @@ function getSketchToolLabel(tool: SketchToolKind): string {
         return 'Midpoint line';
     }
 
+    if (tool === 'point') {
+        return 'Point';
+    }
+
+    if (tool === 'spline') {
+        return 'Spline';
+    }
+
     if (tool === 'rectangle') {
         return 'Rectangle';
     }

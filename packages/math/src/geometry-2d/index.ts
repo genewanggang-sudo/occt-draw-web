@@ -8,6 +8,7 @@ export { Curve2 } from './curve';
 export type { BoundedCurve2, CurveSamplingOptions } from './curve';
 export { sampleCurveSegments2, type CurveSegmentSamplingOptions } from './curveSampling';
 export { Ellipse2, EllipticalArc2 } from './ellipse2';
+export { FitSpline2, type FitSpline2Input, type FitSplineParameterization } from './fitSpline2';
 export { Line2 } from './line2';
 export { LineSegment2 } from './lineSegment2';
 export { CurveParameter, ParameterDomain } from './parameter';

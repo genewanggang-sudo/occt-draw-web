@@ -23,8 +23,10 @@ import { SketchEllipseCommand } from '../commands/SketchEllipseCommand';
 import { SketchEllipticalArcCommand } from '../commands/SketchEllipticalArcCommand';
 import { SketchLineCommand } from '../commands/SketchLineCommand';
 import { SketchMidpointLineCommand } from '../commands/SketchMidpointLineCommand';
+import { SketchPointCommand } from '../commands/SketchPointCommand';
 import { SketchRectangleCommand } from '../commands/SketchRectangleCommand';
 import { SketchRegularPolygonCommand } from '../commands/SketchRegularPolygonCommand';
+import { SketchSplineCommand } from '../commands/SketchSplineCommand';
 import { SketchTangentArcCommand } from '../commands/SketchTangentArcCommand';
 import { SketchThreePointArcCommand } from '../commands/SketchThreePointArcCommand';
 import { SketchThreePointCircleCommand } from '../commands/SketchThreePointCircleCommand';
@@ -61,6 +63,8 @@ type EditorCommand =
     | EnterSketchCommand
     | SketchLineCommand
     | SketchMidpointLineCommand
+    | SketchPointCommand
+    | SketchSplineCommand
     | SketchRectangleCommand
     | SketchCenterRectangleCommand
     | SketchAlignedRectangleCommand
@@ -97,6 +101,8 @@ export class Application {
                 new EnterSketchCommand(),
                 new SketchLineCommand(),
                 new SketchMidpointLineCommand(),
+                new SketchPointCommand(),
+                new SketchSplineCommand(),
                 new SketchRectangleCommand(),
                 new SketchCenterRectangleCommand(),
                 new SketchAlignedRectangleCommand(),

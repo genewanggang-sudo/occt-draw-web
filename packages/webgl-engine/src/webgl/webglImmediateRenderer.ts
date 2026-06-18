@@ -37,6 +37,8 @@ export interface WebGLRendererBindings {
     readonly matrixLocation: WebGLUniformLocation;
     readonly pointShapeLocation: WebGLUniformLocation;
     readonly pointSizeLocation: WebGLUniformLocation;
+    readonly pointStrokeColorLocation: WebGLUniformLocation;
+    readonly pointStrokeWidthLocation: WebGLUniformLocation;
     readonly projectionScaleLocation: WebGLUniformLocation;
     readonly positionLocation: number;
     readonly viewportSizeLocation: WebGLUniformLocation;
@@ -100,6 +102,8 @@ export class WebGLImmediateRenderer {
             this.context.STATIC_DRAW,
         );
         this.context.uniform1f(bindings.pointSizeLocation, input.pointSize ?? 1);
+        this.context.uniform3f(bindings.pointStrokeColorLocation, 1, 1, 1);
+        this.context.uniform1f(bindings.pointStrokeWidthLocation, 0);
         this.context.uniform1f(bindings.lineDistanceScaleLocation, 1);
         this.context.uniform1f(bindings.lineFilterWidthLocation, window.devicePixelRatio || 1);
         this.context.uniform1f(bindings.lineModeLocation, 0);

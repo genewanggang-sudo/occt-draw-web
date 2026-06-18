@@ -145,7 +145,6 @@ void main() {
         v_line_stipple = a_line_primitive_style;
         v_line_width = lineWidth;
     }
-
     gl_Position = projectedPosition;
 }
 `;
@@ -158,6 +157,9 @@ uniform mediump float u_background_mix_proportion;
 uniform float u_line_filter_width;
 uniform float u_line_width;
 uniform float u_point_shape;
+uniform float u_point_size;
+uniform vec3 u_point_stroke_color;
+uniform float u_point_stroke_width;
 in vec4 v_color;
 in float v_line_distance;
 in float v_line_center_distance;
@@ -182,9 +184,11 @@ bool isLineGap(float lineDistance, vec4 lineStipple) {
 }
 
 void main() {
+    vec2 pointCoord = gl_PointCoord;
+
     if (u_point_shape > 3.5) {
-        vec2 pointCoord = gl_PointCoord - vec2(0.5);
-        float distanceFromCenter = length(pointCoord);
+        vec2 centeredPointCoord = pointCoord - vec2(0.5);
+        float distanceFromCenter = length(centeredPointCoord);
         float alpha = 1.0 - smoothstep(0.42, 0.5, distanceFromCenter);
 
         if (alpha <= 0.0) {
@@ -196,10 +200,10 @@ void main() {
     }
 
     if (u_point_shape > 2.5) {
-        vec2 pointCoord = gl_PointCoord - vec2(0.5);
-        float distanceFromCenter = length(pointCoord);
-        float outerEdge = 1.0 - smoothstep(0.44, 0.5, distanceFromCenter);
-        float innerEdge = smoothstep(0.26, 0.32, distanceFromCenter);
+        vec2 centeredPointCoord = pointCoord - vec2(0.5);
+        float distanceFromCenter = length(centeredPointCoord);
+        float outerEdge = 1.0 - smoothstep(0.4475, 0.505, distanceFromCenter);
+        float innerEdge = smoothstep(0.1475, 0.2275, distanceFromCenter);
         float alpha = outerEdge * innerEdge;
 
         if (alpha <= 0.0) {
@@ -211,8 +215,8 @@ void main() {
     }
 
     if (u_point_shape > 1.5) {
-        vec2 pointCoord = gl_PointCoord - vec2(0.5);
-        float distanceFromCenter = length(pointCoord);
+        vec2 centeredPointCoord = pointCoord - vec2(0.5);
+        float distanceFromCenter = length(centeredPointCoord);
         float outerRing = 1.0 - smoothstep(0.42, 0.5, distanceFromCenter);
         float innerCutout = smoothstep(0.32, 0.36, distanceFromCenter);
         float centerDot = 1.0 - smoothstep(0.1, 0.18, distanceFromCenter);
@@ -227,15 +231,22 @@ void main() {
     }
 
     if (u_point_shape > 0.5) {
-        vec2 pointCoord = gl_PointCoord - vec2(0.5);
-        float distanceFromCenter = length(pointCoord);
+        vec2 centeredPointCoord = pointCoord - vec2(0.5);
+        float distanceFromCenter = length(centeredPointCoord);
         float edgeAlpha = 1.0 - smoothstep(0.42, 0.5, distanceFromCenter);
 
         if (edgeAlpha <= 0.0) {
             discard;
         }
 
-        out_color = vec4(v_color.rgb, v_color.a * edgeAlpha);
+        float strokeWidthRatio = clamp(u_point_stroke_width / max(u_point_size, 1.0), 0.0, 0.49);
+        float strokeStart = 0.5 - strokeWidthRatio;
+        float strokeMix = u_point_stroke_width <= 0.0
+            ? 0.0
+            : smoothstep(strokeStart - 0.04, strokeStart + 0.04, distanceFromCenter);
+        vec3 pointColor = mix(v_color.rgb, u_point_stroke_color, strokeMix);
+
+        out_color = vec4(pointColor, v_color.a * edgeAlpha);
         return;
     }
 

@@ -90,6 +90,17 @@ vec3 encodeDepth(float depth) {
 }
 
 void main() {
+    if (u_point_shape > 2.5) {
+        vec2 pointCoord = gl_PointCoord - vec2(0.5);
+        float distanceFromCenter = length(pointCoord);
+        float outerEdge = 1.0 - smoothstep(0.4475, 0.505, distanceFromCenter);
+        float innerEdge = smoothstep(0.1475, 0.2275, distanceFromCenter);
+        float alpha = outerEdge * innerEdge;
+
+        if (alpha <= 0.0) {
+            discard;
+        }
+    } else
     if (u_point_shape > 1.5) {
         vec2 pointCoord = gl_PointCoord - vec2(0.5);
         float distanceFromCenter = length(pointCoord);
@@ -537,7 +548,7 @@ function createNavigationDepthBatches(
         } else if (object instanceof PointSet) {
             batches.push({
                 mode: context.POINTS,
-                pointShape: 1,
+                pointShape: object.style.pointShape === 'ring' ? 3 : 1,
                 pointSize: object.style.sizePixels,
                 positions: object.geometry.points,
                 role,

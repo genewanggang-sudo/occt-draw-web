@@ -109,18 +109,39 @@ export class SketchRenderAdapter {
             objects.push({
                 color: Vec3.of(0.05, 0.38, 0.85),
                 depthRole: 'primary',
+                id: `${feature.id}:vertices`,
+                interactionId: sketch.id,
+                kind: 'point',
+                layerId: EDIT_PREVIEW_LAYER_ID,
+                name: `${feature.name} vertices`,
+                points: display.vertices.map((point) => point.point),
+                primitiveMetadata: display.vertices.map((point) =>
+                    createCanvasPrimitiveMetadata(
+                        this.pickRefAdapter.createSketchPickRef(feature.id, point.ref),
+                    ),
+                ),
+                sizePixels: 7,
+                visible: !feature.suppressed,
+            });
+        }
+
+        if (display.points.length > 0) {
+            objects.push({
+                color: Vec3.of(0.24, 0.5, 0.83),
+                depthRole: 'primary',
                 id: `${feature.id}:points`,
                 interactionId: sketch.id,
                 kind: 'point',
                 layerId: EDIT_PREVIEW_LAYER_ID,
                 name: `${feature.name} points`,
-                points: display.vertices.map((vertex) => vertex.point),
-                primitiveMetadata: display.vertices.map((vertex) =>
+                pointShape: 'ring',
+                points: display.points.map((point) => point.point),
+                primitiveMetadata: display.points.map((point) =>
                     createCanvasPrimitiveMetadata(
-                        this.pickRefAdapter.createSketchPickRef(feature.id, vertex.ref),
+                        this.pickRefAdapter.createSketchPickRef(feature.id, point.ref),
                     ),
                 ),
-                sizePixels: 7,
+                sizePixels: 9.625,
                 visible: !feature.suppressed,
             });
         }

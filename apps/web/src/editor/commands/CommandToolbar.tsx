@@ -1,5 +1,10 @@
 import { commandDefinitions, type CommandAvailabilityMap, type CommandId } from '@occt-draw/editor';
-import { SplitIconDropdown, ToolbarIconId, type SplitIconDropdownItem } from '@occt-draw/ui';
+import {
+    SplitIconDropdown,
+    ToolbarIcon,
+    ToolbarIconId,
+    type SplitIconDropdownItem,
+} from '@occt-draw/ui';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 interface SketchToolbarTool {
@@ -75,21 +80,6 @@ const sketchDrawingToolGroups: readonly SketchToolbarGroup[] = [
         ],
     },
     {
-        label: '多边形',
-        tools: [
-            {
-                commandId: 'sketch-inscribed-polygon',
-                icon: ToolbarIconId.InscribedPolygon,
-                label: '内切多边形',
-            },
-            {
-                commandId: 'sketch-circumscribed-polygon',
-                icon: ToolbarIconId.CircumscribedPolygon,
-                label: '外接多边形',
-            },
-        ],
-    },
-    {
         label: '圆弧',
         tools: [
             {
@@ -117,6 +107,41 @@ const sketchDrawingToolGroups: readonly SketchToolbarGroup[] = [
                 commandId: 'sketch-conic',
                 icon: ToolbarIconId.CircleConic,
                 label: '圆锥',
+            },
+        ],
+    },
+    {
+        label: '样条',
+        tools: [
+            {
+                commandId: 'sketch-spline',
+                icon: ToolbarIconId.Spline,
+                label: '样条',
+            },
+        ],
+    },
+    {
+        label: '点',
+        tools: [
+            {
+                commandId: 'sketch-point',
+                icon: ToolbarIconId.Point,
+                label: '点',
+            },
+        ],
+    },
+    {
+        label: '多边形',
+        tools: [
+            {
+                commandId: 'sketch-inscribed-polygon',
+                icon: ToolbarIconId.InscribedPolygon,
+                label: '内切多边形',
+            },
+            {
+                commandId: 'sketch-circumscribed-polygon',
+                icon: ToolbarIconId.CircumscribedPolygon,
+                label: '外接多边形',
             },
         ],
     },
@@ -241,6 +266,42 @@ export function CommandToolbar({
     );
 }
 
+function SketchToolButton({
+    activeCommandId,
+    commandAvailability,
+    onActivateCommand,
+    tool,
+}: {
+    readonly activeCommandId: CommandId;
+    readonly commandAvailability: CommandAvailabilityMap;
+    readonly onActivateCommand: (commandId: CommandId) => void;
+    readonly tool: SketchToolbarTool;
+}) {
+    const availability = tool.commandId ? commandAvailability[tool.commandId] : null;
+    const disabled = Boolean(tool.commandId && availability?.enabled === false);
+    const enabled = Boolean(tool.commandId && availability?.enabled !== false);
+    const active = tool.commandId === activeCommandId;
+
+    return (
+        <button
+            className="cad-workbench__toolbar-icon-button"
+            disabled={disabled}
+            title={availability?.reason ?? tool.label}
+            type="button"
+            aria-label={tool.label}
+            aria-pressed={active}
+            onClick={(event) => {
+                if (tool.commandId && enabled) {
+                    onActivateCommand(tool.commandId);
+                }
+                event.currentTarget.blur();
+            }}
+        >
+            <ToolbarIcon className="cad-workbench__split-icon-primary-icon" icon={tool.icon} />
+        </button>
+    );
+}
+
 function ToolbarGroup({
     children,
     label,
@@ -276,6 +337,23 @@ function SketchToolGroup({
     readonly onToggleMenu: () => void;
     readonly selectedToolLabel: string | undefined;
 }) {
+    if (group.tools.length === 1) {
+        const tool = group.tools[0];
+
+        if (!tool) {
+            return null;
+        }
+
+        return (
+            <SketchToolButton
+                activeCommandId={activeCommandId}
+                commandAvailability={commandAvailability}
+                onActivateCommand={onActivateCommand}
+                tool={tool}
+            />
+        );
+    }
+
     const activeTool = group.tools.find((tool) => tool.commandId === activeCommandId);
     const selectedTool =
         activeTool ??

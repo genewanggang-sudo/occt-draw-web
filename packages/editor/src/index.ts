@@ -102,11 +102,13 @@ export { SketchEllipseCommand } from './commands/SketchEllipseCommand';
 export { SketchEllipticalArcCommand } from './commands/SketchEllipticalArcCommand';
 export { SketchLineCommand } from './commands/SketchLineCommand';
 export { SketchMidpointLineCommand } from './commands/SketchMidpointLineCommand';
+export { SketchPointCommand } from './commands/SketchPointCommand';
 export { SketchRectangleCommand } from './commands/SketchRectangleCommand';
 export {
     DEFAULT_REGULAR_POLYGON_SIDE_COUNT,
     SketchRegularPolygonCommand,
 } from './commands/SketchRegularPolygonCommand';
+export { SketchSplineCommand } from './commands/SketchSplineCommand';
 export { SketchTangentArcCommand } from './commands/SketchTangentArcCommand';
 export { SketchThreePointArcCommand } from './commands/SketchThreePointArcCommand';
 export { SketchThreePointCircleCommand } from './commands/SketchThreePointCircleCommand';

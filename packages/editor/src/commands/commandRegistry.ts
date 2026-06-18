@@ -28,6 +28,16 @@ export const commandDefinitions: readonly CommandDefinition[] = [
         kind: 'modal',
     },
     {
+        id: 'sketch-point',
+        label: 'Point',
+        kind: 'modal',
+    },
+    {
+        id: 'sketch-spline',
+        label: 'Spline',
+        kind: 'modal',
+    },
+    {
         id: 'sketch-rectangle',
         label: 'Rectangle',
         kind: 'modal',
@@ -131,6 +141,8 @@ export function evaluateCommandAvailability(
     if (
         commandId === 'sketch-line' ||
         commandId === 'sketch-midpoint-line' ||
+        commandId === 'sketch-point' ||
+        commandId === 'sketch-spline' ||
         commandId === 'sketch-rectangle' ||
         commandId === 'sketch-center-rectangle' ||
         commandId === 'sketch-aligned-rectangle' ||
@@ -172,6 +184,8 @@ export function evaluateCommandAvailabilityMap(
         sketch: evaluateCommandAvailability('sketch', context),
         'sketch-line': evaluateCommandAvailability('sketch-line', context),
         'sketch-midpoint-line': evaluateCommandAvailability('sketch-midpoint-line', context),
+        'sketch-point': evaluateCommandAvailability('sketch-point', context),
+        'sketch-spline': evaluateCommandAvailability('sketch-spline', context),
         'sketch-rectangle': evaluateCommandAvailability('sketch-rectangle', context),
         'sketch-center-rectangle': evaluateCommandAvailability('sketch-center-rectangle', context),
         'sketch-aligned-rectangle': evaluateCommandAvailability(
