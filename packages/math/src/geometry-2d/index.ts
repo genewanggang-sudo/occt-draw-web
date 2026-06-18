@@ -13,3 +13,8 @@ export { LineSegment2 } from './lineSegment2';
 export { CurveParameter, ParameterDomain } from './parameter';
 export { Polygon2, type PolygonOrientation, type PolygonPointClassification } from './polygon2';
 export { Polyline2 } from './polyline2';
+export {
+    createRegularPolygonPoints,
+    type RegularPolygonInput,
+    type RegularPolygonMode,
+} from './regularPolygon';

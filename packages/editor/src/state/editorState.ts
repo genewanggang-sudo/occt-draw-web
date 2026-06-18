@@ -30,6 +30,11 @@ export type SketchToolState =
     | { readonly center: Vector2 | null; readonly kind: 'circle' }
     | { readonly center: Vector2 | null; readonly kind: 'center-rectangle' }
     | {
+          readonly center: Vector2 | null;
+          readonly kind: 'circumscribed-polygon';
+          readonly sideCount: number;
+      }
+    | {
           readonly centerPoint: Vector2 | null;
           readonly kind: 'ellipse';
           readonly primaryAxisPoint: Vector2 | null;
@@ -44,6 +49,11 @@ export type SketchToolState =
           readonly startPoint: Vector2 | null;
       }
     | { readonly firstCorner: Vector2 | null; readonly kind: 'rectangle' }
+    | {
+          readonly center: Vector2 | null;
+          readonly kind: 'inscribed-polygon';
+          readonly sideCount: number;
+      }
     | { readonly kind: 'line'; readonly start: SketchLineStart | null }
     | { readonly kind: 'midpoint-line'; readonly midpoint: Vector2 | null }
     | { readonly kind: 'select' }

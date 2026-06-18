@@ -6,6 +6,7 @@ import {
     AddCornerRectangleRequest,
     AddEllipticalArcRequest,
     AddLineSegmentRequest,
+    AddRegularPolygonRequest,
     AddTangentArcRequest,
     CreateFeaturePayloadRequest,
     Feature,
@@ -218,6 +219,49 @@ run('new sketch arc requests create open edge entities', () => {
         2,
         'expected conic endpoints',
     );
+});
+
+run('regular polygon request creates closed line loop edges', () => {
+    const regular = createEditableSketchDocument('sketch:regular-polygon');
+
+    regular.editor.execute(
+        new AddRegularPolygonRequest({
+            center: Vec2.of(0, 0),
+            mode: 'inscribed',
+            partStudioId: regular.partStudioId,
+            referencePoint: Vec2.of(1, 0),
+            sideCount: 6,
+            sketchFeatureId: regular.featureId,
+        }),
+    );
+
+    const sketch = requireSketchPayload(regular.editor.document, regular.sketchId);
+    const curves = sketch.entities.geometry.curves.list();
+    const edges = sketch.entities.topology.edges.list();
+    const vertices = sketch.entities.topology.vertices.list();
+
+    expectEqual(curves.length, 6, 'expected six line curves');
+    expectEqual(edges.length, 6, 'expected six polygon edges');
+    expectEqual(vertices.length, 6, 'expected six shared polygon vertices');
+
+    for (const curve of curves) {
+        expectEqual(curve.snapshot().kind, 'line', 'expected polygon to store only line curves');
+    }
+
+    for (let index = 0; index < edges.length; index += 1) {
+        const edge = edges[index];
+        const nextEdge = edges[(index + 1) % edges.length];
+
+        if (!edge || !nextEdge) {
+            throw new Error('Expected polygon edge sequence.');
+        }
+
+        expectEqual(
+            edge.endVertexId,
+            nextEdge.startVertexId,
+            'expected polygon edges to form a closed loop',
+        );
+    }
 });
 
 function requireSketchPayload(document: CadDocument, sketchId: string): Sketch {

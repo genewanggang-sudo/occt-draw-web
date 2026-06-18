@@ -1,4 +1,13 @@
-import { Arc2, Circle2, Conic2, Ellipse2, EllipticalArc2, type Vector2 } from '@occt-draw/math';
+import {
+    Arc2,
+    Circle2,
+    Conic2,
+    Ellipse2,
+    EllipticalArc2,
+    createRegularPolygonPoints,
+    type RegularPolygonMode,
+    type Vector2,
+} from '@occt-draw/math';
 import type { SketchChangeRecorder } from '../changes/changeTracking';
 import { withActiveSketchChangeRecorder } from '../changes/changeTracking';
 import {
@@ -66,6 +75,24 @@ export class SketchPrimitiveBuilder {
             }
 
             return this.addLineLoop(points);
+        });
+    }
+
+    public addRegularPolygonByCenterReference(
+        center: Vector2,
+        referencePoint: Vector2,
+        sideCount: number,
+        mode: RegularPolygonMode,
+    ): SketchPrimitiveResult | null {
+        return this.capture(() => {
+            const points = createRegularPolygonPoints({
+                center,
+                mode,
+                referencePoint,
+                sideCount,
+            }).value;
+
+            return points ? this.addLineLoop(points) : null;
         });
     }
 

@@ -103,6 +103,10 @@ export { SketchEllipticalArcCommand } from './commands/SketchEllipticalArcComman
 export { SketchLineCommand } from './commands/SketchLineCommand';
 export { SketchMidpointLineCommand } from './commands/SketchMidpointLineCommand';
 export { SketchRectangleCommand } from './commands/SketchRectangleCommand';
+export {
+    DEFAULT_REGULAR_POLYGON_SIDE_COUNT,
+    SketchRegularPolygonCommand,
+} from './commands/SketchRegularPolygonCommand';
 export { SketchTangentArcCommand } from './commands/SketchTangentArcCommand';
 export { SketchThreePointArcCommand } from './commands/SketchThreePointArcCommand';
 export { SketchThreePointCircleCommand } from './commands/SketchThreePointCircleCommand';

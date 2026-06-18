@@ -24,6 +24,7 @@ import { SketchEllipticalArcCommand } from '../commands/SketchEllipticalArcComma
 import { SketchLineCommand } from '../commands/SketchLineCommand';
 import { SketchMidpointLineCommand } from '../commands/SketchMidpointLineCommand';
 import { SketchRectangleCommand } from '../commands/SketchRectangleCommand';
+import { SketchRegularPolygonCommand } from '../commands/SketchRegularPolygonCommand';
 import { SketchTangentArcCommand } from '../commands/SketchTangentArcCommand';
 import { SketchThreePointArcCommand } from '../commands/SketchThreePointArcCommand';
 import { SketchThreePointCircleCommand } from '../commands/SketchThreePointCircleCommand';
@@ -70,6 +71,7 @@ type EditorCommand =
     | SketchThreePointCircleCommand
     | SketchEllipseCommand
     | SketchEllipticalArcCommand
+    | SketchRegularPolygonCommand
     | SketchConicCommand;
 
 export class Application {
@@ -100,6 +102,16 @@ export class Application {
                 new SketchAlignedRectangleCommand(),
                 new SketchCenterPointArcCommand(),
                 new SketchCircleCommand(),
+                new SketchRegularPolygonCommand({
+                    id: 'sketch-inscribed-polygon',
+                    mode: 'inscribed',
+                    toolKind: 'inscribed-polygon',
+                }),
+                new SketchRegularPolygonCommand({
+                    id: 'sketch-circumscribed-polygon',
+                    mode: 'circumscribed',
+                    toolKind: 'circumscribed-polygon',
+                }),
                 new SketchThreePointArcCommand(),
                 new SketchTangentArcCommand(),
                 new SketchThreePointCircleCommand(),

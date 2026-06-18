@@ -312,6 +312,14 @@ function getSketchToolLabel(tool: SketchToolKind): string {
         return 'Circle';
     }
 
+    if (tool === 'inscribed-polygon') {
+        return 'Inscribed polygon';
+    }
+
+    if (tool === 'circumscribed-polygon') {
+        return 'Circumscribed polygon';
+    }
+
     if (tool === 'three-point-arc') {
         return '3 point arc';
     }

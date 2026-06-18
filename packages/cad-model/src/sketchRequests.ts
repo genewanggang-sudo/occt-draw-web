@@ -1,5 +1,5 @@
 import type { DocumentRequest } from '@occt-draw/core';
-import type { Vector2 } from '@occt-draw/math';
+import type { RegularPolygonMode, Vector2 } from '@occt-draw/math';
 import { SketchEntityKind } from '@occt-draw/sketch';
 import type {
     Sketch,
@@ -110,6 +110,57 @@ export class AddClosedLineSegmentsRequest
 
     protected apply(target: SketchWriteTarget): AddClosedLineSegmentsRequestResult {
         const result = target.primitives.addClosedPolyline(this.points);
+
+        return {
+            createdEdgeIds: result?.createdEdgeIds ?? [],
+            partStudioId: this.partStudioId,
+            payloadId: target.payloadId,
+            sketchFeatureId: this.sketchFeatureId,
+        };
+    }
+}
+
+export interface AddRegularPolygonRequestResult extends SketchDocumentRequestContext {
+    readonly createdEdgeIds: readonly SketchEdgeId[];
+    readonly payloadId: FeaturePayloadId;
+}
+
+export class AddRegularPolygonRequest
+    extends SketchDocumentRequest<AddRegularPolygonRequestResult>
+    implements DocumentRequest<CadDocument, AddRegularPolygonRequestResult, CadDocumentWriteContext>
+{
+    private readonly center: Vector2;
+    private readonly mode: RegularPolygonMode;
+    private readonly referencePoint: Vector2;
+    private readonly sideCount: number;
+
+    constructor(
+        input: SketchDocumentRequestContext & {
+            readonly center: Vector2;
+            readonly mode: RegularPolygonMode;
+            readonly referencePoint: Vector2;
+            readonly sideCount: number;
+        },
+    ) {
+        super({
+            label: `Add sketch ${input.mode} polygon`,
+            partStudioId: input.partStudioId,
+            sketchFeatureId: input.sketchFeatureId,
+            transactionId: `add-sketch-${input.mode}-polygon:${input.sketchFeatureId}`,
+        });
+        this.center = input.center;
+        this.mode = input.mode;
+        this.referencePoint = input.referencePoint;
+        this.sideCount = input.sideCount;
+    }
+
+    protected apply(target: SketchWriteTarget): AddRegularPolygonRequestResult {
+        const result = target.primitives.addRegularPolygonByCenterReference(
+            this.center,
+            this.referencePoint,
+            this.sideCount,
+            this.mode,
+        );
 
         return {
             createdEdgeIds: result?.createdEdgeIds ?? [],

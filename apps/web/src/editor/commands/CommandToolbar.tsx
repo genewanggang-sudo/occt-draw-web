@@ -75,6 +75,21 @@ const sketchDrawingToolGroups: readonly SketchToolbarGroup[] = [
         ],
     },
     {
+        label: '多边形',
+        tools: [
+            {
+                commandId: 'sketch-inscribed-polygon',
+                icon: ToolbarIconId.InscribedPolygon,
+                label: '内切多边形',
+            },
+            {
+                commandId: 'sketch-circumscribed-polygon',
+                icon: ToolbarIconId.CircumscribedPolygon,
+                label: '外接多边形',
+            },
+        ],
+    },
+    {
         label: '圆弧',
         tools: [
             {

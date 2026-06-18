@@ -41,12 +41,15 @@ export {
     Polygon2,
     Polyline2,
     Curve2,
+    createRegularPolygonPoints,
     sampleCurveSegments2,
     type BoundedCurve2,
     type CurveSegmentSamplingOptions,
     type CurveSamplingOptions,
     type PolygonOrientation,
     type PolygonPointClassification,
+    type RegularPolygonInput,
+    type RegularPolygonMode,
 } from './geometry-2d';
 export {
     BBox3,

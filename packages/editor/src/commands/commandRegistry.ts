@@ -48,6 +48,16 @@ export const commandDefinitions: readonly CommandDefinition[] = [
         kind: 'modal',
     },
     {
+        id: 'sketch-inscribed-polygon',
+        label: 'Inscribed polygon',
+        kind: 'modal',
+    },
+    {
+        id: 'sketch-circumscribed-polygon',
+        label: 'Circumscribed polygon',
+        kind: 'modal',
+    },
+    {
         id: 'sketch-3-point-arc',
         label: '3 point arc',
         kind: 'modal',
@@ -125,6 +135,8 @@ export function evaluateCommandAvailability(
         commandId === 'sketch-center-rectangle' ||
         commandId === 'sketch-aligned-rectangle' ||
         commandId === 'sketch-circle' ||
+        commandId === 'sketch-inscribed-polygon' ||
+        commandId === 'sketch-circumscribed-polygon' ||
         commandId === 'sketch-3-point-arc' ||
         commandId === 'sketch-tangent-arc' ||
         commandId === 'sketch-center-arc' ||
@@ -167,6 +179,14 @@ export function evaluateCommandAvailabilityMap(
             context,
         ),
         'sketch-circle': evaluateCommandAvailability('sketch-circle', context),
+        'sketch-inscribed-polygon': evaluateCommandAvailability(
+            'sketch-inscribed-polygon',
+            context,
+        ),
+        'sketch-circumscribed-polygon': evaluateCommandAvailability(
+            'sketch-circumscribed-polygon',
+            context,
+        ),
         'sketch-3-point-arc': evaluateCommandAvailability('sketch-3-point-arc', context),
         'sketch-tangent-arc': evaluateCommandAvailability('sketch-tangent-arc', context),
         'sketch-center-arc': evaluateCommandAvailability('sketch-center-arc', context),
