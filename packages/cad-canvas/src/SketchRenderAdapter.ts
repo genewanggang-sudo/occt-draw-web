@@ -10,6 +10,13 @@ import { SketchDisplayBuilder, SketchEntityKind, type SketchDisplayEdge } from '
 import { EDIT_PREVIEW_LAYER_ID } from './canvasAdapterLayers';
 import { createCanvasPrimitiveMetadata } from './canvasAdapterMetadata';
 import { ReferencePlaneResolver } from './ReferencePlaneResolver';
+import {
+    ON_SHAPE_FREE_SKETCH_POINT_COLOR,
+    ON_SHAPE_FREE_SKETCH_POINT_FONT,
+    ON_SHAPE_FREE_SKETCH_POINT_SIZE_PX,
+    ON_SHAPE_SKETCH_VERTEX_POINT_FONT,
+    ON_SHAPE_SKETCH_VERTEX_POINT_SIZE_PX,
+} from './sketchPointVisuals';
 import { SketchPickRefAdapter } from './SketchPickRefAdapter';
 
 export class SketchRenderAdapter {
@@ -114,26 +121,28 @@ export class SketchRenderAdapter {
                 kind: 'point',
                 layerId: EDIT_PREVIEW_LAYER_ID,
                 name: `${feature.name} vertices`,
+                pointFont: ON_SHAPE_SKETCH_VERTEX_POINT_FONT,
                 points: display.vertices.map((point) => point.point),
                 primitiveMetadata: display.vertices.map((point) =>
                     createCanvasPrimitiveMetadata(
                         this.pickRefAdapter.createSketchPickRef(feature.id, point.ref),
                     ),
                 ),
-                sizePixels: 7,
+                sizePixels: ON_SHAPE_SKETCH_VERTEX_POINT_SIZE_PX,
                 visible: !feature.suppressed,
             });
         }
 
         if (display.points.length > 0) {
             objects.push({
-                color: Vec3.of(0.24, 0.5, 0.83),
+                color: ON_SHAPE_FREE_SKETCH_POINT_COLOR,
                 depthRole: 'primary',
                 id: `${feature.id}:points`,
                 interactionId: sketch.id,
                 kind: 'point',
                 layerId: EDIT_PREVIEW_LAYER_ID,
                 name: `${feature.name} points`,
+                pointFont: ON_SHAPE_FREE_SKETCH_POINT_FONT,
                 pointShape: 'ring',
                 points: display.points.map((point) => point.point),
                 primitiveMetadata: display.points.map((point) =>
@@ -141,7 +150,7 @@ export class SketchRenderAdapter {
                         this.pickRefAdapter.createSketchPickRef(feature.id, point.ref),
                     ),
                 ),
-                sizePixels: 9.625,
+                sizePixels: ON_SHAPE_FREE_SKETCH_POINT_SIZE_PX,
                 visible: !feature.suppressed,
             });
         }

@@ -113,6 +113,7 @@ export class WebGLRenderer implements RenderBackend {
         const lineModeLocation = context.getUniformLocation(this.program, 'u_line_mode');
         const lineStippleLocation = context.getUniformLocation(this.program, 'u_line_stipple');
         const lineWidthLocation = context.getUniformLocation(this.program, 'u_line_width');
+        const pointFontLocation = context.getUniformLocation(this.program, 'u_point_font');
         const pointShapeLocation = context.getUniformLocation(this.program, 'u_point_shape');
         const pointSizeLocation = context.getUniformLocation(this.program, 'u_point_size');
         const pointStrokeColorLocation = context.getUniformLocation(
@@ -146,6 +147,7 @@ export class WebGLRenderer implements RenderBackend {
             !lineStippleLocation ||
             !lineWidthLocation ||
             !matrixLocation ||
+            !pointFontLocation ||
             !pointShapeLocation ||
             !pointSizeLocation ||
             !pointStrokeColorLocation ||
@@ -212,6 +214,7 @@ export class WebGLRenderer implements RenderBackend {
             lineStippleLocation,
             lineWidthLocation,
             matrixLocation,
+            pointFontLocation,
             pointShapeLocation,
             pointSizeLocation,
             pointStrokeColorLocation,
@@ -536,6 +539,12 @@ export class WebGLRenderer implements RenderBackend {
         );
         this.context.vertexAttrib1f(this.bindings.alphaLocation, material.alpha);
         this.context.uniform3f(
+            this.bindings.pointFontLocation,
+            material.pointFont.x,
+            material.pointFont.y,
+            material.pointFont.z,
+        );
+        this.context.uniform3f(
             this.bindings.pointStrokeColorLocation,
             material.pointStrokeColor.x,
             material.pointStrokeColor.y,
@@ -589,6 +598,7 @@ export class WebGLRenderer implements RenderBackend {
                 strideFloats: 7,
             });
             this.context.uniform1f(this.bindings.pointSizeLocation, vertex.sizePixels);
+            this.context.uniform3f(this.bindings.pointFontLocation, 1, 0, 50);
             this.context.uniform3f(this.bindings.pointStrokeColorLocation, 1, 1, 1);
             this.context.uniform1f(this.bindings.pointStrokeWidthLocation, 0);
             this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
@@ -607,7 +617,7 @@ export class WebGLRenderer implements RenderBackend {
                 lineStipple[2],
                 lineStipple[3],
             );
-            this.context.uniform1f(this.bindings.pointShapeLocation, 2);
+            this.context.uniform1f(this.bindings.pointShapeLocation, 3);
             this.context.drawArrays(this.context.POINTS, 0, 1);
         }
     }

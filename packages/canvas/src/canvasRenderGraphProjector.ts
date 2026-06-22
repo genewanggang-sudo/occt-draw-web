@@ -74,6 +74,7 @@ export class CanvasRenderGraphProjector {
                 new PointGeometry(object.points, object.primitiveMetadata ?? []),
                 new PointStyle({
                     color: object.color,
+                    ...(object.pointFont ? { pointFont: object.pointFont } : {}),
                     ...(object.pointShape ? { pointShape: object.pointShape } : {}),
                     ...(object.sizePixels !== undefined ? { sizePixels: object.sizePixels } : {}),
                     ...(object.strokeColor ? { strokeColor: object.strokeColor } : {}),

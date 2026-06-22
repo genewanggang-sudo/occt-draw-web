@@ -13,7 +13,7 @@
         "build": "tsc -p tsconfig.build.json --pretty false",
         "clean": "rimraf dist tsconfig.build.tsbuildinfo tsconfig.tsbuildinfo",
         "lint": "eslint src --ext .ts",
-        "test": "node test/pointRingRaster.test.ts",
+        "test": "node test/pointFontRaster.test.ts",
         "typecheck": "tsc -p tsconfig.json --pretty false"
     }
 }

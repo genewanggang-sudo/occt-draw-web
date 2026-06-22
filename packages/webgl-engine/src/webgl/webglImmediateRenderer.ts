@@ -35,6 +35,7 @@ export interface WebGLRendererBindings {
     readonly lineStippleLocation: WebGLUniformLocation;
     readonly lineWidthLocation: WebGLUniformLocation;
     readonly matrixLocation: WebGLUniformLocation;
+    readonly pointFontLocation: WebGLUniformLocation;
     readonly pointShapeLocation: WebGLUniformLocation;
     readonly pointSizeLocation: WebGLUniformLocation;
     readonly pointStrokeColorLocation: WebGLUniformLocation;
@@ -102,6 +103,14 @@ export class WebGLImmediateRenderer {
             this.context.STATIC_DRAW,
         );
         this.context.uniform1f(bindings.pointSizeLocation, input.pointSize ?? 1);
+        const pointFont = resolveImmediatePointFont(input.pointShape ?? 'none');
+
+        this.context.uniform3f(
+            bindings.pointFontLocation,
+            pointFont[0],
+            pointFont[1],
+            pointFont[2],
+        );
         this.context.uniform3f(bindings.pointStrokeColorLocation, 1, 1, 1);
         this.context.uniform1f(bindings.pointStrokeWidthLocation, 0);
         this.context.uniform1f(bindings.lineDistanceScaleLocation, 1);
@@ -304,17 +313,23 @@ function resolveImmediatePointShape(pointShape: ImmediatePointShape): number {
         return 4;
     }
 
-    if (pointShape === 'ring') {
+    if (pointShape === 'marker') {
         return 3;
     }
 
-    if (pointShape === 'circle') {
+    if (pointShape === 'circle' || pointShape === 'ring') {
         return 1;
     }
 
-    if (pointShape === 'marker') {
-        return 2;
+    return 0;
+}
+
+function resolveImmediatePointFont(
+    pointShape: ImmediatePointShape,
+): readonly [number, number, number] {
+    if (pointShape === 'ring') {
+        return [2, 0, 50];
     }
 
-    return 0;
+    return [1, 0, 50];
 }

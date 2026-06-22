@@ -6,7 +6,7 @@ import type {
     NavigationDepthGraphSampleInput,
     ScreenPoint2,
 } from './types';
-import { DEFAULT_TOLERANCE, type Vector3 } from '@occt-draw/math';
+import { DEFAULT_TOLERANCE, Vec3, type Vector3 } from '@occt-draw/math';
 import { createViewProjectionMatrix } from './matrix';
 import { collectNavigationDepthGraphObjects, resolveNavigationDepthRole } from './graphTraversal';
 import { EdgeSet, FaceSet, MarkerSet, PointSet } from './scene';
@@ -36,6 +36,7 @@ interface NavigationDepthBatch {
     readonly mode: number;
     readonly pointShape: number;
     readonly pointSize: number;
+    readonly pointFont: Vector3;
     readonly positions: readonly Vector3[];
     readonly role: NavigationDepthRole;
 }
@@ -47,6 +48,7 @@ export interface NavigationDepthResources {
     readonly matrixLocation: WebGLUniformLocation;
     readonly pointShapeLocation: WebGLUniformLocation;
     readonly pointSizeLocation: WebGLUniformLocation;
+    readonly pointFontLocation: WebGLUniformLocation;
     readonly positionLocation: number;
     readonly program: WebGLProgram;
     readonly roleCodeLocation: WebGLUniformLocation;
@@ -77,6 +79,8 @@ precision mediump float;
 
 uniform float u_point_shape;
 uniform float u_role_code;
+uniform vec3 u_point_font;
+uniform float u_point_size;
 
 out vec4 out_role;
 
@@ -89,19 +93,68 @@ vec3 encodeDepth(float depth) {
     return vec3(red, green, blue) / 255.0;
 }
 
+float getPointFontOpacity() {
+    vec2 offset = (gl_PointCoord - vec2(0.5)) * u_point_size;
+    float pointRadius = u_point_size * 0.5;
+    float filterWidth = 1.0;
+    float distanceFromCenter = length(offset);
+    float radialSegmentCount = round(u_point_font.x);
+    float angularSegmentCount = round(u_point_font.y);
+    float ringFont = clamp(u_point_font.z / 100.0, 0.0, 1.0);
+    float radialOpacity = 0.0;
+    float radialColorMix = 0.0;
+
+    if (radialSegmentCount > 0.0) {
+        float radialStep = pointRadius / radialSegmentCount;
+        float closestIndex = round(distanceFromCenter / radialStep);
+        closestIndex = clamp(closestIndex, 1.0, radialSegmentCount);
+
+        float closestBoundary = closestIndex * radialStep;
+        float flip = 2.0 * mod(radialSegmentCount - closestIndex, 2.0) - 1.0;
+        float fontAdjustment = mix(
+            0.0,
+            pointRadius / max(radialSegmentCount, 1.0) * (ringFont - 0.5) * 2.0,
+            min(radialSegmentCount, 1.0)
+        );
+        float radialValue = smoothstep(
+            -filterWidth,
+            filterWidth,
+            2.0 * (flip * (distanceFromCenter - closestBoundary) + fontAdjustment)
+        );
+        float isInside = clamp(radialSegmentCount - closestIndex, 0.0, 1.0);
+
+        radialOpacity = mix(radialValue, 1.0, isInside);
+        radialColorMix = mix(1.0, radialValue, isInside);
+    }
+
+    float angularOpacity = 0.0;
+
+    if (angularSegmentCount > 0.0) {
+        float angularSegmentWidth = 0.33 * pointRadius;
+        float angle = atan(offset.y, offset.x);
+        radialOpacity = min(radialOpacity, radialColorMix);
+
+        float angleStep = 6.28318530718 / angularSegmentCount;
+        float closestAngle = round(angle / angleStep) * angleStep;
+        vec2 perpendicularDirection = vec2(-sin(closestAngle), cos(closestAngle));
+        float perpendicularDistance = abs(dot(offset, perpendicularDirection));
+
+        angularOpacity = smoothstep(
+            -filterWidth,
+            filterWidth,
+            angularSegmentWidth - 2.0 * perpendicularDistance
+        );
+    }
+
+    float perimeterOpacity = smoothstep(-filterWidth, 0.0, pointRadius - distanceFromCenter);
+    float opacityScale = min(perimeterOpacity, max(angularOpacity, radialOpacity));
+    float isEmpty = float(radialSegmentCount + angularSegmentCount == 0.0);
+
+    return max(opacityScale, isEmpty);
+}
+
 void main() {
     if (u_point_shape > 2.5) {
-        vec2 pointCoord = gl_PointCoord - vec2(0.5);
-        float distanceFromCenter = length(pointCoord);
-        float outerEdge = 1.0 - smoothstep(0.4475, 0.505, distanceFromCenter);
-        float innerEdge = smoothstep(0.1475, 0.2275, distanceFromCenter);
-        float alpha = outerEdge * innerEdge;
-
-        if (alpha <= 0.0) {
-            discard;
-        }
-    } else
-    if (u_point_shape > 1.5) {
         vec2 pointCoord = gl_PointCoord - vec2(0.5);
         float distanceFromCenter = length(pointCoord);
         float outerRing = 1.0 - smoothstep(0.42, 0.5, distanceFromCenter);
@@ -113,11 +166,7 @@ void main() {
             discard;
         }
     } else if (u_point_shape > 0.5) {
-        vec2 pointCoord = gl_PointCoord - vec2(0.5);
-        float distanceFromCenter = length(pointCoord);
-        float edgeAlpha = 1.0 - smoothstep(0.42, 0.5, distanceFromCenter);
-
-        if (edgeAlpha <= 0.0) {
+        if (getPointFontOpacity() <= 0.0) {
             discard;
         }
     }
@@ -136,12 +185,14 @@ export function createNavigationDepthResources(
     const pointSizeLocation = context.getUniformLocation(program, 'u_point_size');
     const pointShapeLocation = context.getUniformLocation(program, 'u_point_shape');
     const roleCodeLocation = context.getUniformLocation(program, 'u_role_code');
+    const pointFontLocation = context.getUniformLocation(program, 'u_point_font');
 
     if (
         positionLocation < 0 ||
         !matrixLocation ||
         !pointSizeLocation ||
         !pointShapeLocation ||
+        !pointFontLocation ||
         !roleCodeLocation
     ) {
         context.deleteProgram(program);
@@ -159,6 +210,7 @@ export function createNavigationDepthResources(
         matrixLocation,
         pointShapeLocation,
         pointSizeLocation,
+        pointFontLocation,
         positionLocation,
         program,
         roleCodeLocation,
@@ -286,6 +338,12 @@ function renderNavigationDepth(
         );
         context.uniform1f(resources.pointSizeLocation, batch.pointSize);
         context.uniform1f(resources.pointShapeLocation, batch.pointShape);
+        context.uniform3f(
+            resources.pointFontLocation,
+            batch.pointFont.x,
+            batch.pointFont.y,
+            batch.pointFont.z,
+        );
         context.uniform1f(resources.roleCodeLocation, roleToCode(batch.role));
         context.drawArrays(batch.mode, 0, batch.positions.length);
     }
@@ -527,6 +585,7 @@ function createNavigationDepthBatches(
                 mode: context.TRIANGLES,
                 pointShape: 0,
                 pointSize: 1,
+                pointFont: Vec3.of(0, 0, 0),
                 positions: object.geometry.triangles.flatMap((triangle) => [
                     triangle.a,
                     triangle.b,
@@ -539,6 +598,7 @@ function createNavigationDepthBatches(
                 mode: context.LINES,
                 pointShape: 0,
                 pointSize: 1,
+                pointFont: Vec3.of(0, 0, 0),
                 positions: object.geometry.segments.flatMap((segment) => [
                     segment.start,
                     segment.end,
@@ -548,8 +608,13 @@ function createNavigationDepthBatches(
         } else if (object instanceof PointSet) {
             batches.push({
                 mode: context.POINTS,
-                pointShape: object.style.pointShape === 'ring' ? 3 : 1,
+                pointShape: 1,
                 pointSize: object.style.sizePixels,
+                pointFont: Vec3.of(
+                    object.style.pointFont.radialSegmentCount,
+                    object.style.pointFont.angularSegmentCount,
+                    object.style.pointFont.ringFillPercent,
+                ),
                 positions: object.geometry.points,
                 role,
             });
@@ -568,8 +633,9 @@ function createMarkerBatches(
 ): readonly NavigationDepthBatch[] {
     return object.geometry.markers.map((marker) => ({
         mode: context.POINTS,
-        pointShape: 2,
+        pointShape: 3,
         pointSize: marker.sizePixels,
+        pointFont: Vec3.of(1, 0, 50),
         positions: [marker.position],
         role,
     }));

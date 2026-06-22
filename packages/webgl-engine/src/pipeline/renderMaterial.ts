@@ -24,6 +24,7 @@ export interface RenderMaterial {
     readonly lineFilterWidthPx: number;
     readonly lineStipple: LineStipple;
     readonly lineWidthPx: number;
+    readonly pointFont: Vector3;
     readonly pointShape: number;
     readonly pointSize: number;
     readonly pointStrokeColor: Vector3;
@@ -102,6 +103,7 @@ export function resolveFaceMaterial(style: FaceStyle): RenderMaterial {
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
         pointShape: 0,
+        pointFont: Vec3.of(0, 0, 0),
         pointSize: 1,
         pointStrokeColor: style.color,
         pointStrokeWidthPx: 0,
@@ -121,6 +123,7 @@ export function resolveEdgeMaterial(style: EdgeStyle): RenderMaterial {
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
         pointShape: 0,
+        pointFont: Vec3.of(0, 0, 0),
         pointSize: 1,
         pointStrokeColor: style.color,
         pointStrokeWidthPx: 0,
@@ -139,6 +142,11 @@ export function resolvePointMaterial(style: PointStyle): RenderMaterial {
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
+        pointFont: Vec3.of(
+            style.pointFont.radialSegmentCount,
+            style.pointFont.angularSegmentCount,
+            style.pointFont.ringFillPercent,
+        ),
         pointShape: resolvePointShape(style.pointShape),
         pointSize: style.sizePixels,
         pointStrokeColor: style.strokeColor,
@@ -159,6 +167,7 @@ export function resolveMarkerMaterial(_style: MarkerStyle): RenderMaterial {
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
         pointShape: 0,
+        pointFont: Vec3.of(0, 0, 0),
         pointSize: 1,
         pointStrokeColor: DEFAULT_MATERIAL_COLOR,
         pointStrokeWidthPx: 0,
@@ -178,6 +187,7 @@ export function resolveTextMaterial(_style: TextStyle): RenderMaterial {
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
         pointShape: 0,
+        pointFont: Vec3.of(0, 0, 0),
         pointSize: 1,
         pointStrokeColor: DEFAULT_MATERIAL_COLOR,
         pointStrokeWidthPx: 0,
@@ -197,6 +207,7 @@ export function resolveHighlightLineMaterial(input: HighlightLineMaterialInput):
         lineStipple: lineStyle.stipple,
         lineWidthPx: input.widthPx,
         pointShape: 0,
+        pointFont: Vec3.of(0, 0, 0),
         pointSize: 1,
         pointStrokeColor: input.color,
         pointStrokeWidthPx: 0,
@@ -207,7 +218,9 @@ export function resolveHighlightLineMaterial(input: HighlightLineMaterialInput):
 }
 
 function resolvePointShape(pointShape: PointStyle['pointShape']): number {
-    return pointShape === 'ring' ? 3 : 1;
+    void pointShape;
+
+    return 1;
 }
 
 export class RenderMaterialResolver {

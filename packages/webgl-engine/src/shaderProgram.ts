@@ -156,6 +156,7 @@ uniform lowp vec4 u_background_color;
 uniform mediump float u_background_mix_proportion;
 uniform float u_line_filter_width;
 uniform float u_line_width;
+uniform vec3 u_point_font;
 uniform float u_point_shape;
 uniform float u_point_size;
 uniform vec3 u_point_stroke_color;
@@ -183,6 +184,75 @@ bool isLineGap(float lineDistance, vec4 lineStipple) {
         (stippleDistance > gapStart2 && stippleDistance < stippleLength);
 }
 
+vec4 getPointFontColor(vec4 pointColor, vec4 backgroundColor) {
+    pointColor = u_point_stroke_width < 0.0 ? vec4(u_point_stroke_color, pointColor.a) : pointColor;
+    vec2 offset = (gl_PointCoord - vec2(0.5)) * u_point_size;
+    float pointRadius = u_point_size * 0.5;
+    float filterWidth = max(u_line_filter_width, 0.001);
+    float angularSegmentWidth = 0.33 * pointRadius;
+    float distanceFromCenter = length(offset);
+    float angle = atan(offset.y, offset.x);
+    float radialSegmentCount = round(u_point_font.x);
+    float angularSegmentCount = round(u_point_font.y);
+    float ringFont = clamp(u_point_font.z / 100.0, 0.0, 1.0);
+    float radialOpacity = 0.0;
+    float radialColorMix = 0.0;
+
+    if (radialSegmentCount > 0.0) {
+        float radialStep = pointRadius / radialSegmentCount;
+        float closestIndex = round(distanceFromCenter / radialStep);
+        closestIndex = clamp(closestIndex, 1.0, radialSegmentCount);
+
+        float closestBoundary = closestIndex * radialStep;
+        float flip = 2.0 * mod(radialSegmentCount - closestIndex, 2.0) - 1.0;
+        float fontAdjustment = mix(
+            0.0,
+            pointRadius / max(radialSegmentCount, 1.0) * (ringFont - 0.5) * 2.0,
+            min(radialSegmentCount, 1.0)
+        );
+        float radialValue = smoothstep(
+            -filterWidth,
+            filterWidth,
+            2.0 * (flip * (distanceFromCenter - closestBoundary) + fontAdjustment)
+        );
+        float isInside = clamp(radialSegmentCount - closestIndex, 0.0, 1.0);
+
+        radialOpacity = mix(radialValue, 1.0, isInside);
+        radialColorMix = mix(1.0, radialValue, isInside);
+    }
+
+    float angularOpacity = 0.0;
+
+    if (angularSegmentCount > 0.0) {
+        radialOpacity = min(radialOpacity, radialColorMix);
+        radialColorMix = 1.0;
+
+        float angleStep = 6.28318530718 / angularSegmentCount;
+        float closestAngle = round(angle / angleStep) * angleStep;
+        vec2 perpendicularDirection = vec2(-sin(closestAngle), cos(closestAngle));
+        float perpendicularDistance = abs(dot(offset, perpendicularDirection));
+
+        angularOpacity = smoothstep(
+            -filterWidth,
+            filterWidth,
+            angularSegmentWidth - 2.0 * perpendicularDistance
+        );
+    }
+
+    float perimeterOpacity = smoothstep(-filterWidth, 0.0, pointRadius - distanceFromCenter);
+    float opacityScale = min(perimeterOpacity, max(angularOpacity, radialOpacity));
+    float colorScale = max(angularOpacity, radialColorMix);
+    float isEmpty = float(radialSegmentCount + angularSegmentCount == 0.0);
+
+    opacityScale = max(opacityScale, isEmpty);
+    colorScale = max(colorScale, isEmpty);
+
+    vec4 mixedColor = mix(backgroundColor, pointColor, colorScale);
+    mixedColor.a *= clamp(opacityScale, 0.0, 1.0);
+
+    return mixedColor;
+}
+
 void main() {
     vec2 pointCoord = gl_PointCoord;
 
@@ -202,21 +272,6 @@ void main() {
     if (u_point_shape > 2.5) {
         vec2 centeredPointCoord = pointCoord - vec2(0.5);
         float distanceFromCenter = length(centeredPointCoord);
-        float outerEdge = 1.0 - smoothstep(0.4475, 0.505, distanceFromCenter);
-        float innerEdge = smoothstep(0.1475, 0.2275, distanceFromCenter);
-        float alpha = outerEdge * innerEdge;
-
-        if (alpha <= 0.0) {
-            discard;
-        }
-
-        out_color = vec4(v_color.rgb, v_color.a * alpha);
-        return;
-    }
-
-    if (u_point_shape > 1.5) {
-        vec2 centeredPointCoord = pointCoord - vec2(0.5);
-        float distanceFromCenter = length(centeredPointCoord);
         float outerRing = 1.0 - smoothstep(0.42, 0.5, distanceFromCenter);
         float innerCutout = smoothstep(0.32, 0.36, distanceFromCenter);
         float centerDot = 1.0 - smoothstep(0.1, 0.18, distanceFromCenter);
@@ -231,22 +286,11 @@ void main() {
     }
 
     if (u_point_shape > 0.5) {
-        vec2 centeredPointCoord = pointCoord - vec2(0.5);
-        float distanceFromCenter = length(centeredPointCoord);
-        float edgeAlpha = 1.0 - smoothstep(0.42, 0.5, distanceFromCenter);
+        out_color = getPointFontColor(v_color, u_background_color);
 
-        if (edgeAlpha <= 0.0) {
+        if (out_color.a <= 0.0) {
             discard;
         }
-
-        float strokeWidthRatio = clamp(u_point_stroke_width / max(u_point_size, 1.0), 0.0, 0.49);
-        float strokeStart = 0.5 - strokeWidthRatio;
-        float strokeMix = u_point_stroke_width <= 0.0
-            ? 0.0
-            : smoothstep(strokeStart - 0.04, strokeStart + 0.04, distanceFromCenter);
-        vec3 pointColor = mix(v_color.rgb, u_point_stroke_color, strokeMix);
-
-        out_color = vec4(pointColor, v_color.a * edgeAlpha);
         return;
     }
 

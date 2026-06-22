@@ -30,6 +30,7 @@ export {
     PointStyle,
     TextStyle,
     type EdgeLineStyle,
+    type PointFont,
 } from './style';
 export {
     ColorPass,
