@@ -115,6 +115,10 @@ export class WebGLRenderer implements RenderBackend {
         const lineStippleLocation = context.getUniformLocation(this.program, 'u_line_stipple');
         const lineWidthLocation = context.getUniformLocation(this.program, 'u_line_width');
         const pointFontLocation = context.getUniformLocation(this.program, 'u_point_font');
+        const pointFilterWidthLocation = context.getUniformLocation(
+            this.program,
+            'u_point_filter_width',
+        );
         const pointRenderModeLocation = context.getUniformLocation(
             this.program,
             'u_point_render_mode',
@@ -152,6 +156,7 @@ export class WebGLRenderer implements RenderBackend {
             !lineStippleLocation ||
             !lineWidthLocation ||
             !matrixLocation ||
+            !pointFilterWidthLocation ||
             !pointFontLocation ||
             !pointRenderModeLocation ||
             !pointShapeLocation ||
@@ -221,6 +226,7 @@ export class WebGLRenderer implements RenderBackend {
             lineWidthLocation,
             matrixLocation,
             pointCornerLocation,
+            pointFilterWidthLocation,
             pointFontLocation,
             pointRenderModeLocation,
             pointShapeLocation,
@@ -570,6 +576,10 @@ export class WebGLRenderer implements RenderBackend {
         );
         this.context.uniform1f(this.bindings.pointStrokeWidthLocation, material.pointStrokeWidthPx);
         this.context.uniform1f(this.bindings.pointRenderModeLocation, material.pointRenderMode);
+        this.context.uniform1f(
+            this.bindings.pointFilterWidthLocation,
+            material.pointFilterWidthPx * (window.devicePixelRatio || 1),
+        );
         this.context.uniform1f(this.bindings.lineDistanceScaleLocation, this.lineDistanceScale);
         this.context.uniform1f(
             this.bindings.backgroundMixProportionLocation,
@@ -625,6 +635,10 @@ export class WebGLRenderer implements RenderBackend {
             this.context.uniform1f(this.bindings.backgroundMixProportionLocation, 0);
             this.context.uniform1f(
                 this.bindings.lineFilterWidthLocation,
+                window.devicePixelRatio || 1,
+            );
+            this.context.uniform1f(
+                this.bindings.pointFilterWidthLocation,
                 window.devicePixelRatio || 1,
             );
             this.context.uniform1f(this.bindings.lineModeLocation, 0);

@@ -17,6 +17,7 @@ uniform float u_line_mode;
 uniform vec4 u_line_stipple;
 uniform float u_line_width;
 uniform vec3 u_point_font;
+uniform float u_point_filter_width;
 uniform float u_point_size;
 uniform float u_projection_scale;
 uniform vec2 u_viewport_size;
@@ -125,7 +126,9 @@ void computeTangentAndNormalOffsets(
 
 void main() {
     vec4 projectedPosition = u_matrix * vec4(a_position, 1.0);
-    gl_PointSize = u_point_size;
+    float devicePointSize = u_device_pixel_ratio * u_point_size;
+
+    gl_PointSize = devicePointSize;
     v_color = vec4(a_color, a_alpha);
     v_line_distance = a_line_distance * u_line_distance_scale;
     if (u_line_mode < -0.5) {
@@ -135,7 +138,7 @@ void main() {
     v_line_stipple = u_line_stipple;
     v_line_width = u_line_width;
     v_point_offset = vec2(0.0, 0.0);
-    v_point_radius = 0.5 * u_device_pixel_ratio * u_point_size;
+    v_point_radius = 0.5 * devicePointSize;
     v_point_font = u_point_font;
     v_line_mode = u_line_mode;
 
@@ -161,7 +164,7 @@ void main() {
         v_line_stipple = a_line_primitive_style;
         v_line_width = lineWidth;
     } else if (u_point_render_mode > 0.5) {
-        float filterWidth = max(u_line_filter_width, 0.0);
+        float filterWidth = max(u_point_filter_width, 0.0);
         float pointRadius = v_point_radius;
         float expandedPointRadius = pointRadius + 0.5 * filterWidth * 1.41421356237;
         vec2 cornerOffset = pointCornerOffset(a_point_corner) * expandedPointRadius;
@@ -178,9 +181,11 @@ precision highp float;
 uniform vec4 u_line_stipple;
 uniform lowp vec4 u_background_color;
 uniform mediump float u_background_mix_proportion;
+uniform float u_device_pixel_ratio;
 uniform float u_line_filter_width;
 uniform float u_line_width;
 uniform vec3 u_point_font;
+uniform float u_point_filter_width;
 uniform float u_point_render_mode;
 uniform float u_point_shape;
 uniform float u_point_size;
@@ -212,13 +217,23 @@ bool isLineGap(float lineDistance, vec4 lineStipple) {
         (stippleDistance > gapStart2 && stippleDistance < stippleLength);
 }
 
+vec2 getPointOffset() {
+    return u_point_render_mode > 0.5
+        ? v_point_offset
+        : (gl_PointCoord - vec2(0.5)) * u_device_pixel_ratio * u_point_size;
+}
+
+float getPointRadius() {
+    return u_point_render_mode > 0.5
+        ? v_point_radius
+        : u_device_pixel_ratio * u_point_size * 0.5;
+}
+
 vec4 getPointFontColor(vec4 pointColor, vec4 backgroundColor) {
     pointColor = u_point_stroke_width < 0.0 ? vec4(u_point_stroke_color, pointColor.a) : pointColor;
-    vec2 offset = u_point_render_mode > 0.5
-        ? v_point_offset
-        : (gl_PointCoord - vec2(0.5)) * u_point_size;
-    float pointRadius = u_point_render_mode > 0.5 ? v_point_radius : u_point_size * 0.5;
-    float filterWidth = max(u_line_filter_width, 0.001);
+    vec2 offset = getPointOffset();
+    float pointRadius = getPointRadius();
+    float filterWidth = max(u_point_filter_width, 0.001);
     float angularSegmentWidth = 0.33 * pointRadius;
     float distanceFromCenter = length(offset);
     float angle = atan(offset.y, offset.x);
@@ -285,11 +300,9 @@ vec4 getPointFontColor(vec4 pointColor, vec4 backgroundColor) {
 }
 
 void main() {
-    vec2 pointCoord = gl_PointCoord;
-
     if (u_point_shape > 3.5) {
-        vec2 centeredPointCoord = pointCoord - vec2(0.5);
-        float distanceFromCenter = length(centeredPointCoord);
+        float pointRadius = max(getPointRadius(), 0.001);
+        float distanceFromCenter = length(getPointOffset()) / pointRadius;
         float alpha = 1.0 - smoothstep(0.42, 0.5, distanceFromCenter);
 
         if (alpha <= 0.0) {
@@ -301,8 +314,8 @@ void main() {
     }
 
     if (u_point_shape > 2.5) {
-        vec2 centeredPointCoord = pointCoord - vec2(0.5);
-        float distanceFromCenter = length(centeredPointCoord);
+        float pointRadius = max(getPointRadius(), 0.001);
+        float distanceFromCenter = length(getPointOffset()) / pointRadius;
         float outerRing = 1.0 - smoothstep(0.42, 0.5, distanceFromCenter);
         float innerCutout = smoothstep(0.32, 0.36, distanceFromCenter);
         float centerDot = 1.0 - smoothstep(0.1, 0.18, distanceFromCenter);

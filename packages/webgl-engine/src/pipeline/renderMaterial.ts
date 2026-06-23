@@ -24,6 +24,7 @@ export interface RenderMaterial {
     readonly lineFilterWidthPx: number;
     readonly lineStipple: LineStipple;
     readonly lineWidthPx: number;
+    readonly pointFilterWidthPx: number;
     readonly pointFont: Vector3;
     readonly pointRenderMode: number;
     readonly pointShape: number;
@@ -85,12 +86,19 @@ const OVERLAY_HIGHLIGHT_RENDER_STATE: RenderState = {
 };
 
 const DEFAULT_MATERIAL_COLOR = Vec3.of(1, 1, 1);
+const DEFAULT_POINT_FILTER_WIDTH_PX = 2;
 
 export interface HighlightLineMaterialInput {
     readonly alpha: number;
     readonly color: Vector3;
     readonly depthMode: 'overlay' | 'scene';
     readonly widthPx: number;
+}
+
+export interface HighlightPointMaterialInput {
+    readonly alpha: number;
+    readonly color: Vector3;
+    readonly sizePx: number;
 }
 
 export function resolveFaceMaterial(style: FaceStyle): RenderMaterial {
@@ -103,6 +111,7 @@ export function resolveFaceMaterial(style: FaceStyle): RenderMaterial {
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
+        pointFilterWidthPx: DEFAULT_POINT_FILTER_WIDTH_PX,
         pointShape: 0,
         pointFont: Vec3.of(0, 0, 0),
         pointRenderMode: 0,
@@ -124,6 +133,7 @@ export function resolveEdgeMaterial(style: EdgeStyle): RenderMaterial {
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
+        pointFilterWidthPx: DEFAULT_POINT_FILTER_WIDTH_PX,
         pointShape: 0,
         pointFont: Vec3.of(0, 0, 0),
         pointRenderMode: 0,
@@ -145,6 +155,7 @@ export function resolvePointMaterial(style: PointStyle): RenderMaterial {
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
+        pointFilterWidthPx: DEFAULT_POINT_FILTER_WIDTH_PX,
         pointFont: Vec3.of(
             style.pointFont.radialSegmentCount,
             style.pointFont.angularSegmentCount,
@@ -170,6 +181,7 @@ export function resolveMarkerMaterial(_style: MarkerStyle): RenderMaterial {
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
+        pointFilterWidthPx: DEFAULT_POINT_FILTER_WIDTH_PX,
         pointShape: 0,
         pointFont: Vec3.of(0, 0, 0),
         pointRenderMode: 0,
@@ -191,6 +203,7 @@ export function resolveTextMaterial(_style: TextStyle): RenderMaterial {
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: lineStyle.widthPx,
+        pointFilterWidthPx: DEFAULT_POINT_FILTER_WIDTH_PX,
         pointShape: 0,
         pointFont: Vec3.of(0, 0, 0),
         pointRenderMode: 0,
@@ -212,6 +225,7 @@ export function resolveHighlightLineMaterial(input: HighlightLineMaterialInput):
         lineFilterWidthPx: lineStyle.filterWidthPx,
         lineStipple: lineStyle.stipple,
         lineWidthPx: input.widthPx,
+        pointFilterWidthPx: DEFAULT_POINT_FILTER_WIDTH_PX,
         pointShape: 0,
         pointFont: Vec3.of(0, 0, 0),
         pointRenderMode: 0,
@@ -221,6 +235,28 @@ export function resolveHighlightLineMaterial(input: HighlightLineMaterialInput):
         renderState:
             input.depthMode === 'overlay' ? OVERLAY_HIGHLIGHT_RENDER_STATE : HIGHLIGHT_RENDER_STATE,
         shaderVariantKey: 'solid',
+    };
+}
+
+export function resolveHighlightPointMaterial(input: HighlightPointMaterialInput): RenderMaterial {
+    const lineStyle = resolveSolidLineRenderStyle();
+
+    return {
+        alpha: input.alpha,
+        color: input.color,
+        lineBackgroundMixProportion: 0,
+        lineFilterWidthPx: lineStyle.filterWidthPx,
+        lineStipple: lineStyle.stipple,
+        lineWidthPx: lineStyle.widthPx,
+        pointFilterWidthPx: DEFAULT_POINT_FILTER_WIDTH_PX,
+        pointFont: Vec3.of(0, 0, 0),
+        pointRenderMode: 1,
+        pointShape: 4,
+        pointSize: input.sizePx,
+        pointStrokeColor: input.color,
+        pointStrokeWidthPx: 0,
+        renderState: HIGHLIGHT_RENDER_STATE,
+        shaderVariantKey: 'point',
     };
 }
 

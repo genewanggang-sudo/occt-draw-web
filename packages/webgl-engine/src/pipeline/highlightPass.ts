@@ -6,7 +6,7 @@ import { createRenderPrimitiveId } from '../primitiveId';
 import { EdgeSet, FaceSet, MarkerSet, PointSet } from '../scene';
 import type { MarkerVertex, RenderHighlightState } from '../types';
 import type { RenderPass, RenderPassContext } from './renderPass';
-import { resolveHighlightLineMaterial } from './renderMaterial';
+import { resolveHighlightLineMaterial, resolveHighlightPointMaterial } from './renderMaterial';
 
 type HighlightKind = 'hovered' | 'preselected' | 'selected';
 type HighlightLineDepthMode = 'overlay' | 'scene';
@@ -25,6 +25,13 @@ interface HighlightLineBatch {
     readonly target: HighlightTarget;
 }
 
+interface HighlightPointBatch {
+    readonly key: string;
+    readonly points: Vector3[];
+    readonly sizePx: number;
+    readonly target: HighlightTarget;
+}
+
 const HOVER_PRESELECT_COLOR = Vec3.of(0.35, 0.72, 1);
 const SELECTED_COLOR = Vec3.of(1, 0.72, 0.18);
 const HIGHLIGHT_LINE_ALPHA = 0.82;
@@ -35,6 +42,10 @@ const HOVER_PRESELECT_POINT_ALPHA = 0.42;
 const SELECTED_POINT_ALPHA = 0.58;
 const HOVER_PRESELECT_POINT_SIZE_GROWTH = 6;
 const SELECTED_POINT_SIZE_GROWTH = 8;
+const HOVER_PRESELECT_POINT_SIZE_MIN = 12;
+const SELECTED_POINT_SIZE_MIN = 14;
+const HOVER_PRESELECT_POINT_SIZE_SCALE = 1.75;
+const SELECTED_POINT_SIZE_SCALE = 2;
 
 const geometryBuilder = new GeometryBufferBuilder();
 
@@ -43,7 +54,7 @@ export class HighlightPass implements RenderPass {
 
     public execute({ input, resources }: RenderPassContext): void {
         const lineBatches = new Map<string, HighlightLineBatch>();
-        const pointVertices: MarkerVertex[] = [];
+        const pointBatches = new Map<string, HighlightPointBatch>();
         const markerVertices: MarkerVertex[] = [];
 
         for (const entry of collectPickableGraphObjects(input.graph)) {
@@ -53,10 +64,10 @@ export class HighlightPass implements RenderPass {
                 continue;
             }
 
-            appendHighlightVertices(lineBatches, pointVertices, markerVertices, entry, target);
+            appendHighlightVertices(lineBatches, pointBatches, markerVertices, entry, target);
         }
 
-        if (lineBatches.size === 0 && pointVertices.length === 0 && markerVertices.length === 0) {
+        if (lineBatches.size === 0 && pointBatches.size === 0 && markerVertices.length === 0) {
             return;
         }
 
@@ -83,13 +94,19 @@ export class HighlightPass implements RenderPass {
             });
         }
 
-        for (const vertex of pointVertices) {
-            resources.backend.drawImmediatePrimitives({
-                drawMode: 'points',
-                pointShape: 'halo',
-                pointSize: vertex.sizePixels,
-                state: HIGHLIGHT_POINT_RENDER_STATE,
-                vertices: [vertex],
+        for (const batch of pointBatches.values()) {
+            const material = resolveHighlightPointMaterial({
+                alpha: batch.target.alpha,
+                color: batch.target.color,
+                sizePx: batch.sizePx,
+            });
+
+            resources.backend.drawImmediateGeometry({
+                cacheKey: `highlight:point:${batch.key}`,
+                drawMode: 'triangles',
+                geometryBuffer: geometryBuilder.screenSpacePointBillboards(batch.points),
+                material,
+                primitiveKind: 'point',
             });
         }
 
@@ -149,7 +166,7 @@ function resolveHighlightTarget(
 
 function appendHighlightVertices(
     lineBatches: Map<string, HighlightLineBatch>,
-    pointVertices: MarkerVertex[],
+    pointBatches: Map<string, HighlightPointBatch>,
     markerVertices: MarkerVertex[],
     entry: RenderGraphObjectEntry,
     target: HighlightTarget,
@@ -161,7 +178,7 @@ function appendHighlightVertices(
     } else if (object instanceof EdgeSet) {
         appendEdgeSetHighlight(lineBatches, object, target);
     } else if (object instanceof PointSet) {
-        appendPointSetHighlight(pointVertices, object, target);
+        appendPointSetHighlight(pointBatches, object, target);
     } else if (object instanceof MarkerSet) {
         appendMarkerSetHighlight(markerVertices, object, target);
     }
@@ -271,10 +288,13 @@ function isSketchEdgeSet(object: EdgeSet): boolean {
 }
 
 function appendPointSetHighlight(
-    vertices: MarkerVertex[],
+    batches: Map<string, HighlightPointBatch>,
     object: PointSet,
     target: HighlightTarget,
 ): void {
+    const sizePx = getPointHighlightSize(object.style.sizePixels, target);
+    const batch = getPointBatch(batches, target, sizePx);
+
     for (let index = 0; index < object.geometry.points.length; index += 1) {
         const point = object.geometry.points[index];
 
@@ -282,12 +302,7 @@ function appendPointSetHighlight(
             continue;
         }
 
-        vertices.push({
-            alpha: target.alpha,
-            color: target.color,
-            position: point,
-            sizePixels: object.style.sizePixels + getPointHighlightSizeGrowth(target),
-        });
+        batch.points.push(point);
     }
 }
 
@@ -316,6 +331,15 @@ function getPointHighlightSizeGrowth(target: HighlightTarget): number {
     return target.kind === 'selected'
         ? SELECTED_POINT_SIZE_GROWTH
         : HOVER_PRESELECT_POINT_SIZE_GROWTH;
+}
+
+function getPointHighlightSize(baseSizePx: number, target: HighlightTarget): number {
+    const minSizePx =
+        target.kind === 'selected' ? SELECTED_POINT_SIZE_MIN : HOVER_PRESELECT_POINT_SIZE_MIN;
+    const scale =
+        target.kind === 'selected' ? SELECTED_POINT_SIZE_SCALE : HOVER_PRESELECT_POINT_SIZE_SCALE;
+
+    return Math.max(baseSizePx * scale, minSizePx);
 }
 
 function shouldDrawPrimitive(
@@ -356,6 +380,30 @@ function getLineBatch(
         depthMode,
         key,
         segments: [],
+        target,
+    };
+
+    batches.set(key, batch);
+
+    return batch;
+}
+
+function getPointBatch(
+    batches: Map<string, HighlightPointBatch>,
+    target: HighlightTarget,
+    sizePx: number,
+): HighlightPointBatch {
+    const key = `${target.kind}:${sizePx.toPrecision(6)}`;
+    const existing = batches.get(key);
+
+    if (existing) {
+        return existing;
+    }
+
+    const batch = {
+        key,
+        points: [],
+        sizePx,
         target,
     };
 

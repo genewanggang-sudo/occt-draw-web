@@ -2,6 +2,11 @@ import type { CadObject, ReferenceOriginObject, ReferencePlaneObject } from '@oc
 import type { CanvasObject, LabelText } from '@occt-draw/canvas';
 import { LineSegment3, Plane3, Vec2, Vec3, type Vector3 } from '@occt-draw/math';
 import { LABEL_HELPER_LAYER_ID, MODEL_LAYER_ID } from './canvasAdapterLayers';
+import {
+    ON_SHAPE_REFERENCE_ORIGIN_POINT_COLOR,
+    ON_SHAPE_REFERENCE_ORIGIN_POINT_FONT,
+    ON_SHAPE_REFERENCE_ORIGIN_POINT_SIZE_PX,
+} from './sketchPointVisuals';
 
 export class CadObjectRenderAdapter {
     public createObjects(object: CadObject): readonly CanvasObject[] {
@@ -14,18 +19,16 @@ export class CadObjectRenderAdapter {
 
     public createReferenceOrigin(object: ReferenceOriginObject): CanvasObject {
         return {
+            color: ON_SHAPE_REFERENCE_ORIGIN_POINT_COLOR,
             id: object.id,
-            kind: 'marker',
+            interactionId: object.id,
+            kind: 'point',
             layerId: MODEL_LAYER_ID,
-            markers: [
-                {
-                    color: Vec3.of(0.78, 0.8, 0.82),
-                    position: object.position,
-                    shape: 'origin',
-                    sizePixels: 13,
-                },
-            ],
             name: object.name,
+            pointFont: ON_SHAPE_REFERENCE_ORIGIN_POINT_FONT,
+            pointRenderMode: 'billboard-font',
+            points: [object.position],
+            sizePixels: ON_SHAPE_REFERENCE_ORIGIN_POINT_SIZE_PX,
             visible: object.visible,
         };
     }

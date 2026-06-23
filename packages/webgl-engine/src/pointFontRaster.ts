@@ -20,6 +20,14 @@ export const ONSHAPE_SKETCH_USER_POINT_FONT = {
 
 export const ONSHAPE_SKETCH_USER_POINT_SIZE_PX = 8;
 
+export const ONSHAPE_ORIGIN_POINT_FONT = {
+    angularSegmentCount: 0,
+    radialSegmentCount: 3,
+    ringFillPercent: 50,
+} as const;
+
+export const ONSHAPE_ORIGIN_POINT_SIZE_PX = 10;
+
 export function evaluatePointFontRaster(input: PointFontRasterInput): PointFontRasterResult {
     const radialSegmentCount = Math.round(input.radialSegmentCount);
     const angularSegmentCount = Math.round(input.angularSegmentCount);
