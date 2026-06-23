@@ -10,6 +10,7 @@ export {
     BufferIndexType,
     GeometryBuffer,
     GeometryBufferBuilder,
+    PointBillboardVertexAttributeLayout,
     PositionVertexAttributeLayout,
     type BufferAttributeLayout,
     type BufferAttributeSemantic,

@@ -25,6 +25,7 @@ export interface RenderMaterial {
     readonly lineStipple: LineStipple;
     readonly lineWidthPx: number;
     readonly pointFont: Vector3;
+    readonly pointRenderMode: number;
     readonly pointShape: number;
     readonly pointSize: number;
     readonly pointStrokeColor: Vector3;
@@ -104,6 +105,7 @@ export function resolveFaceMaterial(style: FaceStyle): RenderMaterial {
         lineWidthPx: lineStyle.widthPx,
         pointShape: 0,
         pointFont: Vec3.of(0, 0, 0),
+        pointRenderMode: 0,
         pointSize: 1,
         pointStrokeColor: style.color,
         pointStrokeWidthPx: 0,
@@ -124,6 +126,7 @@ export function resolveEdgeMaterial(style: EdgeStyle): RenderMaterial {
         lineWidthPx: lineStyle.widthPx,
         pointShape: 0,
         pointFont: Vec3.of(0, 0, 0),
+        pointRenderMode: 0,
         pointSize: 1,
         pointStrokeColor: style.color,
         pointStrokeWidthPx: 0,
@@ -147,6 +150,7 @@ export function resolvePointMaterial(style: PointStyle): RenderMaterial {
             style.pointFont.angularSegmentCount,
             style.pointFont.ringFillPercent,
         ),
+        pointRenderMode: resolvePointRenderMode(style.pointRenderMode),
         pointShape: resolvePointShape(style.pointShape),
         pointSize: style.sizePixels,
         pointStrokeColor: style.strokeColor,
@@ -168,6 +172,7 @@ export function resolveMarkerMaterial(_style: MarkerStyle): RenderMaterial {
         lineWidthPx: lineStyle.widthPx,
         pointShape: 0,
         pointFont: Vec3.of(0, 0, 0),
+        pointRenderMode: 0,
         pointSize: 1,
         pointStrokeColor: DEFAULT_MATERIAL_COLOR,
         pointStrokeWidthPx: 0,
@@ -188,6 +193,7 @@ export function resolveTextMaterial(_style: TextStyle): RenderMaterial {
         lineWidthPx: lineStyle.widthPx,
         pointShape: 0,
         pointFont: Vec3.of(0, 0, 0),
+        pointRenderMode: 0,
         pointSize: 1,
         pointStrokeColor: DEFAULT_MATERIAL_COLOR,
         pointStrokeWidthPx: 0,
@@ -208,6 +214,7 @@ export function resolveHighlightLineMaterial(input: HighlightLineMaterialInput):
         lineWidthPx: input.widthPx,
         pointShape: 0,
         pointFont: Vec3.of(0, 0, 0),
+        pointRenderMode: 0,
         pointSize: 1,
         pointStrokeColor: input.color,
         pointStrokeWidthPx: 0,
@@ -221,6 +228,10 @@ function resolvePointShape(pointShape: PointStyle['pointShape']): number {
     void pointShape;
 
     return 1;
+}
+
+function resolvePointRenderMode(pointRenderMode: PointStyle['pointRenderMode']): number {
+    return pointRenderMode === 'billboard-font' ? 1 : 0;
 }
 
 export class RenderMaterialResolver {

@@ -7,6 +7,7 @@ in vec4 a_line_edge_data;
 in float a_line_edge_length;
 in float a_line_primitive_size;
 in vec4 a_line_primitive_style;
+in float a_point_corner;
 uniform mat4 u_matrix;
 uniform float u_device_pixel_ratio;
 uniform float u_is_orthographic;
@@ -15,14 +16,19 @@ uniform float u_line_filter_width;
 uniform float u_line_mode;
 uniform vec4 u_line_stipple;
 uniform float u_line_width;
+uniform vec3 u_point_font;
 uniform float u_point_size;
 uniform float u_projection_scale;
 uniform vec2 u_viewport_size;
+uniform float u_point_render_mode;
 out vec4 v_color;
 out float v_line_distance;
 out float v_line_center_distance;
 out vec4 v_line_stipple;
 out float v_line_width;
+out vec2 v_point_offset;
+out float v_point_radius;
+out vec3 v_point_font;
 flat out float v_line_mode;
 
 float safeClipW(float w) {
@@ -59,6 +65,13 @@ bool edgeIsInfinite() {
 
 float edgeLength() {
     return abs(a_line_edge_data.w) - 1.0;
+}
+
+vec2 pointCornerOffset(float cornerIndex) {
+    return impulse(1.0, cornerIndex) * vec2(1.0, -1.0) +
+        impulse(2.0, cornerIndex) * vec2(1.0, 1.0) +
+        impulse(3.0, cornerIndex) * vec2(-1.0, 1.0) +
+        impulse(4.0, cornerIndex) * vec2(-1.0, -1.0);
 }
 
 void computeTangentAndNormalOffsets(
@@ -121,6 +134,9 @@ void main() {
     v_line_center_distance = 0.0;
     v_line_stipple = u_line_stipple;
     v_line_width = u_line_width;
+    v_point_offset = vec2(0.0, 0.0);
+    v_point_radius = 0.5 * u_device_pixel_ratio * u_point_size;
+    v_point_font = u_point_font;
     v_line_mode = u_line_mode;
 
     if (u_line_mode > 0.5) {
@@ -144,6 +160,14 @@ void main() {
         v_line_distance = edgeIsInfinite() ? 0.0 : edgeLength() * worldToPixel;
         v_line_stipple = a_line_primitive_style;
         v_line_width = lineWidth;
+    } else if (u_point_render_mode > 0.5) {
+        float filterWidth = max(u_line_filter_width, 0.0);
+        float pointRadius = v_point_radius;
+        float expandedPointRadius = pointRadius + 0.5 * filterWidth * 1.41421356237;
+        vec2 cornerOffset = pointCornerOffset(a_point_corner) * expandedPointRadius;
+
+        projectedPosition.xy += (2.0 * projectedPosition.w) * (cornerOffset / u_viewport_size);
+        v_point_offset = cornerOffset;
     }
     gl_Position = projectedPosition;
 }
@@ -157,6 +181,7 @@ uniform mediump float u_background_mix_proportion;
 uniform float u_line_filter_width;
 uniform float u_line_width;
 uniform vec3 u_point_font;
+uniform float u_point_render_mode;
 uniform float u_point_shape;
 uniform float u_point_size;
 uniform vec3 u_point_stroke_color;
@@ -166,6 +191,9 @@ in float v_line_distance;
 in float v_line_center_distance;
 in vec4 v_line_stipple;
 in float v_line_width;
+in vec2 v_point_offset;
+in float v_point_radius;
+in vec3 v_point_font;
 flat in float v_line_mode;
 out vec4 out_color;
 
@@ -186,15 +214,18 @@ bool isLineGap(float lineDistance, vec4 lineStipple) {
 
 vec4 getPointFontColor(vec4 pointColor, vec4 backgroundColor) {
     pointColor = u_point_stroke_width < 0.0 ? vec4(u_point_stroke_color, pointColor.a) : pointColor;
-    vec2 offset = (gl_PointCoord - vec2(0.5)) * u_point_size;
-    float pointRadius = u_point_size * 0.5;
+    vec2 offset = u_point_render_mode > 0.5
+        ? v_point_offset
+        : (gl_PointCoord - vec2(0.5)) * u_point_size;
+    float pointRadius = u_point_render_mode > 0.5 ? v_point_radius : u_point_size * 0.5;
     float filterWidth = max(u_line_filter_width, 0.001);
     float angularSegmentWidth = 0.33 * pointRadius;
     float distanceFromCenter = length(offset);
     float angle = atan(offset.y, offset.x);
-    float radialSegmentCount = round(u_point_font.x);
-    float angularSegmentCount = round(u_point_font.y);
-    float ringFont = clamp(u_point_font.z / 100.0, 0.0, 1.0);
+    vec3 pointFont = u_point_render_mode > 0.5 ? v_point_font : u_point_font;
+    float radialSegmentCount = round(pointFont.x);
+    float angularSegmentCount = round(pointFont.y);
+    float ringFont = clamp(pointFont.z / 100.0, 0.0, 1.0);
     float radialOpacity = 0.0;
     float radialColorMix = 0.0;
 

@@ -122,6 +122,7 @@ export class SketchRenderAdapter {
                 layerId: EDIT_PREVIEW_LAYER_ID,
                 name: `${feature.name} vertices`,
                 pointFont: ON_SHAPE_SKETCH_VERTEX_POINT_FONT,
+                pointRenderMode: 'billboard-font',
                 points: display.vertices.map((point) => point.point),
                 primitiveMetadata: display.vertices.map((point) =>
                     createCanvasPrimitiveMetadata(
@@ -143,7 +144,7 @@ export class SketchRenderAdapter {
                 layerId: EDIT_PREVIEW_LAYER_ID,
                 name: `${feature.name} points`,
                 pointFont: ON_SHAPE_FREE_SKETCH_POINT_FONT,
-                pointShape: 'ring',
+                pointRenderMode: 'billboard-font',
                 points: display.points.map((point) => point.point),
                 primitiveMetadata: display.points.map((point) =>
                     createCanvasPrimitiveMetadata(

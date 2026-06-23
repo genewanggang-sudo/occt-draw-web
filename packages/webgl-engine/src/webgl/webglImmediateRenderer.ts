@@ -35,7 +35,9 @@ export interface WebGLRendererBindings {
     readonly lineStippleLocation: WebGLUniformLocation;
     readonly lineWidthLocation: WebGLUniformLocation;
     readonly matrixLocation: WebGLUniformLocation;
+    readonly pointCornerLocation: number;
     readonly pointFontLocation: WebGLUniformLocation;
+    readonly pointRenderModeLocation: WebGLUniformLocation;
     readonly pointShapeLocation: WebGLUniformLocation;
     readonly pointSizeLocation: WebGLUniformLocation;
     readonly pointStrokeColorLocation: WebGLUniformLocation;
@@ -113,6 +115,7 @@ export class WebGLImmediateRenderer {
         );
         this.context.uniform3f(bindings.pointStrokeColorLocation, 1, 1, 1);
         this.context.uniform1f(bindings.pointStrokeWidthLocation, 0);
+        this.context.uniform1f(bindings.pointRenderModeLocation, 0);
         this.context.uniform1f(bindings.lineDistanceScaleLocation, 1);
         this.context.uniform1f(bindings.lineFilterWidthLocation, window.devicePixelRatio || 1);
         this.context.uniform1f(bindings.lineModeLocation, 0);
@@ -173,6 +176,7 @@ export class WebGLImmediateRenderer {
             bindings.lineEdgeLengthLocation,
             bindings.linePrimitiveSizeLocation,
             bindings.linePrimitiveStyleLocation,
+            bindings.pointCornerLocation,
         ]);
         this.context.bindBuffer(this.context.ARRAY_BUFFER, buffer);
         this.context.enableVertexAttribArray(bindings.labelPositionLocation);
@@ -227,6 +231,7 @@ export class WebGLImmediateRenderer {
             bindings.lineEdgeLengthLocation,
             bindings.linePrimitiveSizeLocation,
             bindings.linePrimitiveStyleLocation,
+            bindings.pointCornerLocation,
         ]);
         this.context.bindBuffer(this.context.ARRAY_BUFFER, buffer);
         this.context.enableVertexAttribArray(bindings.positionLocation);
@@ -261,6 +266,7 @@ export class WebGLImmediateRenderer {
         this.context.vertexAttrib1f(bindings.lineEdgeLengthLocation, 0);
         this.context.vertexAttrib1f(bindings.linePrimitiveSizeLocation, 1);
         this.context.vertexAttrib4f(bindings.linePrimitiveStyleLocation, 12, 0, 12, 0);
+        this.context.vertexAttrib1f(bindings.pointCornerLocation, 0);
     }
 }
 

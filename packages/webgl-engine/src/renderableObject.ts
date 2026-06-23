@@ -113,9 +113,15 @@ class RenderObjectPrimitiveBuilder implements RenderObjectBuilder {
     }
 
     public points(points: readonly Vector3[], style: PointStyle): void {
+        const drawMode = style.pointRenderMode === 'billboard-font' ? 'triangles' : 'points';
+        const geometryBuffer =
+            style.pointRenderMode === 'billboard-font'
+                ? this.context.geometry.screenSpacePointBillboards(points)
+                : this.context.geometry.points(points);
+
         this.setPrimitive({
-            drawMode: 'points',
-            geometryBuffer: this.context.geometry.points(points),
+            drawMode,
+            geometryBuffer,
             material: this.context.materials.point(style),
             primitiveKind: 'point',
         });

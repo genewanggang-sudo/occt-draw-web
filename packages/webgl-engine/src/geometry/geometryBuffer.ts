@@ -10,6 +10,7 @@ export type BufferAttributeSemantic =
     | 'line-primitive-size'
     | 'line-primitive-style'
     | 'line-distance'
+    | 'point-corner'
     | 'position';
 export type BufferIndexData = Uint16Array | Uint32Array;
 export const BufferIndexType = {
@@ -83,6 +84,14 @@ export const LineVertexAttributeLayout: VertexAttributeLayout = {
     strideFloats: 4,
 };
 
+export const PointBillboardVertexAttributeLayout: VertexAttributeLayout = {
+    attributes: [
+        { components: 3, offsetFloats: 0, semantic: 'position' },
+        { components: 1, offsetFloats: 3, semantic: 'point-corner' },
+    ],
+    strideFloats: 4,
+};
+
 export const ScreenSpaceLineVertexAttributeLayout: VertexAttributeLayout = {
     attributes: [
         { components: 3, offsetFloats: 0, semantic: 'position' },
@@ -110,6 +119,16 @@ export interface ScreenSpaceLineStyleInput {
 export class GeometryBufferBuilder {
     public points(points: readonly Vector3[]): GeometryBuffer {
         return this.positions(points);
+    }
+
+    public screenSpacePointBillboards(points: readonly Vector3[]): GeometryBuffer {
+        const buffer = new PointBillboardBufferWriter(points.length * 6);
+
+        for (const point of points) {
+            buffer.writePoint(point);
+        }
+
+        return buffer.toGeometryBuffer();
     }
 
     public segments(segments: readonly LineSegment3[]): GeometryBuffer {
@@ -346,6 +365,49 @@ class PositionBufferWriter {
             bounds: this.bounds,
             interleaved: this.data,
             layout: PositionVertexAttributeLayout,
+            vertexCount: this.vertexCount,
+        });
+    }
+}
+
+class PointBillboardBufferWriter {
+    private bounds: BBox3 | null = null;
+    private offset = 0;
+    private vertexCount = 0;
+    private readonly data: Float32Array;
+
+    constructor(vertexCapacity: number) {
+        this.data = new Float32Array(
+            vertexCapacity * PointBillboardVertexAttributeLayout.strideFloats,
+        );
+    }
+
+    public writePoint(position: Vector3): void {
+        this.write(position, 1);
+        this.write(position, 2);
+        this.write(position, 3);
+        this.write(position, 1);
+        this.write(position, 3);
+        this.write(position, 4);
+    }
+
+    private write(position: Vector3, cornerIndex: number): void {
+        this.data[this.offset] = position.x;
+        this.data[this.offset + 1] = position.y;
+        this.data[this.offset + 2] = position.z;
+        this.data[this.offset + 3] = cornerIndex;
+        this.offset += PointBillboardVertexAttributeLayout.strideFloats;
+        this.vertexCount += 1;
+        this.bounds = this.bounds
+            ? this.bounds.expandByPoint(position)
+            : new BBox3(position, position);
+    }
+
+    public toGeometryBuffer(): GeometryBuffer {
+        return new GeometryBuffer({
+            bounds: this.bounds,
+            interleaved: this.data,
+            layout: PointBillboardVertexAttributeLayout,
             vertexCount: this.vertexCount,
         });
     }

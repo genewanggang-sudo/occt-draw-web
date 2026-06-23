@@ -31,6 +31,7 @@ export {
     TextStyle,
     type EdgeLineStyle,
     type PointFont,
+    type PointRenderMode,
 } from './style';
 export {
     ColorPass,
