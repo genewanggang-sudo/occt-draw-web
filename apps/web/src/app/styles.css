@@ -313,9 +313,13 @@ button {
     height: 36px;
     border-left: 0;
     overflow: visible;
-    margin-left: 2px;
-    padding-left: 2px;
+    margin-left: 78px;
+    padding-left: 12px;
     scrollbar-width: none;
+}
+
+.cad-workbench__command-actions--sketch .cad-workbench__toolbar-group:first-child {
+    display: none;
 }
 
 .cad-workbench__command-actions--sketch::-webkit-scrollbar {
