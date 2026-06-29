@@ -1,7 +1,26 @@
 :root {
-    color: #dfe7ef;
-    background: #101216;
-    color-scheme: dark;
+    --os-app-background: #fff;
+    --os-app-surface: #fafafa;
+    --os-app-surface-raised: #fff;
+    --os-app-surface-muted: #f5f5f5;
+    --os-app-surface-hover: #eaeaea;
+    --os-app-surface-selected: #b2ddf6;
+    --os-app-surface-active: #def1fb;
+    --os-app-border: #d7d7d7;
+    --os-app-border-strong: #ccc;
+    --os-app-text: #333;
+    --os-app-text-muted: #666;
+    --os-app-text-soft: #999;
+    --os-app-primary: #1651b0;
+    --os-app-primary-hover: #769fcc;
+    --os-app-highlight: #fcda7f;
+    --os-app-highlight-outline: #fab601;
+    --os-app-success: #009400;
+    --os-app-error: #bd3039;
+
+    color: var(--os-app-text);
+    background: var(--os-app-background);
+    color-scheme: light;
     font-family: 'Microsoft YaHei UI', 'PingFang SC', 'Segoe UI Variable Text', sans-serif;
     font-synthesis: none;
     line-height: 1.5;
@@ -36,7 +55,7 @@ button {
     grid-template-rows: 36px minmax(0, 1fr);
     width: 100%;
     height: 100%;
-    background: #101216;
+    background: var(--os-app-background);
 }
 
 .cad-workbench--sketch {
@@ -49,7 +68,7 @@ button {
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background: #0e1116;
+    background: var(--os-app-surface);
 }
 
 .cad-workbench__topbar {
@@ -62,8 +81,8 @@ button {
     min-height: 36px;
     overflow: visible;
     padding: 0 4px;
-    border-bottom: 1px solid #2a2f36;
-    background: #181b20;
+    border-bottom: 1px solid var(--os-app-border);
+    background: #eaeaea;
     z-index: 10;
 }
 
@@ -85,7 +104,7 @@ button {
     width: 28px;
     height: 28px;
     border-radius: 6px;
-    background: #2e7ad2;
+    background: var(--os-app-primary);
     color: #ffffff;
     font-size: 12px;
     font-weight: 700;
@@ -94,7 +113,7 @@ button {
 .cad-workbench__title {
     min-width: 0;
     overflow: hidden;
-    color: #eef3f8;
+    color: var(--os-app-text);
     font-size: 14px;
     font-weight: 700;
     text-overflow: ellipsis;
@@ -503,7 +522,7 @@ button {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: #0b0d10;
+    background: var(--os-app-background);
 }
 
 .cad-workbench__viewport-shell {
@@ -984,6 +1003,244 @@ button.cad-feature-tree__node:hover {
     color: #7f91a7;
     font-size: 12px;
     line-height: 1.6;
+}
+
+/* Onshape light theme overrides. Keep layout rules above intact; centralize color parity here. */
+.cad-workbench__history-actions::after,
+.cad-workbench__toolbar-group:not(:last-child)::after {
+    background: var(--os-app-border);
+}
+
+.cad-workbench__command-actions,
+.cad-workbench__view-actions,
+.cad-workbench__side-panel,
+.cad-workbench__feature-tree-panel,
+.cad-workbench__side-panel:last-child,
+.cad-feature-tree__filter,
+.cad-feature-tree__parts,
+.cad-workbench__panel-header,
+.cad-workbench__inspector-section {
+    border-color: var(--os-app-border);
+}
+
+.cad-workbench__action {
+    border-color: var(--os-app-border-strong);
+    background: var(--os-app-surface-raised);
+    color: var(--os-app-text);
+}
+
+.cad-workbench__action:hover {
+    border-color: var(--os-app-border-strong);
+    background: var(--os-app-surface-hover);
+}
+
+.cad-workbench__action:disabled {
+    border-color: var(--os-app-border);
+    background: var(--os-app-surface-muted);
+    color: var(--os-app-text-soft);
+}
+
+.cad-workbench__action[aria-pressed='true'] {
+    border-color: var(--os-app-border-strong);
+    background: var(--os-app-surface-hover);
+    color: var(--os-app-primary);
+}
+
+.cad-workbench__action--view,
+.cad-workbench__toolbar-icon-button,
+.cad-workbench__split-icon-caret,
+.cad-workbench__split-icon-shortcut {
+    color: var(--os-app-text);
+}
+
+.cad-workbench__toolbar-icon-button:hover,
+.cad-workbench__split-icon-primary:hover,
+.cad-workbench__split-icon-caret:hover,
+.cad-workbench__split-icon-caret[aria-expanded='true'],
+.cad-workbench__split-icon-dropdown:focus-within .cad-workbench__split-icon-caret {
+    background: var(--os-app-surface-hover);
+    color: var(--os-app-text);
+}
+
+.cad-workbench__toolbar-icon-button:disabled,
+.cad-workbench__split-icon-primary:disabled,
+.cad-workbench__split-icon-caret:disabled {
+    background: transparent;
+    color: var(--os-app-text-soft);
+}
+
+.cad-workbench__toolbar-icon-button[aria-pressed='true'],
+.cad-workbench__split-icon-primary[aria-pressed='true'],
+.cad-workbench__split-icon-caret[aria-expanded='true'],
+.cad-workbench__split-icon-menu-item[data-selected='true'] {
+    background: var(--os-app-surface-hover);
+    color: var(--os-app-primary);
+}
+
+.cad-workbench__split-icon-menu-content {
+    border-color: var(--os-app-border-strong);
+    background: var(--os-app-surface-raised);
+}
+
+.cad-workbench__split-icon-menu-item {
+    background: transparent;
+    color: var(--os-app-text);
+}
+
+.cad-workbench__split-icon-menu-item:hover,
+.cad-workbench__split-icon-menu-item:focus-visible {
+    background: var(--os-app-surface-active);
+    color: var(--os-app-text);
+}
+
+.cad-workbench__split-icon-menu-item[aria-disabled='true'],
+.cad-workbench__split-icon-menu-item[aria-disabled='true']:hover {
+    background: transparent;
+    color: var(--os-app-text-soft);
+}
+
+.cad-sketch-edit-panel {
+    border-color: var(--os-app-border-strong);
+    background: rgb(255 255 255 / 95%);
+    color: var(--os-app-text);
+}
+
+.cad-sketch-edit-panel__header {
+    border-bottom-color: var(--os-app-border);
+    background: var(--os-app-surface-raised);
+}
+
+.cad-sketch-edit-panel__title {
+    color: var(--os-app-text);
+}
+
+.cad-sketch-edit-panel__action {
+    border-left-color: var(--os-app-border);
+    color: var(--os-app-text);
+}
+
+.cad-sketch-edit-panel__action--accept {
+    background: var(--os-app-success);
+    color: #fff;
+}
+
+.cad-sketch-edit-panel__action--cancel {
+    background: var(--os-app-surface-hover);
+    color: var(--os-app-text);
+}
+
+.cad-sketch-edit-panel__field-label,
+.cad-workbench__inspector-label,
+.cad-workbench__empty-note,
+.cad-workbench__tree-group,
+.cad-feature-tree__chevron,
+.cad-feature-tree__node--muted {
+    color: var(--os-app-text-muted);
+}
+
+.cad-sketch-edit-panel__plane,
+.cad-feature-tree__filter-input {
+    border-color: var(--os-app-border-strong);
+    background: var(--os-app-surface-muted);
+    color: var(--os-app-text);
+}
+
+.cad-sketch-edit-panel__plane:focus,
+.cad-feature-tree__filter-input:focus {
+    border-color: var(--os-app-primary);
+}
+
+.cad-sketch-edit-panel__checkbox {
+    color: var(--os-app-text);
+}
+
+.cad-sketch-edit-panel__checkbox input {
+    accent-color: var(--os-app-primary);
+}
+
+.cad-workbench__status,
+.cad-workbench__help {
+    border-color: var(--os-app-border-strong);
+    background: rgb(255 255 255 / 78%);
+    color: var(--os-app-text-muted);
+}
+
+.cad-workbench__side-panel,
+.cad-workbench__feature-tree-panel,
+.cad-feature-tree__filter,
+.cad-feature-tree__parts {
+    background: var(--os-app-surface);
+    color: var(--os-app-text);
+}
+
+.cad-workbench__panel-header,
+.cad-feature-tree__section-title {
+    color: var(--os-app-text);
+}
+
+.cad-workbench__tree-node,
+.cad-feature-tree__node {
+    color: var(--os-app-text);
+}
+
+.cad-workbench__tree-node--root,
+.cad-feature-tree__filter-icon {
+    border-color: var(--os-app-border);
+    background: var(--os-app-surface-muted);
+    color: var(--os-app-text);
+}
+
+.cad-workbench__tree-node--studio,
+.cad-feature-tree__group-title,
+.cad-workbench__inspector-label,
+.cad-feature-tree__filter-icon {
+    color: var(--os-app-text-muted);
+}
+
+.cad-workbench__tree-node--selected,
+.cad-feature-tree__node--selected {
+    border-color: var(--os-app-primary);
+    background: var(--os-app-surface-selected);
+    color: var(--os-app-text);
+}
+
+button.cad-feature-tree__node:hover {
+    border-color: var(--os-app-primary-hover);
+    background: var(--os-app-surface-active);
+}
+
+.cad-feature-tree__node--active-sketch {
+    border-color: #90cef1;
+    background: #def1fb;
+    color: var(--os-app-text);
+}
+
+.cad-feature-tree__node--active-sketch .cad-feature-tree__node-icon--feature::before {
+    border-color: var(--os-app-primary);
+    background: var(--os-app-surface-raised);
+}
+
+.cad-feature-tree__children::before {
+    background: var(--os-app-border);
+}
+
+.cad-feature-tree__node-icon--origin::before {
+    border-color: #333;
+    background: #fff;
+}
+
+.cad-feature-tree__node-icon--plane::before {
+    border-color: var(--os-app-primary);
+    background: linear-gradient(135deg, #cedbe5 0 45%, #90cef1 45% 100%);
+}
+
+.cad-feature-tree__node-icon--feature::before {
+    border-color: var(--os-app-primary);
+    background: var(--os-app-surface-raised);
+}
+
+.cad-workbench__tree-dot {
+    background: var(--os-app-primary);
 }
 
 @media (max-width: 1280px) {

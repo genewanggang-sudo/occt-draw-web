@@ -3,6 +3,7 @@ import type { CanvasObject } from '@occt-draw/canvas';
 import { LineSegment3, Plane3, Vec2, Vec3, type Vector3 } from '@occt-draw/math';
 import { EDIT_PREVIEW_LAYER_ID, LABEL_HELPER_LAYER_ID } from './canvasAdapterLayers';
 import { ReferencePlaneResolver } from './ReferencePlaneResolver';
+import { ON_SHAPE_SKETCH_PLANE_COLOR } from './sketchPointVisuals';
 
 const ACTIVE_PLANE_WIDTH_SCALE = 1.72;
 const ACTIVE_PLANE_HEIGHT_SCALE = 1.28;
@@ -56,7 +57,7 @@ export class ActiveSketchPlaneRenderAdapter {
 
         return [
             {
-                color: Vec3.of(0.22, 0.52, 0.78),
+                color: ON_SHAPE_SKETCH_PLANE_COLOR,
                 depthRole: 'primary',
                 id: `${feature.id}:edit-plane-overlay`,
                 kind: 'face',
@@ -71,7 +72,7 @@ export class ActiveSketchPlaneRenderAdapter {
                 visible: referencePlane.visible,
             },
             {
-                color: Vec3.of(0.25, 0.68, 0.96),
+                color: ON_SHAPE_SKETCH_PLANE_COLOR,
                 depthRole: 'primary',
                 id: `${feature.id}:edit-plane-outline`,
                 kind: 'edge',
@@ -92,7 +93,7 @@ export class ActiveSketchPlaneRenderAdapter {
                 kind: 'label',
                 labels: [
                     {
-                        color: Vec3.of(0.25, 0.68, 0.96),
+                        color: ON_SHAPE_SKETCH_PLANE_COLOR,
                         fontWeight: 400,
                         frame: {
                             origin: labelFrameOrigin,

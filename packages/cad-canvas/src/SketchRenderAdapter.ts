@@ -5,7 +5,6 @@ import {
     type PartStudio,
 } from '@occt-draw/cad-model';
 import type { CanvasObject } from '@occt-draw/canvas';
-import { Vec3 } from '@occt-draw/math';
 import { SketchDisplayBuilder, SketchEntityKind, type SketchDisplayEdge } from '@occt-draw/sketch';
 import { EDIT_PREVIEW_LAYER_ID } from './canvasAdapterLayers';
 import { createCanvasPrimitiveMetadata } from './canvasAdapterMetadata';
@@ -14,6 +13,7 @@ import {
     ON_SHAPE_FREE_SKETCH_POINT_COLOR,
     ON_SHAPE_FREE_SKETCH_POINT_FONT,
     ON_SHAPE_FREE_SKETCH_POINT_SIZE_PX,
+    ON_SHAPE_SKETCH_UNDERCONSTRAINED_COLOR,
     ON_SHAPE_SKETCH_VERTEX_POINT_FONT,
     ON_SHAPE_SKETCH_VERTEX_POINT_SIZE_PX,
 } from './sketchPointVisuals';
@@ -69,7 +69,7 @@ export class SketchRenderAdapter {
 
         if (topologyEdges.length > 0) {
             objects.push({
-                color: Vec3.of(0.05, 0.38, 0.85),
+                color: ON_SHAPE_SKETCH_UNDERCONSTRAINED_COLOR,
                 depthRole: 'primary',
                 id: feature.id,
                 interactionId: sketch.id,
@@ -94,7 +94,7 @@ export class SketchRenderAdapter {
             }
 
             objects.push({
-                color: Vec3.of(0.05, 0.38, 0.85),
+                color: ON_SHAPE_SKETCH_UNDERCONSTRAINED_COLOR,
                 depthRole: 'primary',
                 id: `${feature.id}:curve:${firstEdge.ref.id}`,
                 interactionId: `${sketch.id}:curve:${firstEdge.ref.id}`,
@@ -114,7 +114,7 @@ export class SketchRenderAdapter {
 
         if (display.vertices.length > 0) {
             objects.push({
-                color: Vec3.of(0.05, 0.38, 0.85),
+                color: ON_SHAPE_SKETCH_UNDERCONSTRAINED_COLOR,
                 depthRole: 'primary',
                 id: `${feature.id}:vertices`,
                 interactionId: sketch.id,

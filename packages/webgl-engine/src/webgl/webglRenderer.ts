@@ -262,7 +262,7 @@ export class WebGLRenderer implements RenderBackend {
         };
 
         context.enable(context.DEPTH_TEST);
-        context.clearColor(0.035, 0.043, 0.055, 1);
+        context.clearColor(1, 1, 1, 1);
     }
 
     public beginFrame(input: RenderBackendFrameInput): void {
@@ -292,7 +292,7 @@ export class WebGLRenderer implements RenderBackend {
             this.bindings.projectionScaleLocation,
             getProjectionScale(input.camera, input.viewportSize),
         );
-        this.context.uniform4f(this.bindings.backgroundColorLocation, 0.035, 0.043, 0.055, 1);
+        this.context.uniform4f(this.bindings.backgroundColorLocation, 1, 1, 1, 1);
         this.frameCameraKey = getLabelCacheCameraKey(input);
         this.context.bindFramebuffer(this.context.FRAMEBUFFER, null);
         this.renderBufferCache.beginFrame();
@@ -301,7 +301,7 @@ export class WebGLRenderer implements RenderBackend {
         this.context.depthFunc(this.context.LESS);
         this.context.depthMask(true);
         this.context.disable(this.context.BLEND);
-        this.context.clearColor(0.035, 0.043, 0.055, 1);
+        this.context.clearColor(1, 1, 1, 1);
         this.context.clear(this.context.COLOR_BUFFER_BIT | this.context.DEPTH_BUFFER_BIT);
         this.context.uniformMatrix4fv(this.bindings.matrixLocation, false, this.frameMatrix);
         this.context.bindVertexArray(null);

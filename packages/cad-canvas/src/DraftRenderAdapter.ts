@@ -6,8 +6,9 @@ import type {
     EditDraft,
 } from '@occt-draw/core';
 import type { CanvasLineStyle, CanvasObject } from '@occt-draw/canvas';
-import { Vec3, type Vector3 } from '@occt-draw/math';
+import type { Vector3 } from '@occt-draw/math';
 import { EDIT_PREVIEW_LAYER_ID } from './canvasAdapterLayers';
+import { ON_SHAPE_SKETCH_PREVIEW_COLOR } from './sketchPointVisuals';
 
 interface DraftLineGroup {
     readonly color: Vector3;
@@ -50,7 +51,7 @@ export class DraftRenderAdapter {
 
         if (linePoints.length > 0) {
             objects.push({
-                color: Vec3.of(0.35, 0.72, 1),
+                color: ON_SHAPE_SKETCH_PREVIEW_COLOR,
                 depthRole: 'primary',
                 id: `${draft.id}:temporary-line-points`,
                 kind: 'point',
@@ -65,7 +66,7 @@ export class DraftRenderAdapter {
 
         for (const [index, point] of pointObjects.entries()) {
             objects.push({
-                color: point.color ?? Vec3.of(0.35, 0.72, 1),
+                color: point.color ?? ON_SHAPE_SKETCH_PREVIEW_COLOR,
                 depthRole: 'primary',
                 id: `${draft.id}:temporary-point:${String(index)}`,
                 kind: 'point',
@@ -96,7 +97,7 @@ function groupLineSegmentObjects(
     const groups = new Map<string, DraftLineGroup>();
 
     for (const object of objects) {
-        const color = object.color ?? Vec3.of(0.35, 0.72, 1);
+        const color = object.color ?? ON_SHAPE_SKETCH_PREVIEW_COLOR;
         const lineStyle = object.lineStyle ?? 'solid';
         const key = `${lineStyle}:${toColorKey(color)}`;
         const group = groups.get(key);

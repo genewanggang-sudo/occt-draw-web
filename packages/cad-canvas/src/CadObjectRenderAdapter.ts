@@ -3,6 +3,9 @@ import type { CanvasObject, LabelText } from '@occt-draw/canvas';
 import { LineSegment3, Plane3, Vec2, Vec3, type Vector3 } from '@occt-draw/math';
 import { LABEL_HELPER_LAYER_ID, MODEL_LAYER_ID } from './canvasAdapterLayers';
 import {
+    ON_SHAPE_CONSTRUCTION_PLANE_FILL_COLOR,
+    ON_SHAPE_CONSTRUCTION_PLANE_LABEL_COLOR,
+    ON_SHAPE_CONSTRUCTION_PLANE_OUTLINE_COLOR,
     ON_SHAPE_REFERENCE_ORIGIN_POINT_COLOR,
     ON_SHAPE_REFERENCE_ORIGIN_POINT_FONT,
     ON_SHAPE_REFERENCE_ORIGIN_POINT_SIZE_PX,
@@ -47,7 +50,7 @@ export class CadObjectRenderAdapter {
 
         return [
             {
-                color: Vec3.of(0.12, 0.42, 0.8),
+                color: ON_SHAPE_CONSTRUCTION_PLANE_FILL_COLOR,
                 depthRole: 'secondary',
                 id: `${object.id}:surface`,
                 interactionId: object.id,
@@ -63,7 +66,7 @@ export class CadObjectRenderAdapter {
                 visible: object.visible,
             },
             {
-                color: Vec3.of(0.22, 0.5, 0.9),
+                color: ON_SHAPE_CONSTRUCTION_PLANE_OUTLINE_COLOR,
                 depthRole: 'secondary',
                 id: `${object.id}:outline`,
                 interactionId: object.id,
@@ -85,7 +88,7 @@ export class CadObjectRenderAdapter {
                 kind: 'label',
                 labels: [
                     {
-                        color: Vec3.of(0.86, 0.86, 0.86),
+                        color: ON_SHAPE_CONSTRUCTION_PLANE_LABEL_COLOR,
                         fontWeight: 400,
                         frame: {
                             origin: labelFrameOrigin,
