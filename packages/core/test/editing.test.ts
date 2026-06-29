@@ -1,11 +1,13 @@
 import {
     DocumentEditor,
+    DocumentFileError,
     DocumentSession,
     ModelChangeApplierRegistry,
     ModelChangeSet,
     ModelChangeSetBuilder,
     Transaction,
     createRequestExecution,
+    createJsonDocumentFileCodec,
     type DocumentMutationRuntime,
     type DocumentRequest,
     type DocumentWriteContext,
@@ -312,6 +314,65 @@ run('DocumentEditor executes DocumentRequest through mutation runtime', () => {
     expectEqual(editor.document.items[ref.id]?.name, 'Initial', 'expected undo to revert');
 });
 
+run('Document file codec decodes valid envelopes', () => {
+    const codec = createJsonDocumentFileCodec<TestDocument, TestDocument>({
+        deserialize: (snapshot) => snapshot,
+        formatId: 'test.document',
+        formatVersion: 1,
+        serialize: (document) => document,
+    });
+    const document: TestDocument = {
+        items: {
+            [ref.id]: { id: ref.id, name: 'Initial' },
+        },
+    };
+    const decoded = codec.decode(codec.encode(document));
+
+    expectEqual(decoded.ok, true, 'expected decode success');
+
+    if (!decoded.ok) {
+        throw decoded.error;
+    }
+
+    expectEqual(decoded.document.items[ref.id]?.name, 'Initial', 'expected decoded document');
+});
+
+run('Document file codec reports decode failures', () => {
+    const codec = createJsonDocumentFileCodec<TestDocument, TestDocument>({
+        deserialize: (snapshot) => snapshot,
+        formatId: 'test.document',
+        formatVersion: 1,
+        serialize: (document) => document,
+    });
+
+    expectEqual(codec.decode('{').ok, false, 'expected invalid JSON to fail');
+    expectDecodeError(codec.decode('{}'), 'invalid-envelope');
+    expectDecodeError(
+        codec.decode(JSON.stringify({ document: {}, formatId: 'other', formatVersion: 1 })),
+        'format-mismatch',
+    );
+    expectDecodeError(
+        codec.decode(JSON.stringify({ document: {}, formatId: 'test.document', formatVersion: 2 })),
+        'unsupported-version',
+    );
+
+    const failingCodec = createJsonDocumentFileCodec<TestDocument, TestDocument>({
+        deserialize: () => {
+            throw new DocumentFileError('invalid-document', 'Bad document.');
+        },
+        formatId: 'test.document',
+        formatVersion: 1,
+        serialize: (document) => document,
+    });
+
+    expectDecodeError(
+        failingCodec.decode(
+            JSON.stringify({ document: {}, formatId: 'test.document', formatVersion: 1 }),
+        ),
+        'invalid-document',
+    );
+});
+
 function createRenameChangeSet(before: string, after: string): ModelChangeSet<TestDocument> {
     const builder = new ModelChangeSetBuilder<TestDocument>();
 
@@ -423,5 +484,16 @@ function expectTrue(value: boolean, message: string): void {
 function expectEqual<TValue>(actual: TValue, expected: TValue, message: string): void {
     if (actual !== expected) {
         throw new Error(`${message}: expected ${String(expected)}, received ${String(actual)}`);
+    }
+}
+
+function expectDecodeError(
+    result: ReturnType<
+        ReturnType<typeof createJsonDocumentFileCodec<TestDocument, TestDocument>>['decode']
+    >,
+    code: DocumentFileError['code'],
+): void {
+    if (result.ok || result.error.code !== code) {
+        throw new Error(`Expected decode error ${code}.`);
     }
 }

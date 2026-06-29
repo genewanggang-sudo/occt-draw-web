@@ -1,5 +1,18 @@
 export { CadDocument, FeaturePayloadStore, PartStudio, type FeaturePayload } from './document';
 export {
+    CAD_DOCUMENT_FORMAT_ID,
+    CAD_DOCUMENT_FORMAT_VERSION,
+    cadDocumentFileCodec,
+    deserializeCadDocument,
+    serializeCadDocument,
+    type CadDocumentSnapshot,
+    type CadFeaturePayloadSnapshot,
+    type CadFeatureSnapshot,
+    type CadObjectSnapshot,
+    type CadSketchSnapshot,
+    type PartStudioSnapshot,
+} from './documentFile';
+export {
     CadDocumentEditContext,
     type CadDocumentEditContextInput,
     type SketchEditTarget,

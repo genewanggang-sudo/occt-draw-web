@@ -1,11 +1,6 @@
-import {
-    calculateBoundingSphere,
-    createStandardCameraState,
-    type RenderGraph,
-    type StandardCameraView,
-} from '@occt-draw/canvas';
-import { createDefaultCadDocument } from '@occt-draw/cad-model';
-import { CommandManager, createViewNavigationState, type ScreenPoint } from '@occt-draw/platform';
+import type { StandardCameraView } from '@occt-draw/canvas';
+import { createDefaultCadDocument, type CadDocument } from '@occt-draw/cad-model';
+import { CommandManager, type ScreenPoint } from '@occt-draw/platform';
 import {
     createUnhandledCommandResult,
     mergeCommandResults,
@@ -31,12 +26,11 @@ import { SketchTangentArcCommand } from '../commands/SketchTangentArcCommand';
 import { SketchThreePointArcCommand } from '../commands/SketchThreePointArcCommand';
 import { SketchThreePointCircleCommand } from '../commands/SketchThreePointCircleCommand';
 import type { CommandId } from '../commands/commandTypes';
-import { createInitialEditorState } from '../state/createInitialEditorState';
+import { createEditorStateForDocument } from '../state/createEditorStateForDocument';
 import type { EditorState } from '../state/editorState';
 import { EditorController } from './EditorController';
 import { EditorViewport, type EditorViewportStatus } from './EditorViewport';
 import { isCancelCommandInput } from './ViewportControllers';
-import { createEditorRenderGraph } from './editorRendering';
 
 export interface ApplicationOptions {
     readonly getState: () => EditorState;
@@ -55,7 +49,6 @@ export interface CreateDefaultEditorStateOptions {
     };
 }
 
-const INITIAL_VIEWPORT_SIZE = { width: 1, height: 1 } as const;
 const PICK_THRESHOLD_PIXELS = 9;
 
 type EditorCommand =
@@ -174,6 +167,15 @@ export class Application {
         });
     }
 
+    public replaceDocument(document: CadDocument): void {
+        this.updateState((current) => {
+            const nextState = new EditorController(current).replaceDocument(document);
+
+            this.commandManager.setActiveCommandId(nextState.commandSession.id);
+            return nextState;
+        });
+    }
+
     public setStandardView(view: StandardCameraView): void {
         this.mainViewport?.setStandardView(view);
     }
@@ -216,40 +218,5 @@ export class Application {
 export function createDefaultEditorState(
     options: CreateDefaultEditorStateOptions = {},
 ): EditorState {
-    const document = createDefaultCadDocument();
-    const graph = createEditorRenderGraphForDocument(document);
-    const displayBounds = graph.navigationBounds;
-    const displaySphere = calculateBoundingSphere(displayBounds);
-    const camera = createStandardCameraState(
-        displayBounds,
-        'trimetric',
-        options.viewportSize ?? INITIAL_VIEWPORT_SIZE,
-    );
-    const navigation = createViewNavigationState(
-        camera,
-        displaySphere,
-        options.viewportSize ?? INITIAL_VIEWPORT_SIZE,
-    );
-
-    return createInitialEditorState({
-        document,
-        navigation,
-    });
-}
-
-function createEditorRenderGraphForDocument(document: EditorState['document']): RenderGraph {
-    return createEditorRenderGraph(
-        createInitialEditorState({
-            document,
-            navigation: createViewNavigationState(
-                createStandardCameraState(
-                    { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } },
-                    'trimetric',
-                    INITIAL_VIEWPORT_SIZE,
-                ),
-                { center: { x: 0, y: 0, z: 0 }, radius: 1 },
-                INITIAL_VIEWPORT_SIZE,
-            ),
-        }),
-    );
+    return createEditorStateForDocument(createDefaultCadDocument(), options);
 }

@@ -52,14 +52,14 @@ button {
 
 .cad-workbench {
     display: grid;
-    grid-template-rows: 36px minmax(0, 1fr);
+    grid-template-rows: 64px minmax(0, 1fr);
     width: 100%;
     height: 100%;
     background: var(--os-app-background);
 }
 
 .cad-workbench--sketch {
-    grid-template-rows: 36px minmax(0, 1fr);
+    grid-template-rows: 64px minmax(0, 1fr);
 }
 
 .cad-workbench__main {
@@ -72,18 +72,38 @@ button {
 }
 
 .cad-workbench__topbar {
-    display: flex;
+    position: relative;
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-rows: 30px 34px;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    justify-content: stretch;
+    column-gap: 10px;
+    row-gap: 0;
     min-width: 0;
-    height: 36px;
-    min-height: 36px;
+    height: 64px;
+    min-height: 64px;
     overflow: visible;
-    padding: 0 4px;
+    padding: 0;
     border-bottom: 1px solid var(--os-app-border);
-    background: #eaeaea;
+    background: linear-gradient(
+        to bottom,
+        #e6e6e6 0,
+        #e6e6e6 30px,
+        var(--os-app-surface-raised) 30px,
+        var(--os-app-surface-raised) 64px
+    );
     z-index: 10;
+}
+
+.cad-workbench__topbar::after {
+    position: absolute;
+    top: 30px;
+    right: 0;
+    left: 0;
+    height: 1px;
+    background: var(--os-app-border);
+    content: '';
 }
 
 .cad-workbench__topbar--sketch {
@@ -93,20 +113,52 @@ button {
 
 .cad-workbench__brand {
     display: flex;
+    grid-column: 1;
+    grid-row: 1;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    height: 30px;
+    padding: 0 8px 0 6px;
     min-width: 0;
+}
+
+.cad-workbench__menu-trigger {
+    display: inline-flex;
+    grid-column: 2;
+    grid-row: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: 28px;
+    height: 26px;
+    border-radius: 2px;
+    background: transparent;
+    color: var(--os-app-text);
+    cursor: pointer;
+}
+
+.cad-workbench__menu-trigger:hover,
+.cad-workbench__menu-trigger:focus-visible {
+    background: var(--os-app-surface-hover);
+}
+
+.cad-workbench__menu-trigger span {
+    width: 17px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
 }
 
 .cad-workbench__mark {
     display: inline-grid;
     place-items: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
     background: var(--os-app-primary);
     color: #ffffff;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
 }
 
@@ -114,7 +166,7 @@ button {
     min-width: 0;
     overflow: hidden;
     color: var(--os-app-text);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -128,41 +180,131 @@ button {
 }
 
 .cad-workbench__history-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
     position: relative;
     gap: 2px;
-    margin-right: 6px;
-    padding-right: 8px;
+    height: 34px;
+    margin-right: 0;
+    padding: 1px 10px 1px 8px;
+    width: max-content;
 }
 
 .cad-workbench__history-actions::after {
     position: absolute;
-    top: 5px;
+    top: 6px;
     right: 0;
     width: 1px;
-    height: 26px;
+    height: 22px;
     background: #303640;
     content: '';
 }
 
 .cad-workbench__history-action {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
 }
 
 .cad-workbench__history-action-icon {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
 }
 
 .cad-workbench__command-actions {
     display: flex;
+    grid-column: 1 / -1;
+    grid-row: 2;
     align-items: center;
-    gap: 4px;
+    gap: 1px;
     flex-shrink: 0;
-    padding-left: 12px;
-    border-left: 1px solid #2a2f36;
+    height: 34px;
+    margin-left: 78px;
+    padding: 1px 0 1px 12px;
+    border-left: 1px solid var(--os-app-border);
     position: relative;
     z-index: 20;
+}
+
+.cad-workbench__file-actions {
+    position: absolute;
+    top: 27px;
+    left: 92px;
+    z-index: 40;
+}
+
+.cad-workbench__app-menu-panel {
+    display: none;
+    align-items: stretch;
+    gap: 0;
+    min-width: 108px;
+    padding: 3px;
+    border: 1px solid var(--os-app-border-strong);
+    border-radius: 4px;
+    background: var(--os-app-surface-raised);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 14%);
+}
+
+.cad-workbench__menu-trigger:hover ~ .cad-workbench__app-menu-panel,
+.cad-workbench__menu-trigger:focus-visible ~ .cad-workbench__app-menu-panel,
+.cad-workbench__app-menu-panel:hover,
+.cad-workbench__app-menu-panel:focus-within {
+    display: flex;
+    flex-direction: column;
+}
+
+.cad-workbench__app-menu-panel .cad-workbench__action {
+    justify-content: flex-start;
+    width: 100%;
+    min-width: 94px;
+    height: 26px;
+    border-color: transparent;
+    border-radius: 3px;
+    background: transparent;
+    text-align: left;
+}
+
+.cad-workbench__app-menu-panel .cad-workbench__action:hover {
+    background: var(--os-app-surface-hover);
+}
+
+.cad-workbench__command-actions .cad-workbench__action {
+    position: relative;
+    min-width: auto;
+    height: 30px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 2px;
+    background: transparent;
+    color: var(--os-app-text);
+    font-size: 12px;
+}
+
+.cad-workbench__command-actions .cad-workbench__action:hover {
+    border: 0;
+    background: var(--os-app-surface-hover);
+}
+
+.cad-workbench__command-actions .cad-workbench__action[aria-pressed='true'] {
+    border: 0;
+    background: transparent;
+    color: var(--os-app-primary);
+}
+
+.cad-workbench__command-actions .cad-workbench__action:disabled {
+    border: 0;
+    background: transparent;
+    color: var(--os-app-text-soft);
+    opacity: 0.65;
+}
+
+.cad-workbench__command-actions .cad-workbench__action[aria-pressed='true']::after {
+    position: absolute;
+    right: 4px;
+    bottom: 0;
+    left: 4px;
+    height: 2px;
+    background: var(--os-app-primary);
+    content: '';
 }
 
 .cad-workbench__command-actions--sketch {
@@ -191,14 +333,14 @@ button {
 }
 
 .cad-workbench__action {
-    min-width: 56px;
-    height: 30px;
+    min-width: 52px;
+    height: 28px;
     border: 1px solid #363c44;
-    border-radius: 6px;
+    border-radius: 3px;
     background: #22262c;
     color: #dfe7ef;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12px;
 }
 
 .cad-workbench__action:hover {
@@ -220,7 +362,7 @@ button {
 }
 
 .cad-workbench__action--command {
-    min-width: 48px;
+    min-width: 50px;
 }
 
 .cad-workbench__action--view {
@@ -248,8 +390,8 @@ button {
     display: flex;
     align-items: center;
     gap: 2px;
-    height: 36px;
-    padding: 2px 4px 2px 2px;
+    height: 34px;
+    padding: 1px 4px 1px 2px;
 }
 
 .cad-workbench__toolbar-group:first-child {
@@ -262,10 +404,10 @@ button {
 
 .cad-workbench__toolbar-group:not(:last-child)::after {
     position: absolute;
-    top: 5px;
+    top: 6px;
     right: 0;
     width: 2px;
-    height: 26px;
+    height: 22px;
     background: #303640;
     content: '';
 }
@@ -286,15 +428,15 @@ button {
 
     display: inline-grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     flex: 0 0 auto;
     border: 0;
     border-radius: 3px;
     background: transparent;
     color: #c9d4df;
     cursor: pointer;
-    padding: 6px;
+    padding: 5px;
 }
 
 .cad-workbench__toolbar-icon-button:hover {

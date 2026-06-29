@@ -1,4 +1,12 @@
 export { DocumentEditor } from './document/editor';
+export {
+    DocumentFileError,
+    createJsonDocumentFileCodec,
+    type DocumentFileCodec,
+    type DocumentFileDecodeResult,
+    type DocumentFileEnvelope,
+    type DocumentFileErrorCode,
+} from './document/documentFile';
 export { DocumentSession, type DocumentSessionSnapshot } from './document/session';
 
 export {

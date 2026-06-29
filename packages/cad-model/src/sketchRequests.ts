@@ -113,7 +113,7 @@ export class AddSketchPointRequest
         const result = target.primitives.addSketchPoint(this.position);
 
         return {
-            createdPointId: result.createdPointId,
+            createdPointId: result.createdPointId ?? null,
             partStudioId: this.partStudioId,
             payloadId: target.payloadId,
             sketchFeatureId: this.sketchFeatureId,
@@ -147,7 +147,7 @@ export class AddClosedLineSegmentsRequest
         const result = target.primitives.addClosedPolyline(this.points);
 
         return {
-            createdEdgeIds: result.createdEdgeIds,
+            createdEdgeIds: result?.createdEdgeIds ?? [],
             partStudioId: this.partStudioId,
             payloadId: target.payloadId,
             sketchFeatureId: this.sketchFeatureId,

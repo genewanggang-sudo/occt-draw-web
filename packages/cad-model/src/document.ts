@@ -18,6 +18,10 @@ import type { CadObject } from './objects';
 export type FeaturePayload = Payload;
 
 export class FeaturePayloadStore extends PayloadStore {
+    public list(): readonly (readonly [FeaturePayloadId, FeaturePayload])[] {
+        return this.entries();
+    }
+
     public override remove(payloadId: FeaturePayloadId): FeaturePayloadStore {
         return new FeaturePayloadStore(
             this.entries().filter(([currentPayloadId]) => currentPayloadId !== payloadId),

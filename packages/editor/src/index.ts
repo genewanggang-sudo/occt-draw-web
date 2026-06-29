@@ -36,6 +36,10 @@ export {
     type ApplicationViewportOptions,
     type CreateDefaultEditorStateOptions,
 } from './application/Application';
+export {
+    createEditorStateForDocument,
+    type CreateEditorStateForDocumentOptions,
+} from './state/createEditorStateForDocument';
 export { EditorViewport, type EditorViewportStatus } from './application/EditorViewport';
 export {
     createEditorRenderGraph,
@@ -115,3 +119,11 @@ export { SketchThreePointCircleCommand } from './commands/SketchThreePointCircle
 export { createInitialEditorState } from './state/createInitialEditorState';
 export type { EditorState, SketchDisplayOptions, SketchEditSession } from './state/editorState';
 export type { StandardCameraView, ViewCubeArrowCommand } from '@occt-draw/canvas';
+export {
+    cadDocumentFileCodec,
+    type CadDocumentSnapshot,
+    type CadFeaturePayloadSnapshot,
+    type CadFeatureSnapshot,
+    type CadObjectSnapshot,
+    type PartStudioSnapshot,
+} from '@occt-draw/cad-model';

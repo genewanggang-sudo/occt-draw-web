@@ -29,6 +29,7 @@ import {
     type SketchDisplayOptions,
     type SketchEditSession,
 } from '../state/editorState';
+import { createEditorStateForDocument } from '../state/createEditorStateForDocument';
 
 export class EditorController {
     private readonly selectionManager: SelectionManager;
@@ -239,6 +240,12 @@ export class EditorController {
             ...this.state,
             draft,
         };
+    }
+
+    public replaceDocument(document: CadDocument): EditorState {
+        return createEditorStateForDocument(document, {
+            viewportSize: this.state.navigation.viewportSize,
+        });
     }
 
     public replaceSelection(target: SelectionTarget | null): EditorState {

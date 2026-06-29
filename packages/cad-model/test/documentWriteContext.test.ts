@@ -14,11 +14,14 @@ import {
     DeleteSketchEntityRequest,
     Feature,
     MoveVertexRequest,
+    cadDocumentFileCodec,
     type CadDocument,
     type CadDocumentWriteContext,
     createCadDocumentMutationRuntime,
     createDefaultCadDocument,
     createFeaturePayloadRef,
+    deserializeCadDocument,
+    serializeCadDocument,
 } from '../src';
 
 run('DocumentRequest preview does not mutate the live sketch payload', () => {
@@ -344,6 +347,99 @@ run('point and fit spline requests create sketch semantic entities', () => {
         2,
         'expected spline not to create fit point entities',
     );
+});
+
+run('CadDocument serialization round-trips the default document', () => {
+    const document = createDefaultCadDocument();
+    const snapshot = serializeCadDocument(document);
+    const restored = deserializeCadDocument(snapshot);
+    const activePartStudio = restored.getActivePartStudio();
+
+    expectEqual(restored.id, document.id, 'expected document id to round-trip');
+    expectEqual(restored.name, document.name, 'expected document name to round-trip');
+    expectEqual(
+        restored.activePartStudioId,
+        document.activePartStudioId,
+        'expected active part studio to round-trip',
+    );
+    expectEqual(activePartStudio.objects.length, 4, 'expected reference objects to round-trip');
+    expectEqual(
+        activePartStudio.findObjectById('plane-xy')?.kind,
+        'reference-plane',
+        'expected XY reference plane to round-trip',
+    );
+});
+
+run('CadDocument file codec round-trips sketch payloads', () => {
+    const sketchDocument = createEditableSketchDocument('sketch:file-round-trip');
+
+    sketchDocument.editor.execute(
+        new AddLineSegmentRequest({
+            endPosition: Vec2.of(1, 1),
+            partStudioId: sketchDocument.partStudioId,
+            sketchFeatureId: sketchDocument.featureId,
+            startPosition: Vec2.of(0, 0),
+        }),
+    );
+
+    const encoded = cadDocumentFileCodec.encode(sketchDocument.editor.document);
+    const decoded = cadDocumentFileCodec.decode(encoded);
+
+    expectEqual(decoded.ok, true, 'expected CAD document decode success');
+
+    if (!decoded.ok) {
+        throw decoded.error;
+    }
+
+    const restoredSketch = requireSketchPayload(decoded.document, sketchDocument.sketchId);
+
+    expectEqual(restoredSketch.entities.geometry.curves.list().length, 1, 'expected curve count');
+    expectEqual(restoredSketch.entities.geometry.points.list().length, 2, 'expected point count');
+    expectEqual(
+        restoredSketch.entities.topology.vertices.list().length,
+        2,
+        'expected vertex count',
+    );
+    expectEqual(restoredSketch.entities.topology.edges.list().length, 1, 'expected edge count');
+    expectEqual(restoredSketch.state.snapshot().nextCurveIndex, 2, 'expected sketch state');
+});
+
+run('CadDocument file codec rejects unsupported saved data', () => {
+    const snapshot = serializeCadDocument(createDefaultCadDocument());
+    const firstPartStudio = snapshot.partStudios[0];
+
+    if (!firstPartStudio) {
+        throw new Error('Expected default part studio.');
+    }
+
+    const unknownObject = {
+        ...snapshot,
+        partStudios: [
+            {
+                ...firstPartStudio,
+                objects: [
+                    ...firstPartStudio.objects,
+                    {
+                        id: 'object:unsupported',
+                        kind: 'unsupported',
+                        name: 'Unsupported',
+                        visible: true,
+                    },
+                ],
+            },
+        ],
+    };
+    const decoded = cadDocumentFileCodec.decode(
+        JSON.stringify({
+            document: unknownObject,
+            formatId: 'occt-draw.cad-document',
+            formatVersion: 1,
+        }),
+    );
+
+    if (decoded.ok || decoded.error.code !== 'invalid-document') {
+        throw new Error('Expected invalid-document decode failure.');
+    }
 });
 
 function requireSketchPayload(document: CadDocument, sketchId: string): Sketch {
