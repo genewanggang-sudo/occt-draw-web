@@ -85,7 +85,15 @@ export class WebGLRenderer implements RenderBackend {
             this.program,
             'a_line_primitive_style',
         );
-        const pointCornerLocation = context.getAttribLocation(this.program, 'a_point_corner');
+        const pointDataLocation = context.getAttribLocation(this.program, 'a_point_data');
+        const pointPrimitiveSizeLocation = context.getAttribLocation(
+            this.program,
+            'a_point_primitive_size',
+        );
+        const pointPrimitiveStyleLocation = context.getAttribLocation(
+            this.program,
+            'a_point_primitive_style',
+        );
         const backgroundColorLocation = context.getUniformLocation(
             this.program,
             'u_background_color',
@@ -225,9 +233,11 @@ export class WebGLRenderer implements RenderBackend {
             lineStippleLocation,
             lineWidthLocation,
             matrixLocation,
-            pointCornerLocation,
+            pointDataLocation,
             pointFilterWidthLocation,
             pointFontLocation,
+            pointPrimitiveSizeLocation,
+            pointPrimitiveStyleLocation,
             pointRenderModeLocation,
             pointShapeLocation,
             pointSizeLocation,
@@ -468,7 +478,9 @@ export class WebGLRenderer implements RenderBackend {
             this.bindings.lineEdgeLengthLocation,
             this.bindings.linePrimitiveSizeLocation,
             this.bindings.linePrimitiveStyleLocation,
-            this.bindings.pointCornerLocation,
+            this.bindings.pointDataLocation,
+            this.bindings.pointPrimitiveSizeLocation,
+            this.bindings.pointPrimitiveStyleLocation,
         ]);
         this.context.bindBuffer(this.context.ARRAY_BUFFER, buffer);
         this.context.enableVertexAttribArray(this.bindings.labelPositionLocation);
@@ -526,7 +538,9 @@ export class WebGLRenderer implements RenderBackend {
             this.bindings.lineEdgeLengthLocation,
             this.bindings.linePrimitiveSizeLocation,
             this.bindings.linePrimitiveStyleLocation,
-            this.bindings.pointCornerLocation,
+            this.bindings.pointDataLocation,
+            this.bindings.pointPrimitiveSizeLocation,
+            this.bindings.pointPrimitiveStyleLocation,
         ]);
 
         for (const attribute of layout.attributes) {
@@ -552,6 +566,9 @@ export class WebGLRenderer implements RenderBackend {
         this.context.vertexAttrib1f(this.bindings.lineEdgeLengthLocation, 0);
         this.context.vertexAttrib1f(this.bindings.linePrimitiveSizeLocation, 1);
         this.context.vertexAttrib4f(this.bindings.linePrimitiveStyleLocation, 12, 0, 12, 0);
+        this.context.vertexAttrib1f(this.bindings.pointDataLocation, 0);
+        this.context.vertexAttrib1f(this.bindings.pointPrimitiveSizeLocation, 1);
+        this.context.vertexAttrib4f(this.bindings.pointPrimitiveStyleLocation, 1, 0, 50, 0);
     }
 
     private applyMaterialVertexAttributes(material: DrawCommand['material']): void {
@@ -710,8 +727,16 @@ export class WebGLRenderer implements RenderBackend {
             return this.bindings.linePrimitiveStyleLocation;
         }
 
-        if (semantic === 'point-corner') {
-            return this.bindings.pointCornerLocation;
+        if (semantic === 'point-data') {
+            return this.bindings.pointDataLocation;
+        }
+
+        if (semantic === 'point-primitive-size') {
+            return this.bindings.pointPrimitiveSizeLocation;
+        }
+
+        if (semantic === 'point-primitive-style') {
+            return this.bindings.pointPrimitiveStyleLocation;
         }
         return this.bindings.alphaLocation;
     }

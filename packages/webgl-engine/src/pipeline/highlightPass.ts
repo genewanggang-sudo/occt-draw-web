@@ -104,7 +104,12 @@ export class HighlightPass implements RenderPass {
             resources.backend.drawImmediateGeometry({
                 cacheKey: `highlight:point:${batch.key}`,
                 drawMode: 'triangles',
-                geometryBuffer: geometryBuilder.screenSpacePointBillboards(batch.points),
+                geometryBuffer: geometryBuilder.screenSpacePointBillboards(batch.points, {
+                    alpha: material.alpha,
+                    color: material.color,
+                    font: material.pointFont,
+                    sizePx: material.pointSize,
+                }),
                 material,
                 primitiveKind: 'point',
             });

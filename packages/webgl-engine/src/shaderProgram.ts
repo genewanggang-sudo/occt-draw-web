@@ -7,7 +7,9 @@ in vec4 a_line_edge_data;
 in float a_line_edge_length;
 in float a_line_primitive_size;
 in vec4 a_line_primitive_style;
-in float a_point_corner;
+in float a_point_data;
+in float a_point_primitive_size;
+in vec4 a_point_primitive_style;
 uniform mat4 u_matrix;
 uniform float u_device_pixel_ratio;
 uniform float u_is_orthographic;
@@ -165,10 +167,13 @@ void main() {
         v_line_width = lineWidth;
     } else if (u_point_render_mode > 0.5) {
         float filterWidth = max(u_point_filter_width, 0.0);
-        float pointRadius = v_point_radius;
+        float primitivePointSize = u_device_pixel_ratio * a_point_primitive_size;
+        float pointRadius = 0.5 * primitivePointSize;
         float expandedPointRadius = pointRadius + 0.5 * filterWidth * 1.41421356237;
-        vec2 cornerOffset = pointCornerOffset(a_point_corner) * expandedPointRadius;
+        vec2 cornerOffset = pointCornerOffset(a_point_data) * expandedPointRadius;
 
+        v_point_radius = pointRadius;
+        v_point_font = a_point_primitive_style.xyz;
         projectedPosition.xy += (2.0 * projectedPosition.w) * (cornerOffset / u_viewport_size);
         v_point_offset = cornerOffset;
     }

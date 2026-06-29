@@ -10,7 +10,9 @@ export type BufferAttributeSemantic =
     | 'line-primitive-size'
     | 'line-primitive-style'
     | 'line-distance'
-    | 'point-corner'
+    | 'point-data'
+    | 'point-primitive-size'
+    | 'point-primitive-style'
     | 'position';
 export type BufferIndexData = Uint16Array | Uint32Array;
 export const BufferIndexType = {
@@ -87,9 +89,13 @@ export const LineVertexAttributeLayout: VertexAttributeLayout = {
 export const PointBillboardVertexAttributeLayout: VertexAttributeLayout = {
     attributes: [
         { components: 3, offsetFloats: 0, semantic: 'position' },
-        { components: 1, offsetFloats: 3, semantic: 'point-corner' },
+        { components: 3, offsetFloats: 3, semantic: 'color' },
+        { components: 1, offsetFloats: 6, semantic: 'alpha' },
+        { components: 1, offsetFloats: 7, semantic: 'point-data' },
+        { components: 1, offsetFloats: 8, semantic: 'point-primitive-size' },
+        { components: 4, offsetFloats: 9, semantic: 'point-primitive-style' },
     ],
-    strideFloats: 4,
+    strideFloats: 13,
 };
 
 export const ScreenSpaceLineVertexAttributeLayout: VertexAttributeLayout = {
@@ -116,16 +122,33 @@ export interface ScreenSpaceLineStyleInput {
     readonly widthPx: number;
 }
 
+export interface ScreenSpacePointStyleInput {
+    readonly alpha: number;
+    readonly color: Vector3;
+    readonly font: Vector3;
+    readonly sizePx: number;
+}
+
+const DEFAULT_SCREEN_SPACE_POINT_STYLE: ScreenSpacePointStyleInput = {
+    alpha: 1,
+    color: Vec3.of(1, 1, 1),
+    font: Vec3.of(1, 0, 50),
+    sizePx: 1,
+};
+
 export class GeometryBufferBuilder {
     public points(points: readonly Vector3[]): GeometryBuffer {
         return this.positions(points);
     }
 
-    public screenSpacePointBillboards(points: readonly Vector3[]): GeometryBuffer {
-        const buffer = new PointBillboardBufferWriter(points.length * 6);
+    public screenSpacePointBillboards(
+        points: readonly Vector3[],
+        style: ScreenSpacePointStyleInput = DEFAULT_SCREEN_SPACE_POINT_STYLE,
+    ): GeometryBuffer {
+        const buffer = new PointBillboardBufferWriter(points.length);
 
         for (const point of points) {
-            buffer.writePoint(point);
+            buffer.writePoint(point, style);
         }
 
         return buffer.toGeometryBuffer();
@@ -372,30 +395,49 @@ class PositionBufferWriter {
 
 class PointBillboardBufferWriter {
     private bounds: BBox3 | null = null;
+    private indexOffset = 0;
     private offset = 0;
     private vertexCount = 0;
     private readonly data: Float32Array;
+    private readonly indices: Uint32Array;
 
-    constructor(vertexCapacity: number) {
+    constructor(pointCapacity: number) {
         this.data = new Float32Array(
-            vertexCapacity * PointBillboardVertexAttributeLayout.strideFloats,
+            pointCapacity * 4 * PointBillboardVertexAttributeLayout.strideFloats,
         );
+        this.indices = new Uint32Array(pointCapacity * 6);
     }
 
-    public writePoint(position: Vector3): void {
-        this.write(position, 1);
-        this.write(position, 2);
-        this.write(position, 3);
-        this.write(position, 1);
-        this.write(position, 3);
-        this.write(position, 4);
+    public writePoint(position: Vector3, style: ScreenSpacePointStyleInput): void {
+        const baseVertex = this.vertexCount;
+
+        this.write(position, 1, style);
+        this.write(position, 2, style);
+        this.write(position, 3, style);
+        this.write(position, 4, style);
+        this.indices[this.indexOffset] = baseVertex;
+        this.indices[this.indexOffset + 1] = baseVertex + 1;
+        this.indices[this.indexOffset + 2] = baseVertex + 2;
+        this.indices[this.indexOffset + 3] = baseVertex;
+        this.indices[this.indexOffset + 4] = baseVertex + 2;
+        this.indices[this.indexOffset + 5] = baseVertex + 3;
+        this.indexOffset += 6;
     }
 
-    private write(position: Vector3, cornerIndex: number): void {
+    private write(position: Vector3, cornerIndex: number, style: ScreenSpacePointStyleInput): void {
         this.data[this.offset] = position.x;
         this.data[this.offset + 1] = position.y;
         this.data[this.offset + 2] = position.z;
-        this.data[this.offset + 3] = cornerIndex;
+        this.data[this.offset + 3] = style.color.x;
+        this.data[this.offset + 4] = style.color.y;
+        this.data[this.offset + 5] = style.color.z;
+        this.data[this.offset + 6] = style.alpha;
+        this.data[this.offset + 7] = cornerIndex;
+        this.data[this.offset + 8] = style.sizePx;
+        this.data[this.offset + 9] = style.font.x;
+        this.data[this.offset + 10] = style.font.y;
+        this.data[this.offset + 11] = style.font.z;
+        this.data[this.offset + 12] = 0;
         this.offset += PointBillboardVertexAttributeLayout.strideFloats;
         this.vertexCount += 1;
         this.bounds = this.bounds
@@ -407,6 +449,10 @@ class PointBillboardBufferWriter {
         return new GeometryBuffer({
             bounds: this.bounds,
             interleaved: this.data,
+            index: {
+                data: this.indices,
+                type: BufferIndexType.Uint32,
+            },
             layout: PointBillboardVertexAttributeLayout,
             vertexCount: this.vertexCount,
         });
