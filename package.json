@@ -24,7 +24,7 @@
         "lint": "eslint eslint.config.mjs \"apps/**/src/**/*.ts\" \"apps/**/src/**/*.tsx\" \"packages/**/src/**/*.ts\" \"packages/**/src/**/*.tsx\" --no-error-on-unmatched-pattern",
         "lint:fix": "eslint eslint.config.mjs \"apps/**/src/**/*.ts\" \"apps/**/src/**/*.tsx\" \"packages/**/src/**/*.ts\" \"packages/**/src/**/*.tsx\" --fix --no-error-on-unmatched-pattern",
         "prepare": "husky",
-        "test": "pnpm --filter @occt-draw/core test && pnpm --filter @occt-draw/cad-model test",
+        "test": "pnpm --filter @occt-draw/math test && pnpm --filter @occt-draw/core test && pnpm --filter @occt-draw/cad-model test && pnpm --filter @occt-draw/webgl-engine test",
         "typecheck": "pnpm -r typecheck",
         "type-coverage": "type-coverage --project tsconfig.type-coverage.json --at-least 100 --detail --strict"
     },
