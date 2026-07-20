@@ -4,6 +4,7 @@ coverage/
 .turbo/
 .cache/
 .playwright-mcp/
+tmp/
 .DS_Store
 *.log
 *.tsbuildinfo
