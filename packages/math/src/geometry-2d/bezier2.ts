@@ -3,26 +3,31 @@ import { Curve2 } from './curve';
 import { ParameterDomain } from './parameterDomain';
 
 export class Bezier2 extends Curve2 {
-    public readonly controlPoints: readonly Vec2[];
+    private readonly controlPointSnapshot: readonly Vec2[];
+
     public readonly domain = ParameterDomain.unit();
 
     constructor(controlPoints: readonly Vector2[]) {
         super();
-        this.controlPoints = controlPoints.map((point) => Vec2.from(point));
+        this.controlPointSnapshot = controlPoints.map((point) => Vec2.from(point));
+    }
+
+    public get controlPoints(): readonly Vec2[] {
+        return this.controlPointSnapshot.map((point) => Vec2.from(point));
     }
 
     public pointAt(parameter: number): Vec2 {
-        return Bezier2.evaluate(this.controlPoints, this.domain.clamp(parameter));
+        return Bezier2.evaluate(this.controlPointSnapshot, this.domain.clamp(parameter));
     }
 
     public tangentAt(parameter: number): Vec2 {
-        if (this.controlPoints.length < 2) {
+        if (this.controlPointSnapshot.length < 2) {
             return Vec2.zero();
         }
 
-        const degree = this.controlPoints.length - 1;
-        const derivativePoints = this.controlPoints.slice(1).map((point, index) => {
-            const previous = this.controlPoints[index];
+        const degree = this.controlPointSnapshot.length - 1;
+        const derivativePoints = this.controlPointSnapshot.slice(1).map((point, index) => {
+            const previous = this.controlPointSnapshot[index];
 
             return previous ? previous.vectorTo(point).scale(degree) : Vec2.zero();
         });
@@ -32,7 +37,8 @@ export class Bezier2 extends Curve2 {
 
     public isValid(): boolean {
         return (
-            this.controlPoints.length >= 2 && this.controlPoints.every((point) => point.isFinite())
+            this.controlPointSnapshot.length >= 2 &&
+            this.controlPointSnapshot.every((point) => point.isFinite())
         );
     }
 

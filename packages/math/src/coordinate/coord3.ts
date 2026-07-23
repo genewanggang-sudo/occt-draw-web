@@ -2,10 +2,10 @@ import { Vec3, type Vector3 } from '../linear/vec3';
 import { MATH_EPSILON } from '../value/tolerance';
 
 export class Coord3 {
-    public readonly origin: Vec3;
-    public readonly xAxis: Vec3;
-    public readonly yAxis: Vec3;
-    public readonly zAxis: Vec3;
+    private readonly originSnapshot: Vec3;
+    private readonly xAxisSnapshot: Vec3;
+    private readonly yAxisSnapshot: Vec3;
+    private readonly zAxisSnapshot: Vec3;
 
     constructor(input: {
         readonly origin: Vector3;
@@ -13,23 +13,53 @@ export class Coord3 {
         readonly yAxis?: Vector3;
         readonly zAxis?: Vector3;
     }) {
-        this.origin = Coord3.normalizeOrigin(input.origin);
-        this.zAxis = Coord3.normalizeAxis(input.zAxis ?? { x: 0, y: 0, z: 1 }, Vec3.of(0, 0, 1));
-        this.xAxis = Coord3.normalizeAxisInPlane(input.xAxis ?? { x: 1, y: 0, z: 0 }, this.zAxis);
-        this.yAxis = Coord3.normalizeYAxis(this.xAxis, this.zAxis, input.yAxis);
+        this.originSnapshot = Coord3.normalizeOrigin(input.origin);
+        this.zAxisSnapshot = Coord3.normalizeAxis(
+            input.zAxis ?? { x: 0, y: 0, z: 1 },
+            Vec3.of(0, 0, 1),
+        );
+        this.xAxisSnapshot = Coord3.normalizeAxisInPlane(
+            input.xAxis ?? { x: 1, y: 0, z: 0 },
+            this.zAxisSnapshot,
+        );
+        this.yAxisSnapshot = Coord3.normalizeYAxis(
+            this.xAxisSnapshot,
+            this.zAxisSnapshot,
+            input.yAxis,
+        );
+    }
+
+    public get origin(): Vec3 {
+        return Vec3.from(this.originSnapshot);
+    }
+
+    public get xAxis(): Vec3 {
+        return Vec3.from(this.xAxisSnapshot);
+    }
+
+    public get yAxis(): Vec3 {
+        return Vec3.from(this.yAxisSnapshot);
+    }
+
+    public get zAxis(): Vec3 {
+        return Vec3.from(this.zAxisSnapshot);
     }
 
     public localToWorld(point: Vector3): Vec3 {
-        return this.origin
-            .translated(this.xAxis.scale(point.x))
-            .translated(this.yAxis.scale(point.y))
-            .translated(this.zAxis.scale(point.z));
+        return this.originSnapshot
+            .translated(this.xAxisSnapshot.scale(point.x))
+            .translated(this.yAxisSnapshot.scale(point.y))
+            .translated(this.zAxisSnapshot.scale(point.z));
     }
 
     public worldToLocal(point: Vector3): Vec3 {
-        const vector = this.origin.vectorTo(point);
+        const vector = this.originSnapshot.vectorTo(point);
 
-        return Vec3.of(vector.dot(this.xAxis), vector.dot(this.yAxis), vector.dot(this.zAxis));
+        return Vec3.of(
+            vector.dot(this.xAxisSnapshot),
+            vector.dot(this.yAxisSnapshot),
+            vector.dot(this.zAxisSnapshot),
+        );
     }
 
     public static identity(): Coord3 {

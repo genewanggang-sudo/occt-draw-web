@@ -3,15 +3,19 @@ import { GeometryResult } from '../value/result';
 import { MATH_EPSILON } from '../value/tolerance';
 
 export class Matrix3 {
-    public readonly elements: Float32Array;
+    private readonly values: Float32Array;
 
     constructor(elements?: ArrayLike<number>) {
-        this.elements = new Float32Array(elements ?? Matrix3.identityElements());
+        this.values = new Float32Array(elements ?? Matrix3.identityElements());
+    }
+
+    public get elements(): Float32Array {
+        return new Float32Array(this.values);
     }
 
     public multiply(right: Matrix3): Matrix3 {
-        const left = this.elements;
-        const rightElements = right.elements;
+        const left = this.values;
+        const rightElements = right.values;
         const result = new Float32Array(9);
 
         for (let row = 0; row < 3; row += 1) {
@@ -44,9 +48,9 @@ export class Matrix3 {
         const x = point.x;
         const y = point.y;
         const w =
-            Matrix3.get(this.elements, 0, 2) * x +
-            Matrix3.get(this.elements, 1, 2) * y +
-            Matrix3.get(this.elements, 2, 2);
+            Matrix3.get(this.values, 0, 2) * x +
+            Matrix3.get(this.values, 1, 2) * y +
+            Matrix3.get(this.values, 2, 2);
 
         if (Math.abs(w) <= MATH_EPSILON) {
             return GeometryResult.degenerate();
@@ -54,28 +58,26 @@ export class Matrix3 {
 
         return GeometryResult.success(
             Vec2.of(
-                (Matrix3.get(this.elements, 0, 0) * x +
-                    Matrix3.get(this.elements, 1, 0) * y +
-                    Matrix3.get(this.elements, 2, 0)) /
+                (Matrix3.get(this.values, 0, 0) * x +
+                    Matrix3.get(this.values, 1, 0) * y +
+                    Matrix3.get(this.values, 2, 0)) /
                     w,
-                (Matrix3.get(this.elements, 0, 1) * x +
-                    Matrix3.get(this.elements, 1, 1) * y +
-                    Matrix3.get(this.elements, 2, 1)) /
+                (Matrix3.get(this.values, 0, 1) * x +
+                    Matrix3.get(this.values, 1, 1) * y +
+                    Matrix3.get(this.values, 2, 1)) /
                     w,
             ),
         );
     }
 
     public toFloat32Array(): Float32Array {
-        return new Float32Array(this.elements);
+        return new Float32Array(this.values);
     }
 
     public transformVector(vector: Vector2): Vec2 {
         return Vec2.of(
-            Matrix3.get(this.elements, 0, 0) * vector.x +
-                Matrix3.get(this.elements, 1, 0) * vector.y,
-            Matrix3.get(this.elements, 0, 1) * vector.x +
-                Matrix3.get(this.elements, 1, 1) * vector.y,
+            Matrix3.get(this.values, 0, 0) * vector.x + Matrix3.get(this.values, 1, 0) * vector.y,
+            Matrix3.get(this.values, 0, 1) * vector.x + Matrix3.get(this.values, 1, 1) * vector.y,
         );
     }
 

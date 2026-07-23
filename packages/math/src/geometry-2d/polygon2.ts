@@ -7,26 +7,32 @@ export type PolygonOrientation = 'clockwise' | 'counter-clockwise' | 'degenerate
 export type PolygonPointClassification = 'inside' | 'on-boundary' | 'outside';
 
 export class Polygon2 {
-    public readonly points: readonly Vec2[];
+    private readonly pointSnapshot: readonly Vec2[];
 
     constructor(points: readonly Vector2[]) {
-        this.points = points.map((point) => Vec2.from(point));
+        this.pointSnapshot = points.map((point) => Vec2.from(point));
+    }
+
+    public get points(): readonly Vec2[] {
+        return this.pointSnapshot.map((point) => Vec2.from(point));
     }
 
     public isValid(): boolean {
-        return this.points.length >= 3 && this.points.every((point) => point.isFinite());
+        return (
+            this.pointSnapshot.length >= 3 && this.pointSnapshot.every((point) => point.isFinite())
+        );
     }
 
     public signedArea(): number {
         let area = 0;
 
         for (
-            let index = 0, previous = this.points.length - 1;
-            index < this.points.length;
+            let index = 0, previous = this.pointSnapshot.length - 1;
+            index < this.pointSnapshot.length;
             previous = index++
         ) {
-            const currentPoint = this.points[index];
-            const previousPoint = this.points[previous];
+            const currentPoint = this.pointSnapshot[index];
+            const previousPoint = this.pointSnapshot[previous];
 
             if (!currentPoint || !previousPoint) {
                 continue;
@@ -63,12 +69,12 @@ export class Polygon2 {
         let y = 0;
 
         for (
-            let index = 0, previous = this.points.length - 1;
-            index < this.points.length;
+            let index = 0, previous = this.pointSnapshot.length - 1;
+            index < this.pointSnapshot.length;
             previous = index++
         ) {
-            const currentPoint = this.points[index];
-            const previousPoint = this.points[previous];
+            const currentPoint = this.pointSnapshot[index];
+            const previousPoint = this.pointSnapshot[previous];
 
             if (!currentPoint || !previousPoint) {
                 continue;
@@ -83,7 +89,7 @@ export class Polygon2 {
     }
 
     public bounds(): GeometryResult<BBox2> {
-        const bounds = this.isValid() ? BBox2.fromPoints(this.points) : undefined;
+        const bounds = this.isValid() ? BBox2.fromPoints(this.pointSnapshot) : undefined;
 
         return bounds ? GeometryResult.success(bounds) : GeometryResult.empty();
     }
@@ -96,12 +102,12 @@ export class Polygon2 {
         let inside = false;
 
         for (
-            let index = 0, previous = this.points.length - 1;
-            index < this.points.length;
+            let index = 0, previous = this.pointSnapshot.length - 1;
+            index < this.pointSnapshot.length;
             previous = index++
         ) {
-            const currentPoint = this.points[index];
-            const previousPoint = this.points[previous];
+            const currentPoint = this.pointSnapshot[index];
+            const previousPoint = this.pointSnapshot[previous];
 
             if (!currentPoint || !previousPoint) {
                 continue;

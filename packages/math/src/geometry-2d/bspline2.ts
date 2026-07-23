@@ -7,12 +7,12 @@ import type { ParameterDomain } from './parameterDomain';
 
 export class BSpline2 extends Curve2 {
     private readonly basisEvaluator: BSplineBasisEvaluator;
+    private readonly controlPointSnapshot: readonly Vec2[];
     private readonly definition: BSplineDefinition2;
+    private readonly knotSnapshot: readonly number[];
 
-    public readonly controlPoints: readonly Vec2[];
     public readonly degree: number;
     public readonly domain: ParameterDomain;
-    public readonly knots: readonly number[];
 
     constructor(input: {
         readonly controlPoints: readonly Vector2[];
@@ -25,10 +25,18 @@ export class BSpline2 extends Curve2 {
             this.definition.basisDefinition,
             DEFAULT_TOLERANCE,
         );
-        this.controlPoints = this.definition.controlPoints;
+        this.controlPointSnapshot = this.definition.controlPoints;
         this.degree = this.definition.basisDefinition.degree;
         this.domain = this.definition.basisDefinition.domain;
-        this.knots = [...this.definition.basisDefinition.knotVector.values];
+        this.knotSnapshot = this.definition.basisDefinition.knotVector.values;
+    }
+
+    public get controlPoints(): readonly Vec2[] {
+        return this.controlPointSnapshot.map((point) => Vec2.from(point));
+    }
+
+    public get knots(): readonly number[] {
+        return [...this.knotSnapshot];
     }
 
     public pointAt(parameter: number): Vec2 {
@@ -39,8 +47,8 @@ export class BSpline2 extends Curve2 {
         const basisValues = this.basisValues(parameter);
         let point = Vec2.zero();
 
-        for (let index = 0; index < this.controlPoints.length; index += 1) {
-            const controlPoint = this.controlPoints[index];
+        for (let index = 0; index < this.controlPointSnapshot.length; index += 1) {
+            const controlPoint = this.controlPointSnapshot[index];
             const basisValue = basisValues[index];
 
             if (!controlPoint || basisValue === undefined) {
@@ -63,5 +71,15 @@ export class BSpline2 extends Curve2 {
 
     protected basisValues(parameter: number): readonly number[] {
         return this.basisEvaluator.basisValuesAt(parameter);
+    }
+
+    protected get controlPointCount(): number {
+        return this.controlPointSnapshot.length;
+    }
+
+    protected controlPointAt(index: number): Vec2 | undefined {
+        const point = this.controlPointSnapshot[index];
+
+        return point ? Vec2.from(point) : undefined;
     }
 }

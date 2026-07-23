@@ -3,19 +3,23 @@ import { GeometryResult } from '../value/result';
 import { MATH_EPSILON } from '../value/tolerance';
 
 export class Matrix4 {
-    public readonly elements: Float32Array;
+    private readonly values: Float32Array;
 
     constructor(elements?: ArrayLike<number>) {
-        this.elements = new Float32Array(elements ?? Matrix4.identityElements());
+        this.values = new Float32Array(elements ?? Matrix4.identityElements());
+    }
+
+    public get elements(): Float32Array {
+        return new Float32Array(this.values);
     }
 
     public clone(): Matrix4 {
-        return new Matrix4(this.elements);
+        return new Matrix4(this.values);
     }
 
     public multiply(right: Matrix4): Matrix4 {
-        const left = this.elements;
-        const rightElements = right.elements;
+        const left = this.values;
+        const rightElements = right.values;
         const result = new Float32Array(16);
 
         for (let row = 0; row < 4; row += 1) {
@@ -50,10 +54,10 @@ export class Matrix4 {
         const y = point.y;
         const z = point.z;
         const w =
-            Matrix4.get(this.elements, 0, 3) * x +
-            Matrix4.get(this.elements, 1, 3) * y +
-            Matrix4.get(this.elements, 2, 3) * z +
-            Matrix4.get(this.elements, 3, 3);
+            Matrix4.get(this.values, 0, 3) * x +
+            Matrix4.get(this.values, 1, 3) * y +
+            Matrix4.get(this.values, 2, 3) * z +
+            Matrix4.get(this.values, 3, 3);
 
         if (Math.abs(w) <= MATH_EPSILON) {
             return GeometryResult.degenerate();
@@ -61,20 +65,20 @@ export class Matrix4 {
 
         return GeometryResult.success(
             Vec3.of(
-                (Matrix4.get(this.elements, 0, 0) * x +
-                    Matrix4.get(this.elements, 1, 0) * y +
-                    Matrix4.get(this.elements, 2, 0) * z +
-                    Matrix4.get(this.elements, 3, 0)) /
+                (Matrix4.get(this.values, 0, 0) * x +
+                    Matrix4.get(this.values, 1, 0) * y +
+                    Matrix4.get(this.values, 2, 0) * z +
+                    Matrix4.get(this.values, 3, 0)) /
                     w,
-                (Matrix4.get(this.elements, 0, 1) * x +
-                    Matrix4.get(this.elements, 1, 1) * y +
-                    Matrix4.get(this.elements, 2, 1) * z +
-                    Matrix4.get(this.elements, 3, 1)) /
+                (Matrix4.get(this.values, 0, 1) * x +
+                    Matrix4.get(this.values, 1, 1) * y +
+                    Matrix4.get(this.values, 2, 1) * z +
+                    Matrix4.get(this.values, 3, 1)) /
                     w,
-                (Matrix4.get(this.elements, 0, 2) * x +
-                    Matrix4.get(this.elements, 1, 2) * y +
-                    Matrix4.get(this.elements, 2, 2) * z +
-                    Matrix4.get(this.elements, 3, 2)) /
+                (Matrix4.get(this.values, 0, 2) * x +
+                    Matrix4.get(this.values, 1, 2) * y +
+                    Matrix4.get(this.values, 2, 2) * z +
+                    Matrix4.get(this.values, 3, 2)) /
                     w,
             ),
         );
@@ -86,15 +90,15 @@ export class Matrix4 {
         const z = vector.z;
 
         return Vec3.of(
-            Matrix4.get(this.elements, 0, 0) * x +
-                Matrix4.get(this.elements, 1, 0) * y +
-                Matrix4.get(this.elements, 2, 0) * z,
-            Matrix4.get(this.elements, 0, 1) * x +
-                Matrix4.get(this.elements, 1, 1) * y +
-                Matrix4.get(this.elements, 2, 1) * z,
-            Matrix4.get(this.elements, 0, 2) * x +
-                Matrix4.get(this.elements, 1, 2) * y +
-                Matrix4.get(this.elements, 2, 2) * z,
+            Matrix4.get(this.values, 0, 0) * x +
+                Matrix4.get(this.values, 1, 0) * y +
+                Matrix4.get(this.values, 2, 0) * z,
+            Matrix4.get(this.values, 0, 1) * x +
+                Matrix4.get(this.values, 1, 1) * y +
+                Matrix4.get(this.values, 2, 1) * z,
+            Matrix4.get(this.values, 0, 2) * x +
+                Matrix4.get(this.values, 1, 2) * y +
+                Matrix4.get(this.values, 2, 2) * z,
         );
     }
 
@@ -132,7 +136,7 @@ export class Matrix4 {
     }
 
     public toFloat32Array(): Float32Array {
-        return new Float32Array(this.elements);
+        return new Float32Array(this.values);
     }
 
     private static identityElements(): readonly number[] {

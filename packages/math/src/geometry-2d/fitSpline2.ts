@@ -12,13 +12,14 @@ import type { FitSpline2Input, FitSplineParameterization } from './spline/fitSpl
 export type { FitSpline2Input, FitSplineParameterization } from './spline/fitSpline2Specification';
 
 export class FitSpline2 extends Curve2 {
+    private readonly fitParameterSnapshot: readonly number[];
+    private readonly fitPointSnapshot: readonly Vec2[];
+
     public readonly basisCurve: BSpline2;
     public readonly closed: boolean;
     public readonly degree: number;
     public readonly domain: ParameterDomain;
     public readonly endTangent: Vec2 | null;
-    public readonly fitParameters: readonly number[];
-    public readonly fitPoints: readonly Vec2[];
     public readonly parameterization: FitSplineParameterization;
     public readonly startTangent: Vec2 | null;
 
@@ -31,12 +32,20 @@ export class FitSpline2 extends Curve2 {
         this.degree = specification.degree;
         this.domain = interpolation.basisCurve.domain;
         this.endTangent = specification.endTangent ? Vec2.from(specification.endTangent) : null;
-        this.fitParameters = [...interpolation.parameterSet.values];
-        this.fitPoints = specification.fitPoints.map((point) => Vec2.from(point));
+        this.fitParameterSnapshot = [...interpolation.parameterSet.values];
+        this.fitPointSnapshot = specification.fitPoints.map((point) => Vec2.from(point));
         this.parameterization = specification.parameterization;
         this.startTangent = specification.startTangent
             ? Vec2.from(specification.startTangent)
             : null;
+    }
+
+    public get fitParameters(): readonly number[] {
+        return [...this.fitParameterSnapshot];
+    }
+
+    public get fitPoints(): readonly Vec2[] {
+        return this.fitPointSnapshot.map((point) => Vec2.from(point));
     }
 
     public pointAt(parameter: number): Vec2 {
@@ -48,7 +57,7 @@ export class FitSpline2 extends Curve2 {
     }
 
     public isValid(): boolean {
-        return this.basisCurve.isValid() && this.fitPoints.length >= 3;
+        return this.basisCurve.isValid() && this.fitPointSnapshot.length >= 3;
     }
 
     public static fromFitPoints(input: FitSpline2Input): GeometryResult<FitSpline2> {

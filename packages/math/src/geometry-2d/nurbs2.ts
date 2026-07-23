@@ -3,7 +3,7 @@ import { DEFAULT_TOLERANCE } from '../value/tolerance';
 import { BSpline2 } from './bspline2';
 
 export class Nurbs2 extends BSpline2 {
-    public readonly weights: readonly number[];
+    private readonly weightSnapshot: readonly number[];
 
     constructor(input: {
         readonly controlPoints: readonly Vector2[];
@@ -12,7 +12,11 @@ export class Nurbs2 extends BSpline2 {
         readonly weights: readonly number[];
     }) {
         super(input);
-        this.weights = [...input.weights];
+        this.weightSnapshot = [...input.weights];
+    }
+
+    public get weights(): readonly number[] {
+        return [...this.weightSnapshot];
     }
 
     public override pointAt(parameter: number): Vec2 {
@@ -24,10 +28,10 @@ export class Nurbs2 extends BSpline2 {
         let denominator = 0;
         let numerator = Vec2.zero();
 
-        for (let index = 0; index < this.controlPoints.length; index += 1) {
-            const weight = this.weights[index];
+        for (let index = 0; index < this.controlPointCount; index += 1) {
+            const weight = this.weightSnapshot[index];
             const basisValue = basisValues[index];
-            const point = this.controlPoints[index];
+            const point = this.controlPointAt(index);
 
             if (weight === undefined || basisValue === undefined || !point) {
                 return Vec2.zero();
@@ -47,8 +51,8 @@ export class Nurbs2 extends BSpline2 {
     public override isValid(): boolean {
         return (
             super.isValid() &&
-            this.weights.length === this.controlPoints.length &&
-            this.weights.every((weight) => Number.isFinite(weight) && weight > 0)
+            this.weightSnapshot.length === this.controlPointCount &&
+            this.weightSnapshot.every((weight) => Number.isFinite(weight) && weight > 0)
         );
     }
 }
