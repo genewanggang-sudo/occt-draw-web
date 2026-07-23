@@ -1,5 +1,6 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
 import { Vec3, type Vector3 } from '../linear/vec3';
+import { Vec3ResultPayloadSnapshotter } from '../linear/vec3ResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import { DEFAULT_TOLERANCE, MATH_EPSILON } from '../value/tolerance';
 import type { Ray3 } from './ray3';
@@ -42,7 +43,7 @@ export class Plane3 {
 
         return distance < 0
             ? GeometryResult.empty()
-            : GeometryResult.success(ray.pointAt(distance));
+            : GeometryResult.success(ray.pointAt(distance), new Vec3ResultPayloadSnapshotter());
     }
 
     public localToWorld(point: Vector2): Vec3 {

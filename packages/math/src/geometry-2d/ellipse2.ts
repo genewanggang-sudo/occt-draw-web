@@ -1,5 +1,6 @@
 import { Coord2 } from '../coordinate/coord2';
 import { Vec2, type Vector2 } from '../linear/vec2';
+import { ImmutableResultPayloadSnapshotter } from '../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import { MATH_EPSILON } from '../value/tolerance';
 import { BBox2 } from './bbox2';
@@ -81,6 +82,7 @@ export class Ellipse2 extends Curve2 {
                 this.center.translated(Vec2.of(-halfWidth, -halfHeight)),
                 this.center.translated(Vec2.of(halfWidth, halfHeight)),
             ),
+            new ImmutableResultPayloadSnapshotter<BBox2>(),
         );
     }
 

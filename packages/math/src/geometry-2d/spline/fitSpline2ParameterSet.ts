@@ -1,3 +1,4 @@
+import { ImmutableResultPayloadSnapshotter } from '../../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../../value/result';
 
 export class FitSpline2ParameterSet {
@@ -51,7 +52,10 @@ export class FitSpline2ParameterSet {
         const parameterSet = new FitSpline2ParameterSet(values);
 
         return parameterSet.isValid()
-            ? GeometryResult.success(parameterSet)
+            ? GeometryResult.success(
+                  parameterSet,
+                  new ImmutableResultPayloadSnapshotter<FitSpline2ParameterSet>(),
+              )
             : GeometryResult.degenerate();
     }
 }

@@ -1,4 +1,5 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
+import { ImmutableResultPayloadSnapshotter } from '../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import { BBox2 } from './bbox2';
 import { Curve2 } from './curve';
@@ -62,7 +63,9 @@ export class Polyline2 extends Curve2 {
     public override bounds(): GeometryResult<BBox2> {
         const bounds = this.isValid() ? BBox2.fromPoints(this.pointSnapshot) : undefined;
 
-        return bounds ? GeometryResult.success(bounds) : GeometryResult.empty();
+        return bounds
+            ? GeometryResult.success(bounds, new ImmutableResultPayloadSnapshotter<BBox2>())
+            : GeometryResult.empty();
     }
 
     protected get segmentCount(): number {

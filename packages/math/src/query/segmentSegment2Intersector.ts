@@ -1,5 +1,7 @@
 import { LineSegment2 } from '../geometry-2d/lineSegment2';
 import type { Vec2 } from '../linear/vec2';
+import { Vec2ResultPayloadSnapshotter } from '../linear/vec2ResultPayloadSnapshotter';
+import { ImmutableResultPayloadSnapshotter } from '../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import type { Tolerance } from '../value/tolerance';
 import { SegmentSegment2OverlapIntersection } from './segmentSegment2OverlapIntersection';
@@ -42,7 +44,10 @@ export class SegmentSegment2Intersector {
             return GeometryResult.empty();
         }
 
-        return GeometryResult.success(left.pointAt(this.clampUnitParameter(t)));
+        return GeometryResult.success(
+            left.pointAt(this.clampUnitParameter(t)),
+            new Vec2ResultPayloadSnapshotter(),
+        );
     }
 
     public intersectDetailed(
@@ -76,12 +81,13 @@ export class SegmentSegment2Intersector {
         const clampedLeftParameter = this.clampUnitParameter(leftParameter);
         const clampedRightParameter = this.clampUnitParameter(rightParameter);
 
-        return GeometryResult.success(
+        return GeometryResult.success<SegmentSegment2Intersection>(
             new SegmentSegment2PointIntersection({
                 leftParameters: [clampedLeftParameter, clampedLeftParameter],
                 point: left.pointAt(clampedLeftParameter),
                 rightParameters: [clampedRightParameter, clampedRightParameter],
             }),
+            new ImmutableResultPayloadSnapshotter<SegmentSegment2Intersection>(),
         );
     }
 
@@ -127,21 +133,23 @@ export class SegmentSegment2Intersector {
         );
 
         if (this.tolerance.arePointsNear2(overlapStart, overlapEnd)) {
-            return GeometryResult.success(
+            return GeometryResult.success<SegmentSegment2Intersection>(
                 new SegmentSegment2PointIntersection({
                     leftParameters: [clampedStartOnLeft, clampedStartOnLeft],
                     point: overlapStart,
                     rightParameters: [startOnRight, startOnRight],
                 }),
+                new ImmutableResultPayloadSnapshotter<SegmentSegment2Intersection>(),
             );
         }
 
-        return GeometryResult.success(
+        return GeometryResult.success<SegmentSegment2Intersection>(
             new SegmentSegment2OverlapIntersection({
                 leftParameters: [clampedStartOnLeft, clampedEndOnLeft],
                 overlap: new LineSegment2(overlapStart, overlapEnd),
                 rightParameters: [startOnRight, endOnRight],
             }),
+            new ImmutableResultPayloadSnapshotter<SegmentSegment2Intersection>(),
         );
     }
 

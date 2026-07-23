@@ -1,4 +1,5 @@
 import type { LineSegment2 } from '../geometry-2d/lineSegment2';
+import { Vec2ResultPayloadSnapshotter } from '../linear/vec2ResultPayloadSnapshotter';
 import type { Vec2, Vector2 } from '../linear/vec2';
 import { Scalar } from '../value/scalar';
 import type { Tolerance } from '../value/tolerance';
@@ -20,11 +21,14 @@ export class PointSegmentDistance2Calculator {
             : Scalar.clamp(segment.start.vectorTo(point).dot(vector) / lengthSquared, 0, 1);
         const closestPoint = segment.pointAt(parameter);
 
-        return DistanceResult.create({
-            closestPoint,
-            distance: closestPoint.distanceTo(point),
-            parameter,
-            status: isDegenerate ? 'degenerate' : 'success',
-        });
+        return DistanceResult.create(
+            {
+                closestPoint,
+                distance: closestPoint.distanceTo(point),
+                parameter,
+                status: isDegenerate ? 'degenerate' : 'success',
+            },
+            new Vec2ResultPayloadSnapshotter(),
+        );
     }
 }

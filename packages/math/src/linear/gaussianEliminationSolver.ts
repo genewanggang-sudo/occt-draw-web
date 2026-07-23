@@ -1,3 +1,4 @@
+import { NumberArrayResultPayloadSnapshotter } from '../value/numberArrayResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import type { Tolerance } from '../value/tolerance';
 import type { LinearEquationSystem } from './linearEquationSystem';
@@ -148,6 +149,6 @@ export class GaussianEliminationSolver {
             result.push(value);
         }
 
-        return GeometryResult.success(result);
+        return GeometryResult.success(result, new NumberArrayResultPayloadSnapshotter());
     }
 }

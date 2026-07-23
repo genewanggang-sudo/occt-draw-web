@@ -1,4 +1,5 @@
 import { Vec2 } from '../linear/vec2';
+import { ImmutableResultPayloadSnapshotter } from '../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
 import { Curve2 } from './curve';
@@ -64,7 +65,10 @@ export class FitSpline2 extends Curve2 {
         const interpolation = new FitSpline2Interpolator(DEFAULT_TOLERANCE).interpolate(input);
 
         return interpolation.success && interpolation.value
-            ? GeometryResult.success(new FitSpline2(interpolation.value))
+            ? GeometryResult.success(
+                  new FitSpline2(interpolation.value),
+                  new ImmutableResultPayloadSnapshotter<FitSpline2>(),
+              )
             : FitSpline2.failureFor(interpolation.status);
     }
 

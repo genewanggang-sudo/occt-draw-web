@@ -1,12 +1,22 @@
+import {
+    PrimitiveResultPayloadSnapshotter,
+    type ResultPrimitive,
+} from './primitiveResultPayloadSnapshotter';
+import { ResultPayload } from './resultPayload';
+import type { ResultPayloadSnapshotter } from './resultPayloadSnapshotter';
+
 export type GeometryResultStatus = 'coincident' | 'degenerate' | 'empty' | 'parallel' | 'success';
 
 export class GeometryResult<TValue> {
     public readonly status: GeometryResultStatus;
-    public readonly value: TValue | null;
+    declare public readonly value: TValue | null;
 
-    private constructor(status: GeometryResultStatus, value: TValue | null) {
+    private constructor(status: GeometryResultStatus, payload: ResultPayload<TValue> | null) {
         this.status = status;
-        this.value = value;
+        Object.defineProperty(this, 'value', {
+            enumerable: true,
+            get: () => (payload === null ? null : payload.value),
+        });
     }
 
     public get success(): boolean {
@@ -17,8 +27,22 @@ export class GeometryResult<TValue> {
         return !this.success;
     }
 
-    public static success<TValue>(value: TValue): GeometryResult<TValue> {
-        return new GeometryResult('success', value);
+    public static success<TValue extends ResultPrimitive>(value: TValue): GeometryResult<TValue>;
+    public static success<TValue>(
+        value: TValue,
+        snapshotter: ResultPayloadSnapshotter<TValue>,
+    ): GeometryResult<TValue>;
+    public static success<TValue>(
+        value: TValue,
+        snapshotter?: ResultPayloadSnapshotter<TValue>,
+    ): GeometryResult<TValue> {
+        return new GeometryResult(
+            'success',
+            new ResultPayload(
+                value,
+                snapshotter ?? new PrimitiveResultPayloadSnapshotter<TValue>(),
+            ),
+        );
     }
 
     public static empty<TValue>(): GeometryResult<TValue> {

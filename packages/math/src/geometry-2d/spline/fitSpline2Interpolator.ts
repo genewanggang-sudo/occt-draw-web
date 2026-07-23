@@ -1,5 +1,6 @@
 import { Vec2 } from '../../linear/vec2';
 import { GaussianEliminationSolver } from '../../linear/gaussianEliminationSolver';
+import { ImmutableResultPayloadSnapshotter } from '../../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../../value/result';
 import { BSpline2 } from '../bspline2';
 import { BSplineBasisDefinition } from './bsplineBasisDefinition';
@@ -102,6 +103,7 @@ export class FitSpline2Interpolator {
                 parameterSet,
                 specification,
             }),
+            new ImmutableResultPayloadSnapshotter<FitSpline2Interpolation>(),
         );
     }
 

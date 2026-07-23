@@ -1,6 +1,6 @@
-import { Vec2, type Vector2 } from '../linear/vec2';
-import { Vec3, type Vector3 } from '../linear/vec3';
 import type { GeometryResultStatus } from '../value/result';
+import { ResultPayload } from '../value/resultPayload';
+import type { ResultPayloadSnapshotter } from '../value/resultPayloadSnapshotter';
 
 export interface DistanceResultInput<TPoint> {
     readonly closestPoint: TPoint;
@@ -16,56 +16,42 @@ export interface DistanceResultValue<TPoint> {
 }
 
 export class DistanceResult<TPoint> {
-    public readonly closestPoint: TPoint;
+    public readonly closestPoint!: TPoint;
     public readonly distance: number;
     public readonly parameter: number;
     public readonly status: GeometryResultStatus;
     public readonly success: boolean;
 
-    constructor(input: DistanceResultInput<TPoint>) {
-        this.closestPoint = DistanceResult.snapshotClosestPoint(input.closestPoint);
+    constructor(input: DistanceResultInput<TPoint>, snapshotter: ResultPayloadSnapshotter<TPoint>) {
+        const closestPointPayload = new ResultPayload(input.closestPoint, snapshotter);
+        Object.defineProperty(this, 'closestPoint', {
+            enumerable: true,
+            get: () => closestPointPayload.value,
+        });
         this.distance = input.distance;
         this.parameter = input.parameter;
         this.status = input.status;
         this.success = input.status === 'success';
     }
 
-    public static create<TPoint>(input: DistanceResultInput<TPoint>): DistanceResult<TPoint> {
-        return new DistanceResult(input);
+    public static create<TPoint>(
+        input: DistanceResultInput<TPoint>,
+        snapshotter: ResultPayloadSnapshotter<TPoint>,
+    ): DistanceResult<TPoint> {
+        return new DistanceResult(input, snapshotter);
     }
 
-    public static success<TPoint>(input: DistanceResultValue<TPoint>): DistanceResult<TPoint> {
-        return new DistanceResult({ ...input, status: 'success' });
+    public static success<TPoint>(
+        input: DistanceResultValue<TPoint>,
+        snapshotter: ResultPayloadSnapshotter<TPoint>,
+    ): DistanceResult<TPoint> {
+        return new DistanceResult({ ...input, status: 'success' }, snapshotter);
     }
 
-    public static degenerate<TPoint>(input: DistanceResultValue<TPoint>): DistanceResult<TPoint> {
-        return new DistanceResult({ ...input, status: 'degenerate' });
-    }
-
-    private static snapshotClosestPoint<TPoint>(point: TPoint): TPoint {
-        if (DistanceResult.isVector3(point)) {
-            return Vec3.from(point) as TPoint;
-        }
-
-        if (DistanceResult.isVector2(point)) {
-            return Vec2.from(point) as TPoint;
-        }
-
-        return point;
-    }
-
-    private static isVector2(value: unknown): value is Vector2 {
-        return (
-            typeof value === 'object' &&
-            value !== null &&
-            'x' in value &&
-            'y' in value &&
-            typeof value.x === 'number' &&
-            typeof value.y === 'number'
-        );
-    }
-
-    private static isVector3(value: unknown): value is Vector3 {
-        return DistanceResult.isVector2(value) && 'z' in value && typeof value.z === 'number';
+    public static degenerate<TPoint>(
+        input: DistanceResultValue<TPoint>,
+        snapshotter: ResultPayloadSnapshotter<TPoint>,
+    ): DistanceResult<TPoint> {
+        return new DistanceResult({ ...input, status: 'degenerate' }, snapshotter);
     }
 }

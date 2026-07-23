@@ -1,4 +1,5 @@
 import { Vec2 } from '../linear/vec2';
+import { ImmutableResultPayloadSnapshotter } from '../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
 import { BBox2 } from './bbox2';
@@ -25,7 +26,9 @@ export abstract class Curve2 {
     public bounds(options: CurveSamplingOptions = {}): GeometryResult<BBox2> {
         const bounds = BBox2.fromPoints(this.sample(options));
 
-        return bounds ? GeometryResult.success(bounds) : GeometryResult.empty();
+        return bounds
+            ? GeometryResult.success(bounds, new ImmutableResultPayloadSnapshotter<BBox2>())
+            : GeometryResult.empty();
     }
 
     public sample(options: CurveSamplingOptions = {}): readonly Vec2[] {

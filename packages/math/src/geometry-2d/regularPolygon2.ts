@@ -1,4 +1,5 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
+import { ImmutableResultPayloadSnapshotter } from '../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import { MATH_EPSILON } from '../value/tolerance';
 import { Polygon2 } from './polygon2';
@@ -77,6 +78,7 @@ export class RegularPolygon2 extends Polygon2 {
         return points.every((point) => point.isFinite())
             ? GeometryResult.success(
                   new RegularPolygon2(center, input.mode, referencePoint, input.sideCount, points),
+                  new ImmutableResultPayloadSnapshotter<RegularPolygon2>(),
               )
             : GeometryResult.empty();
     }

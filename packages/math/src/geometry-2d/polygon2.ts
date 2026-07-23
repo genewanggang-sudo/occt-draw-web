@@ -1,4 +1,6 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
+import { Vec2ResultPayloadSnapshotter } from '../linear/vec2ResultPayloadSnapshotter';
+import { ImmutableResultPayloadSnapshotter } from '../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
 import { BBox2 } from './bbox2';
@@ -85,13 +87,18 @@ export class Polygon2 {
             y += (previousPoint.y + currentPoint.y) * cross;
         }
 
-        return GeometryResult.success(Vec2.of(x / (6 * signedArea), y / (6 * signedArea)));
+        return GeometryResult.success(
+            Vec2.of(x / (6 * signedArea), y / (6 * signedArea)),
+            new Vec2ResultPayloadSnapshotter(),
+        );
     }
 
     public bounds(): GeometryResult<BBox2> {
         const bounds = this.isValid() ? BBox2.fromPoints(this.pointSnapshot) : undefined;
 
-        return bounds ? GeometryResult.success(bounds) : GeometryResult.empty();
+        return bounds
+            ? GeometryResult.success(bounds, new ImmutableResultPayloadSnapshotter<BBox2>())
+            : GeometryResult.empty();
     }
 
     public classifyPoint(point: Vector2): PolygonPointClassification {

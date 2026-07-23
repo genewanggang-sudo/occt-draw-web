@@ -1,4 +1,5 @@
 import { Vec2, type Vector2 } from '../../linear/vec2';
+import { ImmutableResultPayloadSnapshotter } from '../../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../../value/result';
 import { FitSpline2Specification, type FitSpline2Input } from './fitSpline2Specification';
 import type { Tolerance } from '../../value/tolerance';
@@ -38,6 +39,7 @@ export class FitSpline2InputValidator {
                 parameterization: input.parameterization,
                 startTangent: input.startTangent ? Vec2.from(input.startTangent) : null,
             }),
+            new ImmutableResultPayloadSnapshotter<FitSpline2Specification>(),
         );
     }
 

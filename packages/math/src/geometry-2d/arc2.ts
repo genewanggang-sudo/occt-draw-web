@@ -1,6 +1,7 @@
 import { Vec2 } from '../linear/vec2';
 import { Angle } from '../value/angle';
 import { AngularSweep } from '../value/angularSweep';
+import { ImmutableResultPayloadSnapshotter } from '../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
 import { BBox2 } from './bbox2';
@@ -50,7 +51,9 @@ export class Arc2 extends Curve2 {
 
         const bounds = BBox2.fromPoints(angles.map((angle) => this.circle.pointAt(angle)));
 
-        return bounds ? GeometryResult.success(bounds) : GeometryResult.empty();
+        return bounds
+            ? GeometryResult.success(bounds, new ImmutableResultPayloadSnapshotter<BBox2>())
+            : GeometryResult.empty();
     }
 
     public isValid(): boolean {

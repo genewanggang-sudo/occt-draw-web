@@ -1,6 +1,7 @@
 import type { Triangle3 } from '../geometry-3d/triangle3';
 import type { Ray3 } from '../geometry-3d/ray3';
 import { Vec3 } from '../linear/vec3';
+import { Vec3ResultPayloadSnapshotter } from '../linear/vec3ResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import type { Tolerance } from '../value/tolerance';
 
@@ -50,7 +51,10 @@ export class RayTriangle3Intersector {
 
         return distance < -this.tolerance.distance
             ? GeometryResult.empty()
-            : GeometryResult.success(ray.pointAt(Math.max(distance, 0)));
+            : GeometryResult.success(
+                  ray.pointAt(Math.max(distance, 0)),
+                  new Vec3ResultPayloadSnapshotter(),
+              );
     }
 
     private isUnitParameter(value: number): boolean {

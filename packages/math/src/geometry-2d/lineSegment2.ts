@@ -1,4 +1,5 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
+import { ImmutableResultPayloadSnapshotter } from '../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import { MATH_EPSILON } from '../value/tolerance';
 import { BBox2 } from './bbox2';
@@ -33,7 +34,9 @@ export class LineSegment2 extends Curve2 {
     public override bounds(): GeometryResult<BBox2> {
         const bounds = BBox2.fromPoints([this.start, this.end]);
 
-        return bounds ? GeometryResult.success(bounds) : GeometryResult.empty();
+        return bounds
+            ? GeometryResult.success(bounds, new ImmutableResultPayloadSnapshotter<BBox2>())
+            : GeometryResult.empty();
     }
 
     public isValid(): boolean {

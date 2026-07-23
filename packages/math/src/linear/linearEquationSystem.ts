@@ -1,3 +1,4 @@
+import { ImmutableResultPayloadSnapshotter } from '../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 
 export interface LinearEquationSystemInput {
@@ -38,7 +39,10 @@ export class LinearEquationSystem {
             return GeometryResult.degenerate();
         }
 
-        return GeometryResult.success(new LinearEquationSystem(input));
+        return GeometryResult.success(
+            new LinearEquationSystem(input),
+            new ImmutableResultPayloadSnapshotter<LinearEquationSystem>(),
+        );
     }
 
     private static isValidInput(input: LinearEquationSystemInput): boolean {

@@ -1,4 +1,5 @@
 import { LinearEquationSystem } from '../../linear/linearEquationSystem';
+import { ImmutableResultPayloadSnapshotter } from '../../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../../value/result';
 
 export class FitSpline2ConstraintSystem {
@@ -66,7 +67,12 @@ export class FitSpline2ConstraintSystem {
             yEquationSystem: yEquationSystem.value,
         });
 
-        return system.isValid() ? GeometryResult.success(system) : GeometryResult.degenerate();
+        return system.isValid()
+            ? GeometryResult.success(
+                  system,
+                  new ImmutableResultPayloadSnapshotter<FitSpline2ConstraintSystem>(),
+              )
+            : GeometryResult.degenerate();
     }
 
     private static hasValidCounts(controlPointCount: number, fitPointCount: number): boolean {

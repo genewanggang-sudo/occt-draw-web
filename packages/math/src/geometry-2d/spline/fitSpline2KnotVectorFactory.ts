@@ -1,3 +1,4 @@
+import { ImmutableResultPayloadSnapshotter } from '../../value/immutableResultPayloadSnapshotter';
 import { GeometryResult } from '../../value/result';
 import { BSplineKnotVector } from './bsplineKnotVector';
 import type { FitSpline2ParameterSet } from './fitSpline2ParameterSet';
@@ -36,7 +37,10 @@ export class FitSpline2KnotVectorFactory {
         const knotVector = new BSplineKnotVector(knots);
 
         return knotVector.isFiniteNonDecreasing()
-            ? GeometryResult.success(knotVector)
+            ? GeometryResult.success(
+                  knotVector,
+                  new ImmutableResultPayloadSnapshotter<BSplineKnotVector>(),
+              )
             : GeometryResult.degenerate();
     }
 }

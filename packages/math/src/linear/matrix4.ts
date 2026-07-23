@@ -1,4 +1,5 @@
 import { Vec3, type Vector3 } from './vec3';
+import { Vec3ResultPayloadSnapshotter } from './vec3ResultPayloadSnapshotter';
 import { GeometryResult } from '../value/result';
 import { MATH_EPSILON } from '../value/tolerance';
 
@@ -81,6 +82,7 @@ export class Matrix4 {
                     Matrix4.get(this.values, 3, 2)) /
                     w,
             ),
+            new Vec3ResultPayloadSnapshotter(),
         );
     }
 
