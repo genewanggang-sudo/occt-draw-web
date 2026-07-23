@@ -55,30 +55,21 @@ export {
     type RegularPolygonInput,
     type RegularPolygonMode,
 } from './geometry-2d';
-export {
-    BBox3,
-    Line3,
-    LineSegment3,
-    OBB3,
-    Plane3,
-    Ray3,
-    Sphere3,
-    type Triangle3,
-} from './geometry-3d';
+export { BBox3, Line3, LineSegment3, OBB3, Plane3, Ray3, Sphere3, Triangle3 } from './geometry-3d';
 export {
     ClassificationStatus,
     Containment,
+    ContainmentResult,
     Distance,
+    DistanceResult,
     Intersection,
     Measurement,
+    MeasurementResult,
     Projection,
     type ClosestPointResult,
-    type ContainmentResult,
-    type DistanceResult,
     type IntersectionResult,
-    type MeasurementResult,
     type ProjectionResult,
     type SegmentSegment2Intersection,
-    type SegmentSegment2OverlapIntersection,
-    type SegmentSegment2PointIntersection,
+    SegmentSegment2OverlapIntersection,
+    SegmentSegment2PointIntersection,
 } from './query';

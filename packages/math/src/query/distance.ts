@@ -2,68 +2,29 @@ import type { LineSegment2 } from '../geometry-2d/lineSegment2';
 import type { LineSegment3 } from '../geometry-3d/lineSegment3';
 import type { Vec2, Vector2 } from '../linear/vec2';
 import type { Vec3, Vector3 } from '../linear/vec3';
-import type { GeometryResultStatus } from '../value/result';
-import { Scalar } from '../value/scalar';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
+import { PointSegmentDistance2Calculator } from './pointSegmentDistance2Calculator';
+import { PointSegmentDistance3Calculator } from './pointSegmentDistance3Calculator';
 
-export interface DistanceResult<TPoint> {
-    readonly closestPoint: TPoint;
-    readonly distance: number;
-    readonly parameter: number;
-    readonly status: GeometryResultStatus;
-    readonly success: boolean;
-}
+export { DistanceResult } from './distanceResult';
+import type { DistanceResult } from './distanceResult';
+
+export type ClosestPointResult<TPoint> = DistanceResult<TPoint>;
 
 export class Distance {
-    private static readonly defaultDistance = new Distance();
-
     public static pointToSegment2(point: Vector2, segment: LineSegment2): DistanceResult<Vec2> {
-        return Distance.defaultDistance.pointToSegment2(point, segment);
+        return new PointSegmentDistance2Calculator(DEFAULT_TOLERANCE).calculate(point, segment);
     }
 
     public static pointToSegment3(point: Vector3, segment: LineSegment3): DistanceResult<Vec3> {
-        return Distance.defaultDistance.pointToSegment3(point, segment);
+        return new PointSegmentDistance3Calculator(DEFAULT_TOLERANCE).calculate(point, segment);
     }
 
     public pointToSegment2(point: Vector2, segment: LineSegment2): DistanceResult<Vec2> {
-        const vector = segment.start.vectorTo(segment.end);
-        const lengthSquared = vector.dot(vector);
-        const parameter = DEFAULT_TOLERANCE.isNearZeroSquared(lengthSquared)
-            ? 0
-            : Scalar.clamp(segment.start.vectorTo(point).dot(vector) / lengthSquared, 0, 1);
-        const closestPoint = segment.pointAt(parameter);
-        const status = DEFAULT_TOLERANCE.isNearZeroSquared(lengthSquared)
-            ? 'degenerate'
-            : 'success';
-
-        return {
-            closestPoint,
-            distance: closestPoint.distanceTo(point),
-            parameter,
-            status,
-            success: status === 'success',
-        };
+        return Distance.pointToSegment2(point, segment);
     }
 
     public pointToSegment3(point: Vector3, segment: LineSegment3): DistanceResult<Vec3> {
-        const vector = segment.start.vectorTo(segment.end);
-        const lengthSquared = vector.dot(vector);
-        const parameter = DEFAULT_TOLERANCE.isNearZeroSquared(lengthSquared)
-            ? 0
-            : Scalar.clamp(segment.start.vectorTo(point).dot(vector) / lengthSquared, 0, 1);
-        const closestPoint = segment.pointAt(parameter);
-        const status = DEFAULT_TOLERANCE.isNearZeroSquared(lengthSquared)
-            ? 'degenerate'
-            : 'success';
-
-        return {
-            closestPoint,
-            distance: closestPoint.distanceTo(point),
-            parameter,
-            status,
-            success: status === 'success',
-        };
+        return Distance.pointToSegment3(point, segment);
     }
 }
-
-export type ClosestPointResult<TPoint> = DistanceResult<TPoint>;

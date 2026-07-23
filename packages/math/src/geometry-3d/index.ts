@@ -5,4 +5,4 @@ export { OBB3 } from './obb3';
 export { Plane3 } from './plane3';
 export { Ray3 } from './ray3';
 export { Sphere3 } from './sphere3';
-export type { Triangle3 } from './triangle3';
+export { Triangle3 } from './triangle3';
