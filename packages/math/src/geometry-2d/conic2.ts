@@ -3,7 +3,7 @@ import { GeometryResult } from '../value/result';
 import { DEFAULT_TOLERANCE, MATH_EPSILON } from '../value/tolerance';
 import { BBox2 } from './bbox2';
 import { Curve2 } from './curve';
-import { ParameterDomain } from './parameter';
+import { ParameterDomain } from './parameterDomain';
 
 export const DEFAULT_CONIC_RHO = 0.5;
 
@@ -84,7 +84,7 @@ export class Conic2 extends Curve2 {
             Number.isFinite(this.rho) &&
             this.rho > MATH_EPSILON &&
             Vec2.distance(this.startPoint, this.endPoint) > DEFAULT_TOLERANCE.distance &&
-            !isPointOnChord(this.startPoint, this.endPoint, this.shoulderPoint)
+            !Conic2.isPointOnChord(this.startPoint, this.endPoint, this.shoulderPoint)
         );
     }
 
@@ -98,11 +98,11 @@ export class Conic2 extends Curve2 {
 
         return conic.isValid() ? conic : null;
     }
-}
 
-function isPointOnChord(startPoint: Vec2, endPoint: Vec2, point: Vec2): boolean {
-    const chord = startPoint.vectorTo(endPoint);
-    const offset = startPoint.vectorTo(point);
+    private static isPointOnChord(startPoint: Vec2, endPoint: Vec2, point: Vec2): boolean {
+        const chord = startPoint.vectorTo(endPoint);
+        const offset = startPoint.vectorTo(point);
 
-    return Math.abs(chord.cross(offset)) <= DEFAULT_TOLERANCE.distance * chord.length();
+        return Math.abs(chord.cross(offset)) <= DEFAULT_TOLERANCE.distance * chord.length();
+    }
 }

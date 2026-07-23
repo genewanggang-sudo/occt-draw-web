@@ -1,6 +1,6 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
 import { GeometryResult } from '../value/result';
-import { ParameterDomain } from './parameter';
+import { ParameterDomain } from './parameterDomain';
 import { Curve2 } from './curve';
 import type { BBox2 } from './bbox2';
 import { MATH_EPSILON } from '../value/tolerance';

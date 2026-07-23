@@ -2,7 +2,7 @@ import { Vec2 } from '../linear/vec2';
 import { GeometryResult } from '../value/result';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
 import { BBox2 } from './bbox2';
-import type { ParameterDomain } from './parameter';
+import type { ParameterDomain } from './parameterDomain';
 
 export interface CurveSamplingOptions {
     readonly includeEnd?: boolean;

@@ -5,7 +5,7 @@ import {
     Ellipse2,
     EllipticalArc2,
     FitSpline2,
-    createRegularPolygonPoints,
+    RegularPolygon2,
     type FitSplineParameterization,
     type RegularPolygonMode,
     type Vector2,
@@ -103,12 +103,12 @@ export class SketchPrimitiveBuilder {
         mode: RegularPolygonMode,
     ): SketchPrimitiveResult | null {
         return this.capture(() => {
-            const points = createRegularPolygonPoints({
+            const points = RegularPolygon2.create({
                 center,
                 mode,
                 referencePoint,
                 sideCount,
-            }).value;
+            }).value?.points;
 
             return points ? this.addLineLoop(points) : null;
         });

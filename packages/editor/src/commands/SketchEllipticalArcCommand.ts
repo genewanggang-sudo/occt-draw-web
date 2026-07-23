@@ -7,7 +7,7 @@ import {
     LineSegment3,
     Vec2,
     Vec3,
-    sampleCurveSegments2,
+    CurveTessellator2,
     type Plane3,
     type Vector2,
 } from '@occt-draw/math';
@@ -379,7 +379,7 @@ function createEllipticalArcDraft(
         id: 'draft:sketch-elliptical-arc',
         kind: 'temporary',
     }).withTemporaryObjects([
-        ...sampleCurveSegments2(ellipse, {
+        ...CurveTessellator2.tessellate(ellipse, {
             closed: true,
             segments: ELLIPTICAL_ARC_REFERENCE_SEGMENTS,
         }).map((segment, index) => ({
@@ -407,7 +407,7 @@ function createEllipticalArcDraft(
             visible: true,
         })),
         ...(arc
-            ? sampleCurveSegments2(arc, {
+            ? CurveTessellator2.tessellate(arc, {
                   closed: false,
                   segments: ELLIPTICAL_ARC_SEGMENTS,
               }).map((segment, index) => ({

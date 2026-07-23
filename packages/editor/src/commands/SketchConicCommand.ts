@@ -6,7 +6,7 @@ import {
     LineSegment3,
     Vec2,
     Vec3,
-    sampleCurveSegments2,
+    CurveTessellator2,
     type Plane3,
     type Vector2,
 } from '@occt-draw/math';
@@ -230,7 +230,7 @@ function createConicDraft(
         id: 'draft:sketch-conic',
         kind: 'temporary',
     }).withTemporaryObjects([
-        ...sampleCurveSegments2(conic, {
+        ...CurveTessellator2.tessellate(conic, {
             closed: false,
             segments: CONIC_PREVIEW_SEGMENTS,
         }).map((segment, index) => ({

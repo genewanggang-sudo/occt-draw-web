@@ -2,7 +2,7 @@ import { Vec2, type Vector2 } from '../linear/vec2';
 import { GeometryResult } from '../value/result';
 import { MATH_EPSILON } from '../value/tolerance';
 import { BBox2 } from './bbox2';
-import { ParameterDomain } from './parameter';
+import { ParameterDomain } from './parameterDomain';
 import { Curve2 } from './curve';
 
 export class LineSegment2 extends Curve2 {

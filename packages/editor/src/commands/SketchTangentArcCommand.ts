@@ -10,7 +10,7 @@ import {
     LineSegment3,
     Vec2,
     Vec3,
-    sampleCurveSegments2,
+    CurveTessellator2,
     type Plane3,
     type Vector2,
 } from '@occt-draw/math';
@@ -369,7 +369,7 @@ function createArcDraft(plane: Plane3, arc: Arc2 | null, definitionPoints: reado
         id: 'draft:sketch-tangent-arc',
         kind: 'temporary',
     }).withTemporaryObjects([
-        ...sampleCurveSegments2(arc, {
+        ...CurveTessellator2.tessellate(arc, {
             closed: false,
             segments: TANGENT_ARC_PREVIEW_SEGMENTS,
         }).map((segment, index) => ({

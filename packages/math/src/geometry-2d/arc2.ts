@@ -1,14 +1,17 @@
 import { Vec2 } from '../linear/vec2';
 import { Angle } from '../value/angle';
+import { AngularSweep } from '../value/angularSweep';
 import { GeometryResult } from '../value/result';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
 import { BBox2 } from './bbox2';
-import { ParameterDomain } from './parameter';
+import { ParameterDomain } from './parameterDomain';
 import { Circle2 } from './circle2';
 import { Curve2 } from './curve';
 import type { Vector2 } from '../linear/vec2';
 
 export class Arc2 extends Curve2 {
+    private readonly angularSweep: AngularSweep;
+
     public readonly circle: Circle2;
     public readonly domain = ParameterDomain.unit();
     public readonly endAngle: Angle;
@@ -19,6 +22,7 @@ export class Arc2 extends Curve2 {
         this.circle = circle;
         this.startAngle = startAngle;
         this.endAngle = endAngle;
+        this.angularSweep = new AngularSweep(startAngle.radians, endAngle.radians);
     }
 
     public pointAt(parameter: number): ReturnType<Circle2['pointAt']> {
@@ -36,12 +40,10 @@ export class Arc2 extends Curve2 {
             return GeometryResult.empty();
         }
 
-        const startAngle = this.startAngle.radians;
-        const endAngle = this.endAngle.radians;
-        const angles = [startAngle, endAngle];
+        const angles = [this.startAngle.radians, this.endAngle.radians];
 
         for (const angle of [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2]) {
-            if (Arc2.isAngleInSweep(angle, startAngle, endAngle)) {
+            if (this.angularSweep.containsAngleStrictly(angle)) {
                 angles.push(angle);
             }
         }
@@ -56,7 +58,7 @@ export class Arc2 extends Curve2 {
             this.circle.isValid() &&
             Number.isFinite(this.startAngle.radians) &&
             Number.isFinite(this.endAngle.radians) &&
-            !DEFAULT_TOLERANCE.isNearZeroAngle(this.endAngle.radians - this.startAngle.radians)
+            this.angularSweep.isNonZero(DEFAULT_TOLERANCE.angle)
         );
     }
 
@@ -72,14 +74,18 @@ export class Arc2 extends Curve2 {
             return null;
         }
 
-        const startAngle = angleOfPoint(circle, startPoint);
-        const endAngle = angleOfPoint(circle, endPoint);
-        const radiusAngle = angleOfPoint(circle, radiusPoint);
-        const positiveEndAngle = adjustAngleAbove(endAngle, startAngle);
-        const negativeEndAngle = adjustAngleBelow(endAngle, startAngle);
-        const arc = Arc2.isAngleInSweep(radiusAngle, startAngle, positiveEndAngle)
-            ? new Arc2(circle, Angle.fromRadians(startAngle), Angle.fromRadians(positiveEndAngle))
-            : new Arc2(circle, Angle.fromRadians(startAngle), Angle.fromRadians(negativeEndAngle));
+        const startAngle = Arc2.angleOfPoint(circle, startPoint);
+        const endAngle = Arc2.angleOfPoint(circle, endPoint);
+        const radiusAngle = Arc2.angleOfPoint(circle, radiusPoint);
+        const positiveSweep = AngularSweep.positive(startAngle, endAngle);
+        const sweep = positiveSweep.containsAngleStrictly(radiusAngle)
+            ? positiveSweep
+            : AngularSweep.negative(startAngle, endAngle);
+        const arc = new Arc2(
+            circle,
+            Angle.fromRadians(sweep.startRadians),
+            Angle.fromRadians(sweep.endRadians),
+        );
 
         return arc.isValid() ? arc : null;
     }
@@ -114,11 +120,11 @@ export class Arc2 extends Curve2 {
 
         const startAngle = Math.atan2(startVector.y, startVector.x);
         const endAngle = Math.atan2(endVector.y, endVector.x);
-        const sweep = normalizeAngleDelta(endAngle - startAngle);
+        const sweep = AngularSweep.shortest(startAngle, endAngle);
         const arc = new Arc2(
             new Circle2(center, radius),
-            Angle.fromRadians(startAngle),
-            Angle.fromRadians(startAngle + sweep),
+            Angle.fromRadians(sweep.startRadians),
+            Angle.fromRadians(sweep.endRadians),
         );
 
         return arc.isValid() ? arc : null;
@@ -156,87 +162,24 @@ export class Arc2 extends Curve2 {
         const radius = Math.abs(signedRadius);
         const startAngle = Math.atan2(start.y - center.y, start.x - center.x);
         const endAngle = Math.atan2(end.y - center.y, end.x - center.x);
-        const adjustedEndAngle =
+        const sweep =
             signedRadius > 0
-                ? adjustAngleAbove(endAngle, startAngle)
-                : adjustAngleBelow(endAngle, startAngle);
+                ? AngularSweep.positive(startAngle, endAngle)
+                : AngularSweep.negative(startAngle, endAngle);
         const arc = new Arc2(
             new Circle2(center, radius),
-            Angle.fromRadians(startAngle),
-            Angle.fromRadians(adjustedEndAngle),
+            Angle.fromRadians(sweep.startRadians),
+            Angle.fromRadians(sweep.endRadians),
         );
 
         return arc.isValid() ? arc : null;
     }
 
     private angleAt(parameter: number): Angle {
-        return Angle.lerp(this.startAngle, this.endAngle, this.domain.clamp(parameter));
+        return Angle.fromRadians(this.angularSweep.angleAt(this.domain.clamp(parameter)));
     }
 
-    private static isAngleInSweep(angle: number, startAngle: number, endAngle: number): boolean {
-        const span = endAngle - startAngle;
-        const twoPi = Math.PI * 2;
-
-        if (span === 0) {
-            return false;
-        }
-
-        let candidate =
-            span > 0
-                ? angle + Math.ceil((startAngle - angle) / twoPi) * twoPi
-                : angle + Math.floor((startAngle - angle) / twoPi) * twoPi;
-
-        if (span > 0 && candidate <= startAngle) {
-            candidate += twoPi;
-        }
-
-        if (span < 0 && candidate >= startAngle) {
-            candidate -= twoPi;
-        }
-
-        const progress = (candidate - startAngle) / span;
-
-        return progress > 0 && progress < 1;
+    private static angleOfPoint(circle: Circle2, point: Vector2): number {
+        return Math.atan2(point.y - circle.center.y, point.x - circle.center.x);
     }
-}
-
-function angleOfPoint(circle: Circle2, point: Vector2): number {
-    return Math.atan2(point.y - circle.center.y, point.x - circle.center.x);
-}
-
-function adjustAngleAbove(angle: number, floor: number): number {
-    const twoPi = Math.PI * 2;
-    let adjusted = angle;
-
-    while (adjusted <= floor) {
-        adjusted += twoPi;
-    }
-
-    return adjusted;
-}
-
-function adjustAngleBelow(angle: number, ceiling: number): number {
-    const twoPi = Math.PI * 2;
-    let adjusted = angle;
-
-    while (adjusted >= ceiling) {
-        adjusted -= twoPi;
-    }
-
-    return adjusted;
-}
-
-function normalizeAngleDelta(delta: number): number {
-    const fullTurn = Math.PI * 2;
-    let normalized = delta;
-
-    while (normalized <= -Math.PI) {
-        normalized += fullTurn;
-    }
-
-    while (normalized > Math.PI) {
-        normalized -= fullTurn;
-    }
-
-    return normalized;
 }

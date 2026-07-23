@@ -6,7 +6,7 @@ import {
     LineSegment3,
     Vec2,
     Vec3,
-    sampleCurveSegments2,
+    CurveTessellator2,
     type Plane3,
     type Vector2,
 } from '@occt-draw/math';
@@ -294,19 +294,20 @@ function createEllipseDraft(
         id: 'draft:sketch-ellipse',
         kind: 'temporary',
     }).withTemporaryObjects([
-        ...sampleCurveSegments2(ellipse, { closed: true, segments: ELLIPSE_PREVIEW_SEGMENTS }).map(
-            (segment, index) => ({
-                color: Vec3.of(0.1, 0.55, 1),
-                id: `draft:sketch-ellipse:segment:${String(index)}`,
-                kind: 'line-segment' as const,
-                segment: new LineSegment3(
-                    sketchPointToWorldOnPlane(plane, segment.start),
-                    sketchPointToWorldOnPlane(plane, segment.end),
-                ),
-                showEndpointPoints: false,
-                visible: true,
-            }),
-        ),
+        ...CurveTessellator2.tessellate(ellipse, {
+            closed: true,
+            segments: ELLIPSE_PREVIEW_SEGMENTS,
+        }).map((segment, index) => ({
+            color: Vec3.of(0.1, 0.55, 1),
+            id: `draft:sketch-ellipse:segment:${String(index)}`,
+            kind: 'line-segment' as const,
+            segment: new LineSegment3(
+                sketchPointToWorldOnPlane(plane, segment.start),
+                sketchPointToWorldOnPlane(plane, segment.end),
+            ),
+            showEndpointPoints: false,
+            visible: true,
+        })),
         ...definitionPoints.map((point, index) => ({
             color: Vec3.of(0.1, 0.55, 1),
             id: `draft:sketch-ellipse:point:${String(index)}`,

@@ -2,9 +2,9 @@ import { createEditDraft } from '@occt-draw/core';
 import { AddRegularPolygonRequest, type CadDocument } from '@occt-draw/cad-model';
 import {
     LineSegment3,
+    RegularPolygon2,
     Vec2,
     Vec3,
-    createRegularPolygonPoints,
     type Plane3,
     type RegularPolygonMode,
     type Vector2,
@@ -278,12 +278,12 @@ export class SketchRegularPolygonCommand extends CadCommand {
             return createUnhandledCommandResult();
         }
 
-        const points = createRegularPolygonPoints({
+        const points = RegularPolygon2.create({
             center,
             mode: this.mode,
             referencePoint,
             sideCount: tool.sideCount,
-        }).value;
+        }).value?.points;
 
         if (!points) {
             return createHandledCommandResult();
@@ -343,12 +343,12 @@ function createRegularPolygonDraft(
     mode: RegularPolygonMode,
     commandId: CommandId,
 ) {
-    const points = createRegularPolygonPoints({
+    const points = RegularPolygon2.create({
         center,
         mode,
         referencePoint,
         sideCount,
-    }).value;
+    }).value?.points;
 
     if (!points) {
         return null;

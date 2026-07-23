@@ -1,7 +1,7 @@
 import {
     Circle2,
-    sampleCurveSegments2,
-    type CurveSegmentSamplingOptions,
+    CurveTessellator2,
+    type CurveTessellationOptions,
     type LineSegment2,
     type Vector2,
 } from '@occt-draw/math';
@@ -33,35 +33,38 @@ export function sampleSketchCurveSegments(
     input: SketchCurveSamplingInput,
     options: SketchCurveSegmentSamplingOptions = {},
 ): readonly LineSegment2[] {
-    const segmentOptions: CurveSegmentSamplingOptions = {
+    const segmentOptions: CurveTessellationOptions = {
         closed: true,
         segments: options.segments ?? DEFAULT_SKETCH_CURVE_SEGMENTS,
     };
 
     if (input instanceof Circle2D || isCircleSamplingInput(input)) {
-        return sampleCurveSegments2(new Circle2(input.center, input.radius), segmentOptions);
+        return CurveTessellator2.tessellate(
+            new Circle2(input.center, input.radius),
+            segmentOptions,
+        );
     }
 
     if (input instanceof Ellipse2D) {
-        return sampleCurveSegments2(input.ellipse, segmentOptions);
+        return CurveTessellator2.tessellate(input.ellipse, segmentOptions);
     }
 
     if (input instanceof Arc2D) {
-        return sampleCurveSegments2(input.arc, {
+        return CurveTessellator2.tessellate(input.arc, {
             closed: false,
             segments: options.segments ?? DEFAULT_SKETCH_CURVE_SEGMENTS,
         });
     }
 
     if (input instanceof EllipticalArc2D) {
-        return sampleCurveSegments2(input.arc, {
+        return CurveTessellator2.tessellate(input.arc, {
             closed: false,
             segments: options.segments ?? DEFAULT_SKETCH_CURVE_SEGMENTS,
         });
     }
 
     if (input instanceof Conic2D) {
-        return sampleCurveSegments2(input.conic, {
+        return CurveTessellator2.tessellate(input.conic, {
             closed: false,
             segments: options.segments ?? DEFAULT_SKETCH_CURVE_SEGMENTS,
         });
@@ -71,7 +74,7 @@ export function sampleSketchCurveSegments(
         const spline = input.fitSpline;
 
         return spline
-            ? sampleCurveSegments2(spline, {
+            ? CurveTessellator2.tessellate(spline, {
                   closed: input.closed,
                   segments: options.segments ?? DEFAULT_SKETCH_CURVE_SEGMENTS,
               })

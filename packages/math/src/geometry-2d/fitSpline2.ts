@@ -3,7 +3,7 @@ import { GeometryResult } from '../value/result';
 import { DEFAULT_TOLERANCE } from '../value/tolerance';
 import { BSpline2 } from './bspline2';
 import { Curve2 } from './curve';
-import type { ParameterDomain } from './parameter';
+import type { ParameterDomain } from './parameterDomain';
 
 export type FitSplineParameterization = 'centripetal' | 'chord-length' | 'uniform';
 

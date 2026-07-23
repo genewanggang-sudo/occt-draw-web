@@ -3,7 +3,7 @@ import { GeometryResult } from '../value/result';
 import { MATH_EPSILON } from '../value/tolerance';
 import { BBox2 } from './bbox2';
 import { Curve2 } from './curve';
-import { ParameterDomain } from './parameter';
+import { ParameterDomain } from './parameterDomain';
 
 export class Circle2 extends Curve2 {
     public readonly center: Vec2;

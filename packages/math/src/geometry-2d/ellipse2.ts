@@ -1,10 +1,10 @@
 import { Coord2 } from '../coordinate/coord2';
 import { Vec2, type Vector2 } from '../linear/vec2';
 import { GeometryResult } from '../value/result';
-import { DEFAULT_TOLERANCE, MATH_EPSILON } from '../value/tolerance';
+import { MATH_EPSILON } from '../value/tolerance';
 import { BBox2 } from './bbox2';
 import { Curve2 } from './curve';
-import { ParameterDomain } from './parameter';
+import { ParameterDomain } from './parameterDomain';
 
 export class Ellipse2 extends Curve2 {
     public readonly coord: Coord2;
@@ -180,143 +180,4 @@ export class Ellipse2 extends Curve2 {
 
         return ellipse.isValid() ? ellipse : null;
     }
-}
-
-export class EllipticalArc2 extends Curve2 {
-    public readonly domain = ParameterDomain.unit();
-    public readonly ellipse: Ellipse2;
-    public readonly endAngleRadians: number;
-    public readonly startAngleRadians: number;
-
-    constructor(ellipse: Ellipse2, startAngleRadians: number, endAngleRadians: number) {
-        super();
-        this.ellipse = ellipse;
-        this.startAngleRadians = startAngleRadians;
-        this.endAngleRadians = endAngleRadians;
-    }
-
-    public pointAt(parameter: number): Vec2 {
-        return this.ellipse.pointAt(this.angleAt(parameter));
-    }
-
-    public tangentAt(parameter: number): Vec2 {
-        return this.ellipse.tangentAt(this.angleAt(parameter));
-    }
-
-    public override bounds(): GeometryResult<BBox2> {
-        if (!this.isValid()) {
-            return GeometryResult.empty();
-        }
-
-        if (Math.abs(this.endAngleRadians - this.startAngleRadians) >= Math.PI * 2) {
-            return this.ellipse.bounds();
-        }
-
-        const angles = [this.startAngleRadians, this.endAngleRadians];
-
-        for (const angle of this.extremaAngles()) {
-            if (
-                EllipticalArc2.isAngleInSweep(angle, this.startAngleRadians, this.endAngleRadians)
-            ) {
-                angles.push(angle);
-            }
-        }
-
-        const bounds = BBox2.fromPoints(angles.map((angle) => this.ellipse.pointAt(angle)));
-
-        return bounds ? GeometryResult.success(bounds) : GeometryResult.empty();
-    }
-
-    public isValid(): boolean {
-        return (
-            this.ellipse.isValid() &&
-            Number.isFinite(this.startAngleRadians) &&
-            Number.isFinite(this.endAngleRadians) &&
-            !DEFAULT_TOLERANCE.isNearZeroAngle(this.endAngleRadians - this.startAngleRadians)
-        );
-    }
-
-    public static fromStartEndPoints(
-        ellipse: Ellipse2,
-        startPoint: Vector2,
-        endPoint: Vector2,
-        direction: 'negative' | 'positive' = 'positive',
-    ): EllipticalArc2 | null {
-        if (!ellipse.isValid()) {
-            return null;
-        }
-
-        const startAngle = ellipse.angleOfPoint(startPoint);
-        const endAngle = ellipse.angleOfPoint(endPoint);
-        const adjustedEndAngle =
-            direction === 'positive'
-                ? adjustAngleAbove(endAngle, startAngle)
-                : adjustAngleBelow(endAngle, startAngle);
-        const arc = new EllipticalArc2(ellipse, startAngle, adjustedEndAngle);
-
-        return arc.isValid() ? arc : null;
-    }
-
-    private angleAt(parameter: number): number {
-        return (
-            this.startAngleRadians +
-            (this.endAngleRadians - this.startAngleRadians) * this.domain.clamp(parameter)
-        );
-    }
-
-    private extremaAngles(): readonly number[] {
-        const { coord, majorRadius, minorRadius } = this.ellipse;
-        const xExtremaAngle = Math.atan2(minorRadius * coord.yAxis.x, majorRadius * coord.xAxis.x);
-        const yExtremaAngle = Math.atan2(minorRadius * coord.yAxis.y, majorRadius * coord.xAxis.y);
-
-        return [xExtremaAngle, xExtremaAngle + Math.PI, yExtremaAngle, yExtremaAngle + Math.PI];
-    }
-
-    private static isAngleInSweep(angle: number, startAngle: number, endAngle: number): boolean {
-        const span = endAngle - startAngle;
-        const twoPi = Math.PI * 2;
-
-        if (span === 0) {
-            return false;
-        }
-
-        let candidate =
-            span > 0
-                ? angle + Math.ceil((startAngle - angle) / twoPi) * twoPi
-                : angle + Math.floor((startAngle - angle) / twoPi) * twoPi;
-
-        if (span > 0 && candidate <= startAngle) {
-            candidate += twoPi;
-        }
-
-        if (span < 0 && candidate >= startAngle) {
-            candidate -= twoPi;
-        }
-
-        const progress = (candidate - startAngle) / span;
-
-        return progress > 0 && progress < 1;
-    }
-}
-
-function adjustAngleAbove(angle: number, floor: number): number {
-    const twoPi = Math.PI * 2;
-    let adjusted = angle;
-
-    while (adjusted <= floor) {
-        adjusted += twoPi;
-    }
-
-    return adjusted;
-}
-
-function adjustAngleBelow(angle: number, ceiling: number): number {
-    const twoPi = Math.PI * 2;
-    let adjusted = angle;
-
-    while (adjusted >= ceiling) {
-        adjusted -= twoPi;
-    }
-
-    return adjusted;
 }

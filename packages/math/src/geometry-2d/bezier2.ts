@@ -1,6 +1,6 @@
 import { Vec2, type Vector2 } from '../linear/vec2';
 import { Curve2 } from './curve';
-import { ParameterDomain } from './parameter';
+import { ParameterDomain } from './parameterDomain';
 
 export class Bezier2 extends Curve2 {
     public readonly controlPoints: readonly Vec2[];

@@ -7,7 +7,7 @@ import {
     LineSegment3,
     Vec2,
     Vec3,
-    sampleCurveSegments2,
+    CurveTessellator2,
     type Plane3,
     type Vector2,
 } from '@occt-draw/math';
@@ -330,7 +330,7 @@ function createArcDraft(plane: Plane3, arc: Arc2, definitionPoints: readonly Vec
         id: 'draft:sketch-3-point-arc',
         kind: 'temporary',
     }).withTemporaryObjects([
-        ...sampleCurveSegments2(arc, {
+        ...CurveTessellator2.tessellate(arc, {
             closed: false,
             segments: THREE_POINT_ARC_PREVIEW_SEGMENTS,
         }).map((segment, index) => ({

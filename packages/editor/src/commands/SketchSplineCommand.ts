@@ -5,7 +5,7 @@ import {
     LineSegment3,
     Vec2,
     Vec3,
-    sampleCurveSegments2,
+    CurveTessellator2,
     type Plane3,
     type Vector2,
 } from '@occt-draw/math';
@@ -191,7 +191,7 @@ export class SketchSplineCommand extends CadCommand {
 function createSplineDraft(plane: Plane3, fitPoints: readonly Vector2[]) {
     const spline = FitSpline2.fromFitPoints({ fitPoints }).value;
     const segments = spline
-        ? sampleCurveSegments2(spline, {
+        ? CurveTessellator2.tessellate(spline, {
               closed: false,
               segments: SPLINE_PREVIEW_SEGMENTS,
           })
