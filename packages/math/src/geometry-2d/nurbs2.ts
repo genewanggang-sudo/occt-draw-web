@@ -25,13 +25,15 @@ export class Nurbs2 extends BSpline2 {
         let numerator = Vec2.zero();
 
         for (let index = 0; index < this.controlPoints.length; index += 1) {
-            const weight = this.weights[index] ?? 0;
-            const weightedBasis = (basisValues[index] ?? 0) * weight;
+            const weight = this.weights[index];
+            const basisValue = basisValues[index];
             const point = this.controlPoints[index];
 
-            if (!point) {
-                continue;
+            if (weight === undefined || basisValue === undefined || !point) {
+                return Vec2.zero();
             }
+
+            const weightedBasis = basisValue * weight;
 
             denominator += weightedBasis;
             numerator = numerator.translated(point.scale(weightedBasis));
