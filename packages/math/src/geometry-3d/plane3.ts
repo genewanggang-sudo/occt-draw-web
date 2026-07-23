@@ -11,9 +11,9 @@ export class Plane3 {
     public readonly yAxis: Vec3;
 
     constructor(origin: Vector3, normal: Vector3, xAxis?: Vector3) {
-        this.origin = normalizeOrigin(origin);
-        this.normal = normalizeNormal(normal);
-        this.xAxis = normalizeXAxis(this.normal, xAxis);
+        this.origin = Plane3.normalizeOrigin(origin);
+        this.normal = Plane3.normalizeNormal(normal);
+        this.xAxis = Plane3.normalizeXAxis(this.normal, xAxis);
         this.yAxis = this.normal.cross(this.xAxis).normalize();
     }
 
@@ -60,32 +60,34 @@ export class Plane3 {
     public projectPointToLocal(point: Vector3): Vec2 {
         return this.worldToLocal(this.projectPoint(point));
     }
+
+    private static normalizeOrigin(origin: Vector3): Vec3 {
+        const value = Vec3.from(origin);
+
+        return value.isFinite() ? value : Vec3.zero();
+    }
+
+    private static normalizeNormal(normal: Vector3): Vec3 {
+        const value = Vec3.from(normal);
+
+        return value.isFinite() && value.length() > MATH_EPSILON
+            ? value.normalize()
+            : Vec3.of(0, 0, 1);
+    }
+
+    private static normalizeXAxis(normal: Vec3, xAxis: Vector3 | undefined): Vec3 {
+        const projectedXAxis = xAxis
+            ? Vec3.subtract(xAxis, Vec3.scale(normal, Vec3.dot(xAxis, normal)))
+            : Vec3.zero();
+
+        if (projectedXAxis.isFinite() && projectedXAxis.length() > MATH_EPSILON) {
+            return projectedXAxis.normalize();
+        }
+
+        const candidate = Math.abs(normal.x) < 0.9 ? Vec3.of(1, 0, 0) : Vec3.of(0, 1, 0);
+
+        return candidate.subtract(normal.scale(candidate.dot(normal))).normalize();
+    }
 }
 
 export type Plane = Plane3;
-
-function normalizeOrigin(origin: Vector3): Vec3 {
-    const value = Vec3.from(origin);
-
-    return value.isFinite() ? value : Vec3.zero();
-}
-
-function normalizeNormal(normal: Vector3): Vec3 {
-    const value = Vec3.from(normal);
-
-    return value.isFinite() && value.length() > MATH_EPSILON ? value.normalize() : Vec3.of(0, 0, 1);
-}
-
-function normalizeXAxis(normal: Vec3, xAxis: Vector3 | undefined): Vec3 {
-    const projectedXAxis = xAxis
-        ? Vec3.subtract(xAxis, Vec3.scale(normal, Vec3.dot(xAxis, normal)))
-        : Vec3.zero();
-
-    if (projectedXAxis.isFinite() && projectedXAxis.length() > MATH_EPSILON) {
-        return projectedXAxis.normalize();
-    }
-
-    const candidate = Math.abs(normal.x) < 0.9 ? Vec3.of(1, 0, 0) : Vec3.of(0, 1, 0);
-
-    return candidate.subtract(normal.scale(candidate.dot(normal))).normalize();
-}
