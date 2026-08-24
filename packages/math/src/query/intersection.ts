@@ -15,6 +15,7 @@ export type { SegmentSegment2Intersection } from './segmentSegment2Intersection'
 export { SegmentSegment2OverlapIntersection } from './segmentSegment2OverlapIntersection';
 export { SegmentSegment2PointIntersection } from './segmentSegment2PointIntersection';
 
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Public static service API.
 export class Intersection {
     public static rayTriangle3(ray: Ray3, triangle: Triangle3): IntersectionResult<Vec3> {
         return new RayTriangle3Intersector(DEFAULT_TOLERANCE).intersect(ray, triangle);
@@ -29,20 +30,5 @@ export class Intersection {
 
     public static segments2(left: LineSegment2, right: LineSegment2): IntersectionResult<Vec2> {
         return new SegmentSegment2Intersector(DEFAULT_TOLERANCE).intersect(left, right);
-    }
-
-    public rayTriangle3(ray: Ray3, triangle: Triangle3): IntersectionResult<Vec3> {
-        return Intersection.rayTriangle3(ray, triangle);
-    }
-
-    public segmentSegment2Detailed(
-        left: LineSegment2,
-        right: LineSegment2,
-    ): IntersectionResult<SegmentSegment2Intersection> {
-        return Intersection.segmentSegment2Detailed(left, right);
-    }
-
-    public segments2(left: LineSegment2, right: LineSegment2): IntersectionResult<Vec2> {
-        return Intersection.segments2(left, right);
     }
 }

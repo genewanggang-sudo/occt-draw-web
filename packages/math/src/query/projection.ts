@@ -10,6 +10,7 @@ import { PointRayParameterProjector3 } from './pointRayParameterProjector3';
 
 export type ProjectionResult<TValue> = GeometryResult<TValue>;
 
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Public static service API.
 export class Projection {
     public static pointToLineParameter2(
         point: Vector2,
@@ -29,25 +30,5 @@ export class Projection {
 
     public static pointToRayParameter3(point: Vector3, ray: Ray3): ProjectionResult<number> {
         return new PointRayParameterProjector3().project(point, ray);
-    }
-
-    public pointToLineParameter2(
-        point: Vector2,
-        start: Vector2,
-        end: Vector2,
-    ): ProjectionResult<number> {
-        return Projection.pointToLineParameter2(point, start, end);
-    }
-
-    public pointToPlane3(point: Vector3, plane: Plane3): ProjectionResult<Vec3> {
-        return Projection.pointToPlane3(point, plane);
-    }
-
-    public pointToPlaneLocal2(point: Vector3, plane: Plane3): ProjectionResult<Vec2> {
-        return Projection.pointToPlaneLocal2(point, plane);
-    }
-
-    public pointToRayParameter3(point: Vector3, ray: Ray3): ProjectionResult<number> {
-        return Projection.pointToRayParameter3(point, ray);
     }
 }

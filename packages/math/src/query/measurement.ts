@@ -9,6 +9,7 @@ import { MeasurementResult } from './measurementResult';
 
 export { MeasurementResult } from './measurementResult';
 
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Public static service API.
 export class Measurement {
     public static boundsDiameter3(bounds: BBox3): MeasurementResult {
         return new MeasurementResult(bounds.diagonalLength());
@@ -40,37 +41,5 @@ export class Measurement {
 
     public static polygonSignedArea2(points: readonly Vector2[]): MeasurementResult {
         return new MeasurementResult(new Polygon2(points).signedArea());
-    }
-
-    public boundsDiameter3(bounds: BBox3): MeasurementResult {
-        return Measurement.boundsDiameter3(bounds);
-    }
-
-    public distance2(left: Vector2, right: Vector2): MeasurementResult {
-        return Measurement.distance2(left, right);
-    }
-
-    public distance3(left: Vector3, right: Vector3): MeasurementResult {
-        return Measurement.distance3(left, right);
-    }
-
-    public length2(segment: LineSegment2): MeasurementResult {
-        return Measurement.length2(segment);
-    }
-
-    public length3(segment: LineSegment3): MeasurementResult {
-        return Measurement.length3(segment);
-    }
-
-    public polygonArea2(points: readonly Vector2[]): MeasurementResult {
-        return Measurement.polygonArea2(points);
-    }
-
-    public polygonCentroid2(points: readonly Vector2[]): GeometryResult<Vec2> {
-        return Measurement.polygonCentroid2(points);
-    }
-
-    public polygonSignedArea2(points: readonly Vector2[]): MeasurementResult {
-        return Measurement.polygonSignedArea2(points);
     }
 }

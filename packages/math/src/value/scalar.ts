@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Public static service API.
 export class Scalar {
     public static clamp(value: number, min: number, max: number): number {
         return Scalar.clampValue(value, min, max);
@@ -8,18 +9,6 @@ export class Scalar {
     }
 
     public static lerp(start: number, end: number, progress: number): number {
-        return Scalar.lerpValue(start, end, progress);
-    }
-
-    public clamp(value: number, min: number, max: number): number {
-        return Scalar.clampValue(value, min, max);
-    }
-
-    public isFinite(value: number): boolean {
-        return Scalar.isFiniteValue(value);
-    }
-
-    public lerp(start: number, end: number, progress: number): number {
         return Scalar.lerpValue(start, end, progress);
     }
 

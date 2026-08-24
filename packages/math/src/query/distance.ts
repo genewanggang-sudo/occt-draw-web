@@ -11,6 +11,7 @@ import type { DistanceResult } from './distanceResult';
 
 export type ClosestPointResult<TPoint> = DistanceResult<TPoint>;
 
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Public static service API.
 export class Distance {
     public static pointToSegment2(point: Vector2, segment: LineSegment2): DistanceResult<Vec2> {
         return new PointSegmentDistance2Calculator(DEFAULT_TOLERANCE).calculate(point, segment);
@@ -18,13 +19,5 @@ export class Distance {
 
     public static pointToSegment3(point: Vector3, segment: LineSegment3): DistanceResult<Vec3> {
         return new PointSegmentDistance3Calculator(DEFAULT_TOLERANCE).calculate(point, segment);
-    }
-
-    public pointToSegment2(point: Vector2, segment: LineSegment2): DistanceResult<Vec2> {
-        return Distance.pointToSegment2(point, segment);
-    }
-
-    public pointToSegment3(point: Vector3, segment: LineSegment3): DistanceResult<Vec3> {
-        return Distance.pointToSegment3(point, segment);
     }
 }

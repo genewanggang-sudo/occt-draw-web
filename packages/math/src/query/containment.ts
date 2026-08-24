@@ -10,6 +10,7 @@ import { PolygonContainment2 } from './polygonContainment2';
 export { ContainmentResult } from './containmentResult';
 import type { ContainmentResult } from './containmentResult';
 
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Public static service API.
 export class Containment {
     public static bbox2ContainsPoint(bounds: BBox2, point: Vector2): ContainmentResult {
         return new BoundsContainment2(DEFAULT_TOLERANCE).classify(bounds, point);
@@ -21,17 +22,5 @@ export class Containment {
 
     public static pointInPolygon2(point: Vector2, polygon: readonly Vector2[]): ContainmentResult {
         return new PolygonContainment2().classify(point, polygon);
-    }
-
-    public bbox2ContainsPoint(bounds: BBox2, point: Vector2): ContainmentResult {
-        return Containment.bbox2ContainsPoint(bounds, point);
-    }
-
-    public bbox3ContainsPoint(bounds: BBox3, point: Vector3): ContainmentResult {
-        return Containment.bbox3ContainsPoint(bounds, point);
-    }
-
-    public pointInPolygon2(point: Vector2, polygon: readonly Vector2[]): ContainmentResult {
-        return Containment.pointInPolygon2(point, polygon);
     }
 }
